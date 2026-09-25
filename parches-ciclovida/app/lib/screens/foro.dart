@@ -137,6 +137,11 @@ class _ForoScreenState extends State<ForoScreen> {
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ChoiceChip(
+                            avatar: Icon(
+                              _iconoCategoria(c.id),
+                              size: 18,
+                              color: _filtro == c.id ? Colors.white : _colorCategoria(c.id).tinta,
+                            ),
                             label: Text(c.nombre),
                             selected: _filtro == c.id,
                             selectedColor: _colorCategoria(c.id).tinta,
@@ -209,6 +214,17 @@ ColoresActividad _colorCategoria(String id) {
   }
 }
 
+IconData _iconoCategoria(String id) {
+  switch (id) {
+    case 'parches':
+      return Icons.groups;
+    case 'app':
+      return Icons.smartphone;
+    default: // animo
+      return Icons.favorite;
+  }
+}
+
 String _haceCuanto(String iso) {
   final fecha = DateTime.tryParse(iso);
   if (fecha == null) return '';
@@ -264,8 +280,14 @@ class _Mensaje extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(color: col.suave, borderRadius: BorderRadius.circular(999)),
-                    child: Text(nombreCategoria,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: col.tinta)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_iconoCategoria(mensaje.categoria), size: 13, color: col.tinta),
+                        const SizedBox(width: 4),
+                        Text(nombreCategoria, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: col.tinta)),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -319,6 +341,11 @@ class _Redactor extends StatelessWidget {
                 children: [
                   for (final c in categorias)
                     ChoiceChip(
+                      avatar: Icon(
+                        _iconoCategoria(c.id),
+                        size: 16,
+                        color: categoria == c.id ? Colors.white : _colorCategoria(c.id).tinta,
+                      ),
                       label: Text(c.nombre),
                       selected: categoria == c.id,
                       selectedColor: _colorCategoria(c.id).tinta,

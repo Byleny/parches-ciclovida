@@ -53,8 +53,10 @@ class Api {
     final req = http.Request(method, _uri(path, query));
     req.headers['Accept'] = 'application/json';
     if (body != null) {
-      req.headers['Content-Type'] = 'application/json';
-      req.body = jsonEncode(body);
+      // Siempre UTF-8 explícito: así las tildes y las eñes llegan bien al backend
+      // sin depender de la codificación por defecto del cliente HTTP.
+      req.headers['Content-Type'] = 'application/json; charset=utf-8';
+      req.bodyBytes = utf8.encode(jsonEncode(body));
     }
     final t = token;
     if (t != null) req.headers['Authorization'] = 'Bearer $t';
@@ -130,9 +132,16 @@ class Api {
       EstadoParche.fromJson(await _json('POST', '/api/yo/parche', body: {'parche_id': parcheId}));
 
   /// Pide el código al correo institucional. En la demo, sin servidor de correo, lo devuelve.
-  Future<({String universidad, String? codigoDemo})> pedirCodigo(String correo) async {
-    final j = await _json('POST', '/api/verificacion', body: {'correo': correo});
+  /// [para] es 'registro' (cuenta nueva) o 'ingreso' (volver a entrar).
+  Future<({String universidad, String? codigoDemo})> pedirCodigo(String correo, {String para = 'registro'}) async {
+    final j = await _json('POST', '/api/verificacion', body: {'correo': correo, 'para': para});
     return (universidad: j['universidad'] as String, codigoDemo: j['codigo_demo'] as String?);
+  }
+
+  /// Volver a entrar con el mismo correo institucional y un código nuevo.
+  Future<RegistroResultado> ingresar({required String correo, required String codigo}) async {
+    final j = await _json('POST', '/api/sesiones', body: {'correo': correo, 'codigo': codigo});
+    return RegistroResultado(j['token'] as String, Perfil.fromJson(j['joven'] as Json));
   }
 
   Future<EstadoParche> salirme() async => EstadoParche.fromJson(await _json('DELETE', '/api/yo/parche'));

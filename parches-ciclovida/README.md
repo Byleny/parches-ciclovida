@@ -15,6 +15,7 @@ parches-ciclovida/
 | Requisito TRL 3 | Dónde |
 |---|---|
 | Registro con correo institucional | `app/lib/screens/registro.dart`, `POST /api/verificacion`, `POST /api/jovenes`, `backend/app/verificacion.py` |
+| Volver a entrar (login) | `app/lib/screens/ingreso.dart`, `POST /api/verificacion` con `para: "ingreso"`, `POST /api/sesiones` |
 | Match automático de parche | `POST /api/yo/match`, `emparejar_automatico` en `backend/app/services.py` |
 | Lista de espera con aviso | `revisar_esperas` (tick cada 5 min), `GET /api/yo/notificaciones`, bot de Telegram en `backend/app/telegram.py` |
 | Parches generados por el sistema | `GET /api/parches`, `POST /api/yo/parche`, `app/lib/screens/elegir_parche.dart` |
@@ -33,8 +34,10 @@ y, si las declaró, misma estación y hora), eligiendo el más afín con la mism
 k-means (hora, ritmo mediano del parche, cercanía de comuna, tamaño). Siempre puede tocar
 "Prefiero elegir yo" y escoger a mano.
 
-Si no existe ninguno, queda en **lista de espera**: el scheduler la revisa cada 5 minutos y, apenas
-alguien compatible se inscribe, lo une y le avisa dentro de la app y por Telegram. Pasados
+Si no existe ninguno, la app muestra un **popup** con el parche más parecido —aunque esté vacío—
+por si quiere tomar la iniciativa y estrenarlo ("Unirme igual"); si prefiere esperar, queda en
+**lista de espera**: el scheduler la revisa cada 5 minutos y, apenas alguien compatible se inscribe,
+lo une y le avisa dentro de la app y por Telegram. Pasados
 `ESPERA_MINUTOS` (10 por defecto), la app le muestra además parches parecidos o disponibles para que
 no siga esperando si no quiere.
 
@@ -45,9 +48,12 @@ Sin token, todo lo de Telegram se apaga solo y queda el aviso interno.
 
 ## Mapa y foro
 
-- **Mapa** (pestaña Mapa): las 12 estaciones sobre OpenStreetMap; el pin muestra cuánta gente va este
-  domingo desde cada una y al tocarlo se abre la ficha con el punto de encuentro y el botón para ver
-  sus parches.
+- **Mapa** (pestaña Mapa): las 12 estaciones sobre OpenStreetMap, con leyenda (verde = con gente,
+  azul = aún sin gente, coral = tu parche); el pin muestra cuánta gente va este domingo y la ficha
+  trae punto de encuentro, comuna y barrios cercanos, con el botón para ver sus parches.
+- **Barrios por comuna**: `BARRIOS_COMUNA` en `backend/app/catalog.py` (barrios de referencia, no la
+  lista completa del DAP). Al elegir comuna en el registro o en preferencias, la app muestra abajo
+  en pequeño los barrios que cubre; la estación elegida muestra su punto, referencia y barrios cercanos.
 - **Foro comunal** (pestaña Foro): mensajes con primer nombre y universidad —lo mismo que ve el
   grupo—, en tres categorías: mis parches, la app y cómo me siento. Cada quien puede borrar solo sus
   mensajes, y todos se borran con el derecho de supresión.

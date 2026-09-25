@@ -73,11 +73,14 @@ class _InicioScreenState extends State<InicioScreen> {
       var estado = await _api.miParche();
       // Recién llegado sin parche: el match lo une solo a un parche con gente
       // y sus mismas características, o lo deja en lista de espera.
+      var ofrecerParecido = false;
       if (estado.estado == 'sin_parche' && !_matchIntentado) {
         _matchIntentado = true;
         estado = await _api.buscarMatch();
         if (estado.estado == 'inscrito' && estado.salida != null) {
           _aviso('¡Match! Te unimos al ${estado.salida!.nombre}: hay gente con tus mismos planes.');
+        } else if (estado.estado == 'en_espera') {
+          ofrecerParecido = true;
         }
       }
       if (!mounted) return;
@@ -89,6 +92,7 @@ class _InicioScreenState extends State<InicioScreen> {
       });
       _ajustarTimerEspera();
       await _revisarNotificaciones();
+      if (ofrecerParecido) await _ofrecerMasParecido();
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.sesionInvalida) {
@@ -164,17 +168,51 @@ class _InicioScreenState extends State<InicioScreen> {
       final estado = await _api.buscarMatch();
       if (!mounted) return;
       setState(() => _estado = estado);
+      _ajustarTimerEspera();
       if (estado.estado == 'inscrito' && estado.salida != null) {
         _aviso('¡Match! Te unimos al ${estado.salida!.nombre}: hay gente con tus mismos planes.');
       } else if (estado.estado == 'en_espera') {
-        _aviso('Aún no hay parche con tus características. Quedas en lista de espera y te avisamos.');
+        await _ofrecerMasParecido();
       }
-      await _cargar();
     } on ApiException catch (e) {
       _aviso(e.mensaje);
     } finally {
       if (mounted) setState(() => _ocupado = false);
     }
+  }
+
+  /// Popup del match sin resultados: nadie tiene sus mismos planes todavía,
+  /// pero puede unirse igual al parche más parecido y ser quien lo arma.
+  Future<void> _ofrecerMasParecido() async {
+    final p = _estado?.espera?.masParecido;
+    if (p == null || !mounted) return;
+    final gente = p.inscritos == 0
+        ? 'Todavía no hay nadie inscrito, pero siempre hace falta alguien que tome la iniciativa: '
+            'si te unes, el match irá sumando a quienes encajen contigo.'
+        : 'Ya hay ${p.inscritos} ${p.inscritos == 1 ? 'persona' : 'personas'} y se te parece bastante.';
+    final unirse = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Aún no hay parche con tus planes'),
+        content: Text(
+          'El más parecido es el ${p.nombre}: ${p.actividadNombre.toLowerCase()} a las ${p.horaNombre} '
+          'en ${p.tramoNombre}. $gente\n\n¿Quieres unirte igual?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            style: TextButton.styleFrom(foregroundColor: Cv.inkMuted),
+            child: const Text('Sigo esperando'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+            child: const Text('Unirme igual'),
+          ),
+        ],
+      ),
+    );
+    if (unirse == true) await _unirme(p);
   }
 
   Future<void> _cancelarEspera() => _accion(_api.cancelarEspera, exito: 'Listo, dejamos de buscar por ti.');
@@ -405,10 +443,22 @@ class _InicioScreenState extends State<InicioScreen> {
         ];
       case 'en_espera':
         final espera = estado.espera;
+        final parecido = espera?.masParecido;
         return [
           _TarjetaEspera(minutos: espera?.minutos ?? 0),
           const SizedBox(height: 12),
           const TarjetaTelegram(),
+          if (parecido != null && (espera?.sugerencias.isEmpty ?? true)) ...[
+            const SizedBox(height: 20),
+            Text('¿Tienes la iniciativa?', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 4),
+            Text(
+              'Únete al más parecido aunque aún no haya nadie: el match irá sumando gente que encaje contigo.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 10),
+            BoletaParche(parche: parecido, ocupado: _ocupado, onUnirme: () => _unirme(parecido)),
+          ],
           if (espera != null && espera.sugerencias.isNotEmpty) ...[
             const SizedBox(height: 20),
             Text('Mientras tanto, estos se te parecen', style: Theme.of(context).textTheme.headlineSmall),
@@ -459,6 +509,17 @@ class _Encabezado extends StatelessWidget {
   final String? nombre;
   final EstadoParche estado;
 
+  /// "Faltan 3 días", "¡Es mañana!" o "¡Es hoy!", según la fecha de la jornada.
+  String? _cuentaRegresiva() {
+    final f = DateTime.tryParse(estado.jornadaFecha);
+    if (f == null) return null;
+    final hoy = DateTime.now();
+    final dias = DateTime(f.year, f.month, f.day).difference(DateTime(hoy.year, hoy.month, hoy.day)).inDays;
+    if (dias <= 0) return '¡Es hoy!';
+    if (dias == 1) return '¡Es mañana!';
+    return 'Faltan $dias días';
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
@@ -488,9 +549,32 @@ class _Encabezado extends StatelessWidget {
                       const Icon(Icons.verified, size: 18, color: Colors.white, semanticLabel: 'Estudiante verificado'),
                     ],
                   ),
-                Text(
-                  capitalizar(fechaLarga(estado.jornadaFecha)),
-                  style: t.headlineLarge?.copyWith(color: Colors.white),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        capitalizar(fechaLarga(estado.jornadaFecha)),
+                        style: t.headlineLarge?.copyWith(color: Colors.white),
+                      ),
+                    ),
+                    if (_cuentaRegresiva() != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8, bottom: 4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.16),
+                            border: Border.all(color: Colors.white38),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            _cuentaRegresiva()!,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -655,12 +739,14 @@ class _TarjetaPreferencias extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final tramo = perfil.tramoId == null ? null : cat.tramo(perfil.tramoId!);
+    final comuna = cat.comuna(perfil.comuna);
+    final barrios = comuna == null || comuna.barrios.isEmpty ? '' : ' · ${comuna.barrios.take(2).join(', ')}…';
     final filas = <(String, String)>[
       if (perfil.universidad.isNotEmpty) ('Estudias en', perfil.universidad),
-      ('Estación', tramo?.nombre ?? 'Cualquiera'),
+      ('Estación', tramo == null ? 'Cualquiera' : '${tramo.nombre} · ${tramo.referencia}'),
       ('Actividad', cat.nombreDe(cat.actividades, perfil.actividad)),
       ('Ritmo', cat.nombreDe(cat.ritmos, perfil.ritmo)),
-      ('Vives en', 'Comuna ${perfil.comuna}'),
+      ('Vives en', 'Comuna ${perfil.comuna}$barrios'),
     ];
     return Card(
       child: Padding(

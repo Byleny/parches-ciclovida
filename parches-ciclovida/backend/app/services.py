@@ -579,11 +579,15 @@ def estado_para(session: Session, joven: Joven, momento: datetime | None = None)
     esp = session.exec(select(Espera).where(Espera.joven_id == joven.id, Espera.jornada_fecha == j.fecha)).first()
     if esp and not ins:
         minutos = max(0, int((momento - esp.creado_en).total_seconds() // 60))
+        # El parche más parecido aunque esté vacío: siempre hace falta alguien con la iniciativa.
+        candidatas = _candidatas(session, joven, j.fecha) or _candidatas(session, joven, j.fecha, estricto=False)
+        mas = min(candidatas, key=lambda par: _afinidad(joven, par[0], par[1])) if candidatas else None
         info["estado"] = "en_espera"
         info["espera"] = {
             "desde": esp.creado_en.isoformat(),
             "minutos": minutos,
             "minutos_para_sugerencias": config.ESPERA_MINUTOS,
+            "mas_parecido": salida_json(session, mas[0], joven, mas[1]) if mas else None,
             # pasado el lapso de espera, la app muestra parches parecidos o disponibles
             "sugerencias": sugerencias_para(session, joven) if minutos >= config.ESPERA_MINUTOS else [],
         }

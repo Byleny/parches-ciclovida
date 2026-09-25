@@ -48,12 +48,16 @@ def universidad_valida(correo: str) -> dict:
     return uni
 
 
-def solicitar(session: Session, correo: str, ahora) -> dict:
+def solicitar(session: Session, correo: str, ahora, para: str = "registro") -> dict:
+    """Envía el código. `para` es "registro" (cuenta nueva) o "ingreso" (volver a entrar)."""
     uni = universidad_valida(correo)
     correo = normalizar(correo)
     h = huella(correo)
-    if session.exec(select(Joven.id).where(Joven.correo_hash == h)).first():
-        raise LookupError("Ese correo ya tiene una cuenta")
+    existe = session.exec(select(Joven.id).where(Joven.correo_hash == h)).first() is not None
+    if para == "registro" and existe:
+        raise LookupError("Ese correo ya tiene una cuenta. Toca «Ya tengo cuenta» para entrar.")
+    if para == "ingreso" and not existe:
+        raise LookupError("Ese correo aún no tiene cuenta. Crea tu perfil primero.")
     if not config.SMTP_HOST and not config.CORREO_DEMO:
         raise RuntimeError("El envío de correos no está configurado")
     codigo = f"{secrets.randbelow(10**6):06d}"

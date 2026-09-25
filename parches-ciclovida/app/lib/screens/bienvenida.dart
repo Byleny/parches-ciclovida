@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
+import 'ingreso.dart';
 import 'registro.dart';
 
 class BienvenidaScreen extends StatelessWidget {
@@ -62,6 +63,11 @@ class BienvenidaScreen extends StatelessWidget {
             FilledButton(
               onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RegistroScreen())),
               child: const Text('Crear mi perfil'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const IngresoScreen())),
+              child: const Text('Ya tengo cuenta'),
             ),
             const SizedBox(height: 10),
             Text(

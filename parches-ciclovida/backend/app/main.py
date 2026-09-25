@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
@@ -8,8 +9,14 @@ from typing import Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+
+# La consola de Windows usa cp1252/cp850 y rompe las tildes de los logs
+# (por ejemplo, el código de demostración). UTF-8 explícito y sin caerse.
+for _flujo in (sys.stdout, sys.stderr):
+    if hasattr(_flujo, "reconfigure"):
+        _flujo.reconfigure(encoding="utf-8", errors="replace")
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlmodel import Session, select
 
@@ -48,7 +55,13 @@ async def lifespan(app: FastAPI):
         scheduler.shutdown(wait=False)
 
 
-app = FastAPI(title="Parches CicloVida", version="0.1.0", lifespan=lifespan)
+class JSONUtf8(JSONResponse):
+    """application/json con charset explícito: ningún cliente adivina la codificación."""
+
+    media_type = "application/json; charset=utf-8"
+
+
+app = FastAPI(title="Parches CicloVida", version="0.1.0", lifespan=lifespan, default_response_class=JSONUtf8)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 
@@ -94,6 +107,14 @@ class Preferencias(BaseModel):
 
 class CorreoIn(BaseModel):
     correo: str = Field(max_length=120)
+    para: Literal["registro", "ingreso"] = "registro"
+
+
+class CredencialesIn(BaseModel):
+    """Volver a entrar: el mismo correo institucional y un código nuevo."""
+
+    correo: str = Field(max_length=120)
+    codigo: str = Field(min_length=6, max_length=6)
 
 
 class Registro(Preferencias):
@@ -228,7 +249,7 @@ def aviso_privacidad():
 def pedir_codigo(body: CorreoIn, session: Session = Depends(get_session)):
     """Envía un código de 6 dígitos al correo institucional. Sin servidor de correo (demo), lo devuelve."""
     try:
-        return verificacion.solicitar(session, body.correo, services.ahora())
+        return verificacion.solicitar(session, body.correo, services.ahora(), para=body.para)
     except verificacion.CorreoInvalido as e:
         raise HTTPException(422, str(e))
     except LookupError as e:
@@ -252,6 +273,20 @@ def registrar(body: Registro, session: Session = Depends(get_session)):
     session.add(joven)
     session.commit()
     session.refresh(joven)
+    return {"token": joven.token, "joven": perfil(joven)}
+
+
+@app.post("/api/sesiones")
+def ingresar(body: CredencialesIn, session: Session = Depends(get_session)):
+    """Volver a entrar con el mismo correo: código nuevo y de vuelta la sesión de siempre."""
+    try:
+        _, h = verificacion.comprobar(session, verificacion.normalizar(body.correo), body.codigo, services.ahora())
+    except verificacion.CorreoInvalido as e:
+        raise HTTPException(422, str(e))
+    joven = session.exec(select(Joven).where(Joven.correo_hash == h)).first()
+    if not joven:
+        raise HTTPException(404, "Ese correo aún no tiene cuenta. Crea tu perfil.")
+    session.commit()  # consume el código usado
     return {"token": joven.token, "joven": perfil(joven)}
 
 

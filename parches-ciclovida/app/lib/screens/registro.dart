@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../config.dart';
@@ -12,8 +12,8 @@ import '../widgets/selectores.dart';
 import 'aviso.dart';
 import 'principal.dart';
 
-/// Registro en cuatro pasos: correo universitario, quiÃ©n eres, cÃ³mo te mueves, autorizaciÃ³n.
-/// La estaciÃ³n y la actividad solo sirven para recomendar parches: el joven elige despuÃ©s.
+/// Registro en cuatro pasos: correo universitario, quién eres, cómo te mueves, autorización.
+/// La estación y la actividad solo sirven para recomendar parches: el joven elige después.
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
 
@@ -22,7 +22,7 @@ class RegistroScreen extends StatefulWidget {
 }
 
 class _RegistroScreenState extends State<RegistroScreen> {
-  static const _titulos = ['Verifica que estudias en Cali', 'Â¿QuiÃ©n eres?', 'Â¿CÃ³mo te mueves?', 'Antes de terminar'];
+  static const _titulos = ['Verifica que estudias en Cali', '¿Quién eres?', '¿Cómo te mueves?', 'Antes de terminar'];
 
   Catalogo? _cat;
   String? _error;
@@ -154,7 +154,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
       if (!mounted) return;
       setState(() {
         _enviando = false;
-        if (e.mensaje.contains('cÃ³digo') || e.mensaje.contains('correo')) _paso = 0;
+        if (e.mensaje.contains('código') || e.mensaje.contains('correo')) _paso = 0;
       });
       _aviso(e.mensaje);
     }
@@ -165,7 +165,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
     final cat = _cat;
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.arrow_back), tooltip: 'AtrÃ¡s', onPressed: _enviando ? null : _atras),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), tooltip: 'Atrás', onPressed: _enviando ? null : _atras),
         title: Text('Paso ${_paso + 1} de 4'),
       ),
       body: SafeArea(
@@ -229,7 +229,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         return _pasoCorreo(cat);
       case 1:
         return [
-          const TituloSeccion('Tu nombre', ayuda: 'Solo el primero. Es lo Ãºnico que verÃ¡ tu grupo, junto con tu universidad.'),
+          const TituloSeccion('Tu nombre', ayuda: 'Solo el primero. Es lo único que verá tu grupo, junto con tu universidad.'),
           TextField(
             controller: _nombre,
             textCapitalization: TextCapitalization.words,
@@ -241,19 +241,19 @@ class _RegistroScreenState extends State<RegistroScreen> {
             'Tu edad',
             ayuda: cat.permiteMenores
                 ? 'Los menores de edad solo van en parches con otros menores de edad.'
-                : 'Por ahora el piloto es para jÃ³venes de 18 a 28 aÃ±os.',
+                : 'Por ahora el piloto es para jóvenes de 18 a 28 años.',
           ),
           SelectorFila(opciones: cat.rangosEdad, valor: _rango, onChanged: (v) => setState(() => _rango = v)),
-          const TituloSeccion('Â¿En quÃ© comuna vives?'),
+          const TituloSeccion('¿En qué comuna vives?'),
           SelectorComuna(comunas: cat.comunas, valor: _comuna, onChanged: (v) => setState(() => _comuna = v)),
         ];
       case 2:
         return [
-          const TituloSeccion('Â¿QuÃ© te gusta hacer?', ayuda: 'Te recomendamos parches de esa actividad.'),
+          const TituloSeccion('¿Qué te gusta hacer?', ayuda: 'Te recomendamos parches de esa actividad.'),
           SelectorActividad(opciones: cat.actividades, valor: _actividad, onChanged: (v) => setState(() => _actividad = v)),
-          const TituloSeccion('Â¿A quÃ© ritmo?', ayuda: 'Con esto armamos grupos de gente que va a una velocidad parecida.'),
+          const TituloSeccion('¿A qué ritmo?', ayuda: 'Con esto armamos grupos de gente que va a una velocidad parecida.'),
           SelectorOpciones(opciones: cat.ritmos, valor: _ritmo, onChanged: (v) => setState(() => _ritmo = v)),
-          const TituloSeccion('Â¿QuÃ© estaciÃ³n te queda cerca?', ayuda: 'Opcional. Te mostramos primero los parches que salen de ahÃ­.'),
+          const TituloSeccion('¿Qué estación te queda cerca?', ayuda: 'Opcional. Te mostramos primero los parches que salen de ahí.'),
           SelectorEstacion(catalogo: cat, comuna: _comuna, valor: _tramo, onChanged: (v) => setState(() => _tramo = v)),
         ];
       default:
@@ -269,7 +269,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         padding: const EdgeInsets.only(top: 8),
         child: Text(
           'Los parches son solo entre estudiantes verificados. Usa el correo que te dio tu universidad: '
-          'te enviamos un cÃ³digo de 6 dÃ­gitos. No guardamos tu correo.',
+          'te enviamos un código de 6 dígitos. No guardamos tu correo.',
           style: t.bodyMedium?.copyWith(color: Cv.inkMuted),
         ),
       ),
@@ -286,7 +286,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
       const SizedBox(height: 12),
       OutlinedButton(
         onPressed: _pidiendoCodigo || !_correo.text.contains('@') ? null : _pedirCodigo,
-        child: Text(enviado ? 'Enviar otro cÃ³digo' : 'Enviarme el cÃ³digo'),
+        child: Text(enviado ? 'Enviar otro código' : 'Enviarme el código'),
       ),
       if (enviado) ...[
         const SizedBox(height: 16),
@@ -300,7 +300,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '${_universidad ?? 'Tu universidad'}. Te enviamos el cÃ³digo a $_correoEnviado.',
+                  '${_universidad ?? 'Tu universidad'}. Te enviamos el código a $_correoEnviado.',
                   style: t.bodyMedium,
                 ),
               ),
@@ -310,11 +310,11 @@ class _RegistroScreenState extends State<RegistroScreen> {
         if (_codigoDemo != null) ...[
           const SizedBox(height: 8),
           Text(
-            'Modo demo, sin servidor de correo: tu cÃ³digo es $_codigoDemo',
+            'Modo demo, sin servidor de correo: tu código es $_codigoDemo',
             style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
-        const TituloSeccion('CÃ³digo de 6 dÃ­gitos'),
+        const TituloSeccion('Código de 6 dígitos'),
         TextField(
           controller: _codigo,
           keyboardType: TextInputType.number,
@@ -342,6 +342,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
   List<Widget> _pasoAutorizacion(Catalogo cat) {
     final t = Theme.of(context).textTheme;
     final tramo = _tramo == null ? null : cat.tramo(_tramo!);
+    final comuna = _comuna == null ? null : cat.comuna(_comuna!);
     final horaSabado = horaBonita('$kAvisoSabadoHora:${_dosDigitos(kAvisoSabadoMinuto)}');
     final horaDomingo = horaBonita('$kAvisoDomingoHora:${_dosDigitos(kAvisoDomingoMinuto)}');
     return [
@@ -363,9 +364,17 @@ class _RegistroScreenState extends State<RegistroScreen> {
               Text(
                 '${_universidad ?? ''}. ${cat.nombreDe(cat.actividades, _actividad ?? '')} a ritmo '
                 '${cat.nombreDe(cat.ritmos, _ritmo ?? '').toLowerCase()}'
-                '${tramo == null ? '' : ', cerca de la estaciÃ³n ${tramo.nombre}'}.',
+                '${tramo == null ? '' : ', cerca de la estación ${tramo.nombre}'}.',
                 style: t.bodyMedium?.copyWith(color: Cv.inkMuted),
               ),
+              if (comuna != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  'Vives en la ${comuna.nombre.toLowerCase()}'
+                  '${comuna.barrios.isEmpty ? '' : ', por los lados de ${comuna.barriosResumen(maximo: 2)}'}.',
+                  style: t.bodySmall,
+                ),
+              ],
             ],
           ),
         ),
@@ -373,17 +382,17 @@ class _RegistroScreenState extends State<RegistroScreen> {
       const SizedBox(height: 16),
       _Aviso(
         icono: Icons.notifications_active_outlined,
-        texto: 'DespuÃ©s eliges tu parche. Te avisamos el sÃ¡bado a las $horaSabado con tu grupo para que confirmes, '
-            'y el domingo a la $horaDomingo para saber cÃ³mo te fue.',
+        texto: 'Después eliges tu parche. Te avisamos el sábado a las $horaSabado con tu grupo para que confirmes, '
+            'y el domingo a la $horaDomingo para saber cómo te fue.',
       ),
       const SizedBox(height: 16),
       Text('Aviso de privacidad', style: t.titleMedium),
       const SizedBox(height: 8),
       const _Punto('Tu correo solo sirve para verificar que estudias: guardamos una huella cifrada y el nombre de tu universidad.'),
-      const _Punto('Pedimos tu primer nombre, edad, comuna y preferencias. Nada de documento, direcciÃ³n, telÃ©fono ni fotos.'),
-      const _Punto('Armamos los grupos con k-means usando solo tu ritmo, tu rango de edad y cuÃ¡ntos domingos has ido.'),
-      const _Punto('Tu grupo ve tu primer nombre y tu universidad. La SecretarÃ­a solo ve cifras, nunca personas.'),
-      const _Punto('La pregunta de cÃ³mo te sentiste es opcional. Puedes borrar tus datos cuando quieras desde Ajustes.'),
+      const _Punto('Pedimos tu primer nombre, edad, comuna y preferencias. Nada de documento, dirección, teléfono ni fotos.'),
+      const _Punto('Armamos los grupos con k-means usando solo tu ritmo, tu rango de edad y cuántos domingos has ido.'),
+      const _Punto('Tu grupo ve tu primer nombre y tu universidad. La Secretaría solo ve cifras, nunca personas.'),
+      const _Punto('La pregunta de cómo te sentiste es opcional. Puedes borrar tus datos cuando quieras desde Ajustes.'),
       Align(
         alignment: Alignment.centerLeft,
         child: TextButton(
@@ -396,15 +405,15 @@ class _RegistroScreenState extends State<RegistroScreen> {
         onChanged: (v) => setState(() => _aceptaDatos = v ?? false),
         controlAffinity: ListTileControlAffinity.leading,
         contentPadding: EdgeInsets.zero,
-        title: const Text('LeÃ­ el aviso de privacidad y autorizo el tratamiento de mis datos'),
-        subtitle: const Text('Ley 1581 de 2012. Guardamos la fecha y la versiÃ³n del aviso que aceptaste.'),
+        title: const Text('Leí el aviso de privacidad y autorizo el tratamiento de mis datos'),
+        subtitle: const Text('Ley 1581 de 2012. Guardamos la fecha y la versión del aviso que aceptaste.'),
       ),
       if (_esMenor) ...[
         const SizedBox(height: 8),
-        Text('AutorizaciÃ³n de tu acudiente', style: t.titleMedium),
+        Text('Autorización de tu acudiente', style: t.titleMedium),
         const SizedBox(height: 4),
         Text(
-          'Como tienes entre 14 y 17 aÃ±os, tu mamÃ¡, papÃ¡ o acudiente debe autorizarte. PÃ­dele que lo complete contigo.',
+          'Como tienes entre 14 y 17 años, tu mamá, papá o acudiente debe autorizarte. Pídele que lo complete contigo.',
           style: t.bodySmall,
         ),
         const SizedBox(height: 10),

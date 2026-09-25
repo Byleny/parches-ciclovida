@@ -67,7 +67,10 @@ class BoletaParche extends StatelessWidget {
                       Text(parche.nombre, style: Theme.of(context).textTheme.headlineSmall),
                       const SizedBox(height: 2),
                       Text('Estación ${parche.tramoNombre}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Cv.ink)),
-                      Text(parche.puntoEncuentro, style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        parche.referencia.isEmpty ? parche.puntoEncuentro : '${parche.puntoEncuentro} · ${parche.referencia}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                       const SizedBox(height: 12),
                       if (parche.inscritos > 0) ...[
                         PuntosGente(cantidad: parche.inscritos, color: col.marca),

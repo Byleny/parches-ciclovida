@@ -9,7 +9,34 @@ la Secretaría del Deporte y la Recreación antes de un piloto.
 JORNADA_INICIO = "08:00"
 JORNADA_FIN = "13:00"
 
-COMUNAS = [{"id": n, "nombre": f"Comuna {n}"} for n in range(1, 23)]
+# Barrios de referencia por comuna (los más reconocibles, no la lista completa del DAP).
+# Sirven para que el joven se ubique al elegir; validar con Planeación antes de un piloto.
+BARRIOS_COMUNA = {
+    1: ["Terrón Colorado", "Vista Hermosa", "Aguacatal", "Patio Bonito"],
+    2: ["Santa Mónica", "La Flora", "Chipichape", "Menga", "Brisas de los Álamos"],
+    3: ["San Antonio", "El Peñón", "Granada", "San Nicolás", "Centenario"],
+    4: ["Salomia", "La Isla", "Popular", "Manzanares", "Jorge Isaacs"],
+    5: ["Torres de Comfandi", "Los Andes", "Chiminangos", "Villa del Sol"],
+    6: ["Petecuy", "Floralia", "Los Alcázares", "San Luis", "Calimío"],
+    7: ["Alfonso López", "Siete de Agosto", "Puerto Mallarino", "Base Aérea"],
+    8: ["El Troncal", "Las Américas", "La Base", "La Floresta", "Simón Bolívar"],
+    9: ["Alameda", "Bretaña", "Guayaquil", "Obrero", "Junín"],
+    10: ["El Guabal", "Santa Elena", "Olímpico", "Cristóbal Colón", "El Dorado"],
+    11: ["San Carlos", "La Fortaleza", "León XIII", "Aguablanca", "La Independencia"],
+    12: ["Doce de Octubre", "El Paraíso", "Asturias", "Sindical"],
+    13: ["El Diamante", "El Poblado", "El Vergel", "Ulpiano Lloreda", "Los Comuneros II"],
+    14: ["Alfonso Bonilla Aragón", "Manuela Beltrán", "Las Orquídeas", "Puertas del Sol"],
+    15: ["El Retiro", "El Vallado", "Ciudad Córdoba", "Mojica", "Morichal"],
+    16: ["Mariano Ramos", "República de Israel", "Unión de Vivienda Popular", "Antonio Nariño"],
+    17: ["El Ingenio", "Ciudad Jardín", "El Caney", "El Limonar", "Ciudad Capri"],
+    18: ["Meléndez", "Los Chorros", "Buenos Aires", "Alto Nápoles", "Caldas"],
+    19: ["San Fernando", "El Refugio", "El Lido", "Pampalinda", "Tequendama"],
+    20: ["Siloé", "Lleras Camargo", "Belisario Caicedo", "La Sultana", "Tierra Blanca"],
+    21: ["Pízamos", "Calimío Decepaz", "Potrero Grande", "Valle Grande", "Desepaz"],
+    22: ["Pance", "Ciudad Campestre", "Club Campestre", "Río Lili"],
+}
+
+COMUNAS = [{"id": n, "nombre": f"Comuna {n}", "barrios": BARRIOS_COMUNA[n]} for n in range(1, 23)]
 
 TRAMOS = [
     {"id": "panamericana", "nombre": "Panamericana", "comuna": 19,

@@ -127,6 +127,7 @@ class _MapaScreenState extends State<MapaScreen> {
                       padding: const EdgeInsets.all(12),
                       child: _TarjetaEstacion(
                         tramo: _elegido!,
+                        comuna: cat.comuna(_elegido!.comuna),
                         resumen: _resumen[_elegido!.id],
                         onVerParches: () => _verParches(_elegido!),
                       ),
@@ -139,10 +140,26 @@ class _MapaScreenState extends State<MapaScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                       child: Card(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          child: Text(
-                            'Toca una estación para ver quiénes salen desde ahí este domingo.',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Toca una estación para ver quiénes salen desde ahí este domingo.',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 8),
+                              const Wrap(
+                                spacing: 14,
+                                runSpacing: 4,
+                                children: [
+                                  _Leyenda(color: Cv.verdeInk, texto: 'Con gente'),
+                                  _Leyenda(color: Cv.tealInk, texto: 'Aún sin gente'),
+                                  _Leyenda(color: Cv.coralInk, texto: 'Tu parche'),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -199,10 +216,31 @@ class _Pin extends StatelessWidget {
   }
 }
 
+/// Punto de leyenda del mapa: color + palabra, nunca solo color.
+class _Leyenda extends StatelessWidget {
+  const _Leyenda({required this.color, required this.texto});
+
+  final Color color;
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 5),
+        Text(texto, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Cv.inkMuted)),
+      ],
+    );
+  }
+}
+
 class _TarjetaEstacion extends StatelessWidget {
-  const _TarjetaEstacion({required this.tramo, required this.resumen, required this.onVerParches});
+  const _TarjetaEstacion({required this.tramo, required this.comuna, required this.resumen, required this.onVerParches});
 
   final Tramo tramo;
+  final Comuna? comuna;
   final _ResumenEstacion? resumen;
   final VoidCallback onVerParches;
 
@@ -239,7 +277,12 @@ class _TarjetaEstacion extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text('${tramo.punto} · ${tramo.referencia}', style: t.bodyMedium),
-                Text('Comuna ${tramo.comuna}', style: t.bodySmall),
+                Text(
+                  comuna == null || comuna!.barrios.isEmpty
+                      ? 'Comuna ${tramo.comuna}'
+                      : 'Comuna ${tramo.comuna} · cerca de ${comuna!.barriosResumen()}',
+                  style: t.bodySmall,
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: [

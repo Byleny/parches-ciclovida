@@ -12,6 +12,46 @@ from app.models import Espera, Joven
 from test_api import auth, estado, nuevo, parche, setup_function, unir  # noqa: F401
 
 
+def test_ingreso_con_el_mismo_correo():
+    with TestClient(app) as c:
+        correo = "vuelve@usbcali.edu.co"
+        token = nuevo(c, "Ana", correo=correo)
+
+        # pedir código "para registro" con un correo ya registrado: rechazado con guía
+        r = c.post("/api/verificacion", json={"correo": correo})
+        assert r.status_code == 409 and "Ya tengo cuenta" in r.json()["detail"]
+
+        # para ingreso sí, y la sesión que devuelve es la misma cuenta de siempre
+        r = c.post("/api/verificacion", json={"correo": correo, "para": "ingreso"})
+        assert r.status_code == 200
+        codigo = r.json()["codigo_demo"]
+        s = c.post("/api/sesiones", json={"correo": correo, "codigo": codigo})
+        assert s.status_code == 200
+        assert s.json()["token"] == token and s.json()["joven"]["nombre"] == "Ana"
+
+        # ingreso con un correo sin cuenta: rechazado al pedir el código
+        r = c.post("/api/verificacion", json={"correo": "nadie@usbcali.edu.co", "para": "ingreso"})
+        assert r.status_code == 409
+
+        # código equivocado: rechazado
+        r = c.post("/api/verificacion", json={"correo": correo, "para": "ingreso"})
+        malo = "000000" if r.json()["codigo_demo"] != "000000" else "111111"
+        assert c.post("/api/sesiones", json={"correo": correo, "codigo": malo}).status_code == 422
+
+
+def test_espera_ofrece_el_mas_parecido_aunque_este_vacio():
+    with TestClient(app) as c:
+        ana = nuevo(c, "Ana")  # bici en Panamericana, sin nadie más
+        e = c.post("/api/yo/match", headers=auth(ana)).json()
+        assert e["estado"] == "en_espera"
+        p = e["espera"]["mas_parecido"]
+        assert p is not None and p["tramo"]["id"] == "panamericana" and p["actividad"] == "bici"
+        assert p["inscritos"] == 0
+        # "Unirme igual": toma la iniciativa y estrena el parche
+        r = unir(c, ana, p["id"])
+        assert r.status_code == 200 and r.json()["estado"] == "inscrito"
+
+
 def match(c, tok):
     return c.post("/api/yo/match", headers=auth(tok)).json()
 

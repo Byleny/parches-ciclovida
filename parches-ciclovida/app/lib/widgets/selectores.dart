@@ -84,19 +84,65 @@ class SelectorEstacion extends StatelessWidget {
         if (ca != cb) return ca.compareTo(cb);
         return a.nombre.compareTo(b.nombre);
       });
-    return DropdownButtonFormField<String?>(
-      initialValue: valor,
-      isExpanded: true,
-      decoration: const InputDecoration(prefixIcon: Icon(Icons.place_outlined)),
-      items: [
-        const DropdownMenuItem<String?>(value: null, child: Text('Cualquiera')),
-        for (final t in tramos)
-          DropdownMenuItem<String?>(
-            value: t.id,
-            child: Text('${t.nombre}${t.comuna == comuna ? ' · tu comuna' : ''}'),
-          ),
+    final elegido = valor == null ? null : catalogo.tramo(valor!);
+    final comunaEstacion = elegido == null ? null : catalogo.comuna(elegido.comuna);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DropdownButtonFormField<String?>(
+          initialValue: valor,
+          isExpanded: true,
+          decoration: const InputDecoration(prefixIcon: Icon(Icons.place_outlined)),
+          items: [
+            const DropdownMenuItem<String?>(value: null, child: Text('Cualquiera')),
+            for (final t in tramos)
+              DropdownMenuItem<String?>(
+                value: t.id,
+                child: Text('${t.nombre}${t.comuna == comuna ? ' · tu comuna' : ''}'),
+              ),
+          ],
+          onChanged: onChanged,
+        ),
+        // Ficha pequeña de la estación elegida: dónde queda y qué barrios tiene cerca.
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          alignment: Alignment.topCenter,
+          child: elegido == null
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(color: Cv.verdeSoft, borderRadius: BorderRadius.circular(Cv.radioMd)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.flag_outlined, size: 16, color: Cv.verdeInk),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${elegido.punto} · ${elegido.referencia}',
+                                style: const TextStyle(fontSize: 13, height: 1.35, color: Cv.verdeInk, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (comunaEstacion != null && comunaEstacion.barrios.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            '${comunaEstacion.nombre}: cerca de ${comunaEstacion.barriosResumen()}.',
+                            style: const TextStyle(fontSize: 12.5, height: 1.35, color: Cv.verdeInk),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+        ),
       ],
-      onChanged: onChanged,
     );
   }
 }
@@ -229,20 +275,76 @@ class _Pastilla extends StatelessWidget {
 class SelectorComuna extends StatelessWidget {
   const SelectorComuna({super.key, required this.comunas, required this.valor, required this.onChanged});
 
-  final List<int> comunas;
+  final List<Comuna> comunas;
   final int? valor;
   final ValueChanged<int?> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<int>(
-      initialValue: valor,
-      isExpanded: true,
-      decoration: const InputDecoration(hintText: 'Elige tu comuna'),
-      items: [
-        for (final c in comunas) DropdownMenuItem<int>(value: c, child: Text('Comuna $c')),
+    Comuna? elegida;
+    for (final c in comunas) {
+      if (c.id == valor) elegida = c;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DropdownButtonFormField<int>(
+          initialValue: valor,
+          isExpanded: true,
+          decoration: const InputDecoration(hintText: 'Elige tu comuna', prefixIcon: Icon(Icons.home_outlined)),
+          items: [
+            for (final c in comunas) DropdownMenuItem<int>(value: c.id, child: Text(c.nombre)),
+          ],
+          onChanged: onChanged,
+        ),
+        // Al elegir, abajo salen en pequeño los barrios que cubre esa comuna.
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          alignment: Alignment.topCenter,
+          child: elegida == null || elegida.barrios.isEmpty
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: PistaBarrios(comuna: elegida),
+                ),
+        ),
       ],
-      onChanged: onChanged,
+    );
+  }
+}
+
+/// "Cubre barrios como El Refugio, San Fernando y El Lido, entre otros."
+class PistaBarrios extends StatelessWidget {
+  const PistaBarrios({super.key, required this.comuna, this.prefijo = 'Cubre barrios como'});
+
+  final Comuna comuna;
+  final String prefijo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Cv.tealSoft,
+        borderRadius: BorderRadius.circular(Cv.radioMd),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(Icons.location_city, size: 16, color: Cv.tealInk),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$prefijo ${comuna.barriosResumen(maximo: 4)}.',
+              style: const TextStyle(fontSize: 13, height: 1.35, color: Cv.tealInk, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

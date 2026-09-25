@@ -14,6 +14,31 @@ class Opcion {
   final String? detalle;
 }
 
+class Comuna {
+  const Comuna({required this.id, required this.nombre, this.barrios = const []});
+
+  factory Comuna.fromJson(Json j) => Comuna(
+        id: j['id'] as int,
+        nombre: j['nombre'] as String,
+        barrios: j['barrios'] == null ? const [] : (j['barrios'] as List).map((e) => e.toString()).toList(),
+      );
+
+  final int id;
+  final String nombre;
+
+  /// Barrios de referencia, para que la persona se ubique al elegir.
+  final List<String> barrios;
+
+  /// "El Refugio, San Fernando y El Lido", recortado a [maximo] barrios.
+  String barriosResumen({int maximo = 3}) {
+    if (barrios.isEmpty) return '';
+    final lista = barrios.take(maximo).toList();
+    final resto = barrios.length - lista.length;
+    final base = lista.length == 1 ? lista.first : '${lista.sublist(0, lista.length - 1).join(', ')} y ${lista.last}';
+    return resto > 0 ? '$base, entre otros' : base;
+  }
+}
+
 class Tramo {
   const Tramo({
     required this.id,
@@ -85,7 +110,7 @@ class Catalogo {
         (j[k] as List).map((e) => Opcion.fromJson(e as Json)).toList();
     final jornada = j['jornada'] as Json;
     return Catalogo(
-      comunas: (j['comunas'] as List).map((e) => (e as Json)['id'] as int).toList(),
+      comunas: (j['comunas'] as List).map((e) => Comuna.fromJson(e as Json)).toList(),
       tramos: (j['tramos'] as List).map((e) => Tramo.fromJson(e as Json)).toList(),
       actividades: opciones('actividades'),
       ritmos: opciones('ritmos'),
@@ -104,7 +129,7 @@ class Catalogo {
     );
   }
 
-  final List<int> comunas;
+  final List<Comuna> comunas;
   final List<Tramo> tramos;
   final List<Opcion> actividades;
   final List<Opcion> ritmos;
@@ -124,6 +149,13 @@ class Catalogo {
   Tramo? tramo(String id) {
     for (final t in tramos) {
       if (t.id == id) return t;
+    }
+    return null;
+  }
+
+  Comuna? comuna(int id) {
+    for (final c in comunas) {
+      if (c.id == id) return c;
     }
     return null;
   }
@@ -191,6 +223,7 @@ class ParcheOpcion {
     required this.inscritos,
     required this.esMio,
     required this.paraTi,
+    this.referencia = '',
     this.universidades = 0,
     this.ritmoNombre,
   });
@@ -203,6 +236,7 @@ class ParcheOpcion {
       tramoId: tramo['id'] as String,
       tramoNombre: tramo['nombre'] as String,
       puntoEncuentro: j['punto_encuentro'] as String,
+      referencia: j['referencia'] as String? ?? '',
       horaEncuentro: j['hora_encuentro'] as String,
       horaNombre: j['hora_nombre'] as String,
       actividad: j['actividad'] as String,
@@ -220,6 +254,9 @@ class ParcheOpcion {
   final String tramoId;
   final String tramoNombre;
   final String puntoEncuentro;
+
+  /// Referencia del punto de encuentro ("Canchas Panamericanas").
+  final String referencia;
   final String horaEncuentro;
   final String horaNombre;
   final String actividad;
@@ -337,17 +374,19 @@ class EncuestaInfo {
 
 /// Lista de espera del emparejamiento automático: aún no hay parche con gente compatible.
 class EsperaInfo {
-  const EsperaInfo({
+  const EsperaInfo._({
     required this.desde,
     required this.minutos,
     required this.minutosParaSugerencias,
     required this.sugerencias,
+    this.masParecido,
   });
 
-  factory EsperaInfo.fromJson(Json j) => EsperaInfo(
+  factory EsperaInfo.fromJson(Json j) => EsperaInfo._(
         desde: j['desde'] as String,
         minutos: j['minutos'] as int,
         minutosParaSugerencias: j['minutos_para_sugerencias'] as int? ?? 10,
+        masParecido: j['mas_parecido'] == null ? null : ParcheOpcion.fromJson(j['mas_parecido'] as Json),
         sugerencias: j['sugerencias'] == null
             ? const <ParcheOpcion>[]
             : (j['sugerencias'] as List).map((e) => ParcheOpcion.fromJson(e as Json)).toList(),
@@ -356,6 +395,9 @@ class EsperaInfo {
   final String desde;
   final int minutos;
   final int minutosParaSugerencias;
+
+  /// El parche más parecido aunque no tenga gente: para quien toma la iniciativa.
+  final ParcheOpcion? masParecido;
 
   /// Parches parecidos, solo después del lapso de espera.
   final List<ParcheOpcion> sugerencias;

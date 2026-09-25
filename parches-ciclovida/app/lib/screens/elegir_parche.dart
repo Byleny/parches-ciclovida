@@ -281,10 +281,16 @@ class _HojaEstaciones extends StatelessWidget {
           Text('¿Desde qué estación sales?', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 12),
           _fila(context, '', 'Todas las estaciones', null),
-          for (final t in tramos) _fila(context, t.id, t.nombre, '${t.punto} · comuna ${t.comuna}'),
+          for (final t in tramos) _fila(context, t.id, t.nombre, '${t.punto} · ${t.referencia}\nComuna ${t.comuna}${_barrios(t)}'),
         ],
       ),
     );
+  }
+
+  /// Barrios de referencia de la comuna de la estación, para ubicarse rápido.
+  String _barrios(Tramo t) {
+    final c = catalogo.comuna(t.comuna);
+    return c == null || c.barrios.isEmpty ? '' : ' · ${c.barrios.take(2).join(', ')}…';
   }
 
   Widget _fila(BuildContext context, String id, String titulo, String? detalle) {
