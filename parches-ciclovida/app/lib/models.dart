@@ -21,6 +21,8 @@ class Tramo {
     required this.comuna,
     required this.punto,
     required this.referencia,
+    this.lat = 0,
+    this.lng = 0,
   });
 
   factory Tramo.fromJson(Json j) => Tramo(
@@ -29,6 +31,8 @@ class Tramo {
         comuna: j['comuna'] as int,
         punto: j['punto'] as String,
         referencia: j['referencia'] as String,
+        lat: (j['lat'] as num?)?.toDouble() ?? 0,
+        lng: (j['lng'] as num?)?.toDouble() ?? 0,
       );
 
   final String id;
@@ -36,6 +40,10 @@ class Tramo {
   final int comuna;
   final String punto;
   final String referencia;
+
+  /// Coordenadas aproximadas de la estación, para el mapa.
+  final double lat;
+  final double lng;
 }
 
 class Universidad {
@@ -68,6 +76,8 @@ class Catalogo {
     required this.permiteMenores,
     required this.motivosReporte,
     this.universidades = const [],
+    this.foroCategorias = const [],
+    this.esperaMinutos = 10,
   });
 
   factory Catalogo.fromJson(Json j) {
@@ -89,6 +99,8 @@ class Catalogo {
       universidades: j['universidades'] == null
           ? const <Universidad>[]
           : (j['universidades'] as List).map((e) => Universidad.fromJson(e as Json)).toList(),
+      foroCategorias: j['foro_categorias'] == null ? const <Opcion>[] : opciones('foro_categorias'),
+      esperaMinutos: j['espera_minutos'] as int? ?? 10,
     );
   }
 
@@ -104,6 +116,10 @@ class Catalogo {
   final bool permiteMenores;
   final List<Opcion> motivosReporte;
   final List<Universidad> universidades;
+  final List<Opcion> foroCategorias;
+
+  /// Minutos en espera antes de que la app muestre parches parecidos.
+  final int esperaMinutos;
 
   Tramo? tramo(String id) {
     for (final t in tramos) {
@@ -319,6 +335,104 @@ class EncuestaInfo {
   final bool respondida;
 }
 
+/// Lista de espera del emparejamiento automático: aún no hay parche con gente compatible.
+class EsperaInfo {
+  const EsperaInfo({
+    required this.desde,
+    required this.minutos,
+    required this.minutosParaSugerencias,
+    required this.sugerencias,
+  });
+
+  factory EsperaInfo.fromJson(Json j) => EsperaInfo(
+        desde: j['desde'] as String,
+        minutos: j['minutos'] as int,
+        minutosParaSugerencias: j['minutos_para_sugerencias'] as int? ?? 10,
+        sugerencias: j['sugerencias'] == null
+            ? const <ParcheOpcion>[]
+            : (j['sugerencias'] as List).map((e) => ParcheOpcion.fromJson(e as Json)).toList(),
+      );
+
+  final String desde;
+  final int minutos;
+  final int minutosParaSugerencias;
+
+  /// Parches parecidos, solo después del lapso de espera.
+  final List<ParcheOpcion> sugerencias;
+}
+
+class NotificacionApp {
+  const NotificacionApp({
+    required this.id,
+    required this.titulo,
+    required this.cuerpo,
+    required this.leida,
+    required this.creadoEn,
+  });
+
+  factory NotificacionApp.fromJson(Json j) => NotificacionApp(
+        id: j['id'] as int,
+        titulo: j['titulo'] as String,
+        cuerpo: j['cuerpo'] as String,
+        leida: j['leida'] as bool,
+        creadoEn: j['creado_en'] as String,
+      );
+
+  final int id;
+  final String titulo;
+  final String cuerpo;
+  final bool leida;
+  final String creadoEn;
+}
+
+/// Mensaje del foro comunal: primer nombre y universidad, igual que en el grupo.
+class MensajeForo {
+  const MensajeForo({
+    required this.id,
+    required this.nombre,
+    required this.universidad,
+    required this.categoria,
+    required this.texto,
+    required this.creadoEn,
+    required this.esMio,
+  });
+
+  factory MensajeForo.fromJson(Json j) => MensajeForo(
+        id: j['id'] as int,
+        nombre: j['nombre'] as String,
+        universidad: j['universidad'] as String,
+        categoria: j['categoria'] as String,
+        texto: j['texto'] as String,
+        creadoEn: j['creado_en'] as String,
+        esMio: j['es_mio'] as bool? ?? false,
+      );
+
+  final int id;
+  final String nombre;
+  final String universidad;
+  final String categoria;
+  final String texto;
+  final String creadoEn;
+  final bool esMio;
+}
+
+/// Vínculo con el bot de Telegram para recibir el aviso del match.
+class TelegramInfo {
+  const TelegramInfo({required this.disponible, required this.vinculado, this.enlace, this.bot});
+
+  factory TelegramInfo.fromJson(Json j) => TelegramInfo(
+        disponible: j['disponible'] as bool,
+        vinculado: j['vinculado'] as bool,
+        enlace: j['enlace'] as String?,
+        bot: j['bot'] as String?,
+      );
+
+  final bool disponible;
+  final bool vinculado;
+  final String? enlace;
+  final String? bot;
+}
+
 class EstadoParche {
   const EstadoParche({
     required this.jornadaFecha,
@@ -332,6 +446,7 @@ class EstadoParche {
     this.salida,
     this.grupo,
     this.encuesta,
+    this.espera,
   });
 
   factory EstadoParche.fromJson(Json j) {
@@ -348,6 +463,7 @@ class EstadoParche {
       salida: j['salida'] == null ? null : ParcheOpcion.fromJson(j['salida'] as Json),
       grupo: j['grupo'] == null ? null : Grupo.fromJson(j['grupo'] as Json),
       encuesta: j['encuesta'] == null ? null : EncuestaInfo.fromJson(j['encuesta'] as Json),
+      espera: j['espera'] == null ? null : EsperaInfo.fromJson(j['espera'] as Json),
     );
   }
 
@@ -356,7 +472,8 @@ class EstadoParche {
   final String inicio;
   final String fin;
 
-  /// sin_parche (aún no elige) | inscrito (eligió; el grupo se arma el sábado) | asignado | pausado | suspendido
+  /// sin_parche | en_espera (el match busca por él) | inscrito (el grupo se arma el sábado) |
+  /// asignado | pausado | suspendido
   final String estado;
 
   /// pendiente | confirmado | declinado (solo si está asignado)
@@ -370,6 +487,9 @@ class EstadoParche {
   /// Su grupo de 3 a 6 dentro del parche, desde el sábado.
   final Grupo? grupo;
   final EncuestaInfo? encuesta;
+
+  /// Solo cuando el estado es en_espera.
+  final EsperaInfo? espera;
 
   bool get encuestaPendiente => encuesta != null && !encuesta!.respondida;
 }

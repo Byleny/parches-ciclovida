@@ -137,6 +137,37 @@ class Api {
 
   Future<EstadoParche> salirme() async => EstadoParche.fromJson(await _json('DELETE', '/api/yo/parche'));
 
+  /// Emparejamiento automático: une al parche con gente y mis mismas características,
+  /// o me deja en lista de espera.
+  Future<EstadoParche> buscarMatch() async => EstadoParche.fromJson(await _json('POST', '/api/yo/match'));
+
+  Future<EstadoParche> cancelarEspera() async => EstadoParche.fromJson(await _json('DELETE', '/api/yo/espera'));
+
+  Future<List<NotificacionApp>> notificaciones() async {
+    final data = await _send('GET', '/api/yo/notificaciones');
+    return (data as List).map((e) => NotificacionApp.fromJson(e as Json)).toList();
+  }
+
+  Future<void> marcarNotificacionesLeidas() async {
+    await _send('POST', '/api/yo/notificaciones/leidas');
+  }
+
+  Future<TelegramInfo> telegram() async => TelegramInfo.fromJson(await _json('GET', '/api/yo/telegram'));
+
+  // ------------------------------------------------------------ foro comunal
+
+  Future<List<MensajeForo>> foro({String? categoria}) async {
+    final data = await _send('GET', '/api/foro', query: categoria == null ? null : {'categoria': categoria});
+    return (data as List).map((e) => MensajeForo.fromJson(e as Json)).toList();
+  }
+
+  Future<MensajeForo> foroPublicar({required String categoria, required String texto}) async =>
+      MensajeForo.fromJson(await _json('POST', '/api/foro', body: {'categoria': categoria, 'texto': texto}));
+
+  Future<void> foroBorrar(int id) async {
+    await _send('DELETE', '/api/foro/$id');
+  }
+
   Future<EstadoParche> responder({required bool va}) async =>
       EstadoParche.fromJson(await _json('POST', '/api/yo/parche/respuesta', body: {'va': va}));
 

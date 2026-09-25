@@ -14,7 +14,9 @@ from .catalog import (
     NOMBRES_PARCHE, RITMO_ORDEN, RITMOS, SEGMENTO_EDAD, TRAMOS, TRAMOS_POR_ID, UNIVERSIDADES_POR_ID,
 )
 from .matching import EXPERIENCIA_MAX, GrupoPropuesto, Participante, agrupar, grupo_mas_cercano, mejor_grupo_para
-from .models import Asignacion, Encuesta, Grupo, Inscripcion, Jornada, Joven, Reporte, Salida
+from .models import (
+    Asignacion, Encuesta, Espera, Grupo, Inscripcion, Jornada, Joven, MensajeForo, Notificacion, Reporte, Salida,
+)
 
 RITMO_NOMBRE = {r["id"]: r["nombre"] for r in RITMOS}
 RITMO_POR_ORDEN = {r["orden"]: r["id"] for r in RITMOS}
@@ -94,6 +96,12 @@ def tick(session: Session, momento: datetime | None = None) -> dict:
     resumen = {"finalizadas": [str(d) for d in cerradas], "jornada": str(j.fecha)}
     if debe_armar(j, momento):
         resumen["grupos"] = armar_grupos(session, j.fecha)
+    from . import telegram
+
+    telegram.procesar_updates(session)
+    unidos = revisar_esperas(session, momento)
+    if unidos:
+        resumen["esperas_unidas"] = unidos
     return resumen
 
 
@@ -199,6 +207,7 @@ def _inscripcion(session: Session, joven_id: str, fecha: date) -> Inscripcion | 
 def quitar_de_la_jornada(session: Session, joven_id: str, fecha: date) -> None:
     session.exec(delete(Asignacion).where(Asignacion.joven_id == joven_id, Asignacion.jornada_fecha == fecha))
     session.exec(delete(Inscripcion).where(Inscripcion.joven_id == joven_id, Inscripcion.jornada_fecha == fecha))
+    session.exec(delete(Espera).where(Espera.joven_id == joven_id, Espera.jornada_fecha == fecha))
 
 
 def unirse(session: Session, joven: Joven, salida_id: int) -> None:
@@ -226,6 +235,148 @@ def unirse(session: Session, joven: Joven, salida_id: int) -> None:
 
 def salir(session: Session, joven: Joven) -> None:
     quitar_de_la_jornada(session, joven.id, jornada_abierta(session).fecha)
+    session.commit()
+
+
+# ---------------------------------------------------------------- emparejamiento automático
+
+def _candidatas(session: Session, joven: Joven, fecha: date, estricto: bool = True) -> list[tuple[Salida, list[Joven]]]:
+    """Parches del domingo que le sirven al joven, con la gente ya inscrita en cada uno.
+
+    Estricto: misma actividad y, si los declaró, misma estación y misma hora.
+    Relajado (para sugerencias): basta la misma familia de actividad (a pie / sobre ruedas).
+    """
+    salidas = session.exec(select(Salida).where(
+        Salida.jornada_fecha == fecha, Salida.segmento == SEGMENTO_EDAD[joven.rango_edad],
+    )).all()
+    por_salida = _inscritos_por_salida(session, fecha)
+    pares = []
+    for s in salidas:
+        if estricto:
+            if s.actividad != joven.actividad:
+                continue
+            if joven.tramo_id and s.tramo_id != joven.tramo_id:
+                continue
+            if joven.franja and s.franja != joven.franja:
+                continue
+        elif ACTIVIDADES_POR_ID[s.actividad]["familia"] != ACTIVIDADES_POR_ID[joven.actividad]["familia"]:
+            continue
+        gente = [x for x in por_salida.get(s.id, []) if not x.suspendido and x.id != joven.id]
+        pares.append((s, gente))
+    return pares
+
+
+def _afinidad(joven: Joven, s: Salida, gente: list[Joven]) -> tuple:
+    """Menor es mejor: la misma idea de distancia del k-means, aplicada a elegir parche."""
+    ritmo = _ritmo_mediano(gente)
+    return (
+        s.actividad != joven.actividad,
+        abs(FRANJA_ORDEN[s.franja] - FRANJA_ORDEN[joven.franja]) if joven.franja else 0,
+        abs(RITMO_ORDEN[ritmo] - RITMO_ORDEN[joven.ritmo]) if ritmo else 0,
+        0 if joven.tramo_id == s.tramo_id else abs(TRAMOS_POR_ID[s.tramo_id]["comuna"] - joven.comuna),
+        -len(gente),
+        s.id or 0,
+    )
+
+
+def emparejar_automatico(session: Session, joven: Joven, momento: datetime | None = None) -> dict:
+    """Une al joven al parche que ya tiene gente con sus mismas características.
+
+    Si no existe ninguno, lo deja en lista de espera: el tick lo reintenta cada pocos
+    minutos y le avisa (app y Telegram) apenas aparezca uno.
+    """
+    momento = momento or ahora()
+    j = jornada_abierta(session, momento)
+    if joven.suspendido or joven.pausa_fecha == j.fecha:
+        return {"resultado": "no_aplica"}
+    if _inscripcion(session, joven.id, j.fecha):
+        return {"resultado": "ya_inscrito"}
+    con_gente = [(s, gente) for s, gente in _candidatas(session, joven, j.fecha) if gente]
+    if con_gente:
+        s, gente = min(con_gente, key=lambda par: _afinidad(joven, par[0], par[1]))
+        unirse(session, joven, s.id)  # también borra la espera si la había
+        return {"resultado": "asignado", "salida_id": s.id}
+    if not session.exec(select(Espera).where(Espera.joven_id == joven.id, Espera.jornada_fecha == j.fecha)).first():
+        session.add(Espera(joven_id=joven.id, jornada_fecha=j.fecha))
+        session.commit()
+    return {"resultado": "en_espera"}
+
+
+def cancelar_espera(session: Session, joven: Joven) -> None:
+    session.exec(delete(Espera).where(Espera.joven_id == joven.id))
+    session.commit()
+
+
+def sugerencias_para(session: Session, joven: Joven, limite: int = 5) -> list[dict]:
+    """Parches parecidos para quien lleva rato en espera: primero los que ya tienen gente."""
+    j = jornada_abierta(session)
+    pares = _candidatas(session, joven, j.fecha, estricto=False)
+    pares.sort(key=lambda par: (not par[1], _afinidad(joven, par[0], par[1])))
+    return [salida_json(session, s, joven, gente) for s, gente in pares[:limite]]
+
+
+def notificar(session: Session, joven: Joven, titulo: str, cuerpo: str) -> None:
+    """Aviso dentro de la app y, si el joven vinculó su cuenta, también por Telegram."""
+    session.add(Notificacion(joven_id=joven.id, titulo=titulo, cuerpo=cuerpo))
+    session.commit()
+    if joven.telegram_chat_id:
+        from . import telegram
+
+        telegram.enviar(joven.telegram_chat_id, f"<b>{titulo}</b>\n{cuerpo}")
+
+
+def revisar_esperas(session: Session, momento: datetime | None = None) -> int:
+    """En cada tick: si a alguien en espera ya le sirve un parche con gente, lo une y le avisa."""
+    momento = momento or ahora()
+    j = jornada_abierta(session, momento)
+    unidos = 0
+    for e in session.exec(select(Espera).where(Espera.jornada_fecha == j.fecha)).all():
+        joven = session.get(Joven, e.joven_id)
+        if joven is None or joven.suspendido:
+            session.delete(e)
+            session.commit()
+            continue
+        r = emparejar_automatico(session, joven, momento)
+        if r["resultado"] == "asignado":
+            s = session.get(Salida, r["salida_id"])
+            notificar(
+                session, joven, "¡Encontramos parche para ti!",
+                f"Te unimos al {s.nombre} en {TRAMOS_POR_ID[s.tramo_id]['nombre']} a las {FRANJA_NOMBRE[s.franja]}: "
+                "hay gente con tus mismos planes. Abre la app para conocer a tu grupo.",
+            )
+            unidos += 1
+    return unidos
+
+
+# ---------------------------------------------------------------- foro comunal
+
+def foro_lista(session: Session, joven: Joven, categoria: str | None = None, limite: int = 50) -> list[dict]:
+    q = select(MensajeForo).order_by(MensajeForo.creado_en.desc(), MensajeForo.id.desc()).limit(limite)
+    if categoria:
+        q = q.where(MensajeForo.categoria == categoria)
+    return [{
+        "id": m.id, "nombre": m.nombre, "universidad": m.universidad, "categoria": m.categoria,
+        "texto": m.texto, "creado_en": m.creado_en.isoformat(), "es_mio": m.joven_id == joven.id,
+    } for m in session.exec(q).all()]
+
+
+def foro_publicar(session: Session, joven: Joven, categoria: str, texto: str) -> MensajeForo:
+    if joven.suspendido:
+        raise LookupError("Tu cuenta está en revisión: por ahora no puedes publicar en el foro")
+    m = MensajeForo(joven_id=joven.id, nombre=joven.nombre,
+                    universidad=UNIVERSIDADES_POR_ID[joven.universidad]["corto"],
+                    categoria=categoria, texto=texto.strip()[:config.FORO_MAX])
+    session.add(m)
+    session.commit()
+    session.refresh(m)
+    return m
+
+
+def foro_borrar(session: Session, joven: Joven, mensaje_id: int) -> None:
+    m = session.get(MensajeForo, mensaje_id)
+    if not m or m.joven_id != joven.id:
+        raise LookupError("Solo puedes borrar tus propios mensajes")
+    session.delete(m)
     session.commit()
 
 
@@ -404,7 +555,7 @@ def encuesta_abierta(session: Session, joven: Joven, momento: datetime) -> dict 
 
 
 def estado_para(session: Session, joven: Joven, momento: datetime | None = None) -> dict:
-    """sin_parche | inscrito (eligió parche, el grupo se arma el sábado) | asignado | pausado | suspendido"""
+    """sin_parche | en_espera | inscrito (el grupo se arma el sábado) | asignado | pausado | suspendido"""
     momento = momento or ahora()
     j = jornada_abierta(session, momento)
     info = {
@@ -415,6 +566,7 @@ def estado_para(session: Session, joven: Joven, momento: datetime | None = None)
         "tarde": False,
         "salida": None,
         "grupo": None,
+        "espera": None,
         "encuesta": encuesta_abierta(session, joven, momento),
     }
     if joven.suspendido:
@@ -424,6 +576,17 @@ def estado_para(session: Session, joven: Joven, momento: datetime | None = None)
         info["estado"] = "pausado"
         return info
     ins = _inscripcion(session, joven.id, j.fecha)
+    esp = session.exec(select(Espera).where(Espera.joven_id == joven.id, Espera.jornada_fecha == j.fecha)).first()
+    if esp and not ins:
+        minutos = max(0, int((momento - esp.creado_en).total_seconds() // 60))
+        info["estado"] = "en_espera"
+        info["espera"] = {
+            "desde": esp.creado_en.isoformat(),
+            "minutos": minutos,
+            "minutos_para_sugerencias": config.ESPERA_MINUTOS,
+            # pasado el lapso de espera, la app muestra parches parecidos o disponibles
+            "sugerencias": sugerencias_para(session, joven) if minutos >= config.ESPERA_MINUTOS else [],
+        }
     if ins:
         info["estado"] = "inscrito"
         info["salida"] = salida_json(session, session.get(Salida, ins.salida_id), joven)
@@ -524,5 +687,8 @@ def borrar_joven(session: Session, joven: Joven) -> None:
     session.exec(delete(Encuesta).where(Encuesta.joven_id == joven.id))
     session.exec(delete(Asignacion).where(Asignacion.joven_id == joven.id))
     session.exec(delete(Inscripcion).where(Inscripcion.joven_id == joven.id))
+    session.exec(delete(Espera).where(Espera.joven_id == joven.id))
+    session.exec(delete(Notificacion).where(Notificacion.joven_id == joven.id))
+    session.exec(delete(MensajeForo).where(MensajeForo.joven_id == joven.id))
     session.delete(joven)
     session.commit()

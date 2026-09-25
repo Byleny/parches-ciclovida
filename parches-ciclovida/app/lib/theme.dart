@@ -217,6 +217,22 @@ ThemeData temaParches() {
       fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Cv.verdeInk : null),
     ),
     dividerTheme: const DividerThemeData(color: Cv.line, thickness: 1, space: 24),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: Cv.surfaceRaised,
+      indicatorColor: Cv.tealSoft,
+      height: 68,
+      iconTheme: WidgetStateProperty.resolveWith(
+        (s) => IconThemeData(color: s.contains(WidgetState.selected) ? Cv.tealInk : Cv.inkMuted),
+      ),
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (s) => TextStyle(
+          fontFamily: 'Barlow',
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: s.contains(WidgetState.selected) ? Cv.tealInk : Cv.inkMuted,
+        ),
+      ),
+    ),
     snackBarTheme: const SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       backgroundColor: Cv.ink,

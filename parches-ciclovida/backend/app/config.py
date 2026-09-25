@@ -29,6 +29,18 @@ PERMITIR_MENORES = os.getenv("PERMITIR_MENORES", "0") == "1"
 # hasta que un moderador lo revise.
 REPORTES_PARA_SUSPENDER = int(os.getenv("REPORTES_PARA_SUSPENDER", "2"))
 
+# Emparejamiento automático: si no hay un parche con gente y las mismas características,
+# el joven queda en espera. Pasados estos minutos, la app le muestra parches parecidos.
+ESPERA_MINUTOS = int(os.getenv("ESPERA_MINUTOS", "10"))
+
+# Bot de Telegram (opcional). Con el token y el nombre del bot, el joven vincula su cuenta
+# desde la app y recibe por Telegram el aviso cuando su espera encuentra parche.
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
+TELEGRAM_BOT = os.getenv("TELEGRAM_BOT", "")  # nombre de usuario del bot, sin @
+
+# Foro comunal: largo máximo de cada mensaje.
+FORO_MAX = int(os.getenv("FORO_MAX", "500"))
+
 # Versión del aviso de privacidad que se guarda con cada autorización (Ley 1581 de 2012).
 AVISO_VERSION = "2026-09-25.2"
 

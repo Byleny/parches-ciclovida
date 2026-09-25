@@ -13,13 +13,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlmodel import Session, select
 
-from . import config, services, stats, verificacion
+from . import config, services, stats, telegram, verificacion
 from .catalog import (
-    ACTIVIDADES_POR_ID, FRANJA_ORDEN, MOTIVOS_IDS, RITMO_ORDEN, SEGMENTO_EDAD, TRAMOS_POR_ID, UNIVERSIDADES_POR_ID, catalogo,
+    ACTIVIDADES_POR_ID, FORO_IDS, FRANJA_ORDEN, MOTIVOS_IDS, RITMO_ORDEN, SEGMENTO_EDAD, TRAMOS_POR_ID,
+    UNIVERSIDADES_POR_ID, catalogo,
 )
 from .privacidad import aviso
 from .db import engine, get_session, init_db
-from .models import Grupo, Joven, Reporte
+from .models import Grupo, Joven, Notificacion, Reporte
 
 log = logging.getLogger("parches")
 STATIC = Path(__file__).resolve().parent.parent / "static"
@@ -152,6 +153,18 @@ class EncuestaIn(BaseModel):
     asistio: bool
     volveria: bool
     bienestar: int | None = Field(default=None, ge=1, le=5)  # opcional: puede ser dato sensible
+
+
+class ForoIn(BaseModel):
+    categoria: str
+    texto: str = Field(min_length=2, max_length=500)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria(cls, v):
+        if v not in FORO_IDS:
+            raise ValueError("Categoría desconocida")
+        return v
 
 
 class ReporteIn(BaseModel):
@@ -302,6 +315,86 @@ def unirme(body: Union, joven: Joven = Depends(joven_actual), session: Session =
 def salirme(joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
     services.salir(session, joven)
     return services.estado_para(session, joven)
+
+
+@app.post("/api/yo/match")
+def buscar_match(joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    """Emparejamiento automático: une al joven al parche con gente y sus mismas características.
+
+    Si no existe, lo deja en lista de espera; el sistema reintenta y le avisa al encontrarlo.
+    """
+    services.emparejar_automatico(session, joven)
+    return services.estado_para(session, joven)
+
+
+@app.delete("/api/yo/espera")
+def cancelar_espera(joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    services.cancelar_espera(session, joven)
+    return services.estado_para(session, joven)
+
+
+@app.get("/api/yo/notificaciones")
+def notificaciones(joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    filas = session.exec(
+        select(Notificacion).where(Notificacion.joven_id == joven.id).order_by(Notificacion.creado_en.desc()).limit(20)
+    ).all()
+    return [{"id": n.id, "titulo": n.titulo, "cuerpo": n.cuerpo, "leida": n.leida, "creado_en": n.creado_en.isoformat()}
+            for n in filas]
+
+
+@app.post("/api/yo/notificaciones/leidas")
+def marcar_leidas(joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    for n in session.exec(select(Notificacion).where(Notificacion.joven_id == joven.id, Notificacion.leida == False)).all():  # noqa: E712
+        n.leida = True
+        session.add(n)
+    session.commit()
+    return {"ok": True}
+
+
+@app.get("/api/yo/telegram")
+def telegram_estado(joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    """Estado del vínculo con el bot y el enlace t.me para crearlo. Sin bot configurado, se apaga."""
+    if not telegram.disponible():
+        return {"disponible": False, "vinculado": False, "enlace": None, "bot": None}
+    telegram.procesar_updates(session)  # así el vínculo se refleja apenas la app refresca
+    session.refresh(joven)
+    if joven.telegram_chat_id:
+        return {"disponible": True, "vinculado": True, "enlace": None, "bot": config.TELEGRAM_BOT}
+    if not joven.telegram_codigo:
+        from secrets import token_hex
+
+        joven.telegram_codigo = token_hex(6)
+        session.add(joven)
+        session.commit()
+    return {"disponible": True, "vinculado": False, "enlace": telegram.enlace_para(joven.telegram_codigo),
+            "bot": config.TELEGRAM_BOT}
+
+
+# ---------------------------------------------------------------- foro comunal
+
+@app.get("/api/foro")
+def foro(categoria: str | None = None, joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    if categoria is not None and categoria not in FORO_IDS:
+        raise HTTPException(422, "Categoría desconocida")
+    return services.foro_lista(session, joven, categoria)
+
+
+@app.post("/api/foro", status_code=201)
+def foro_publicar(body: ForoIn, joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    try:
+        m = services.foro_publicar(session, joven, body.categoria, body.texto)
+    except LookupError as e:
+        raise HTTPException(409, str(e))
+    return {"id": m.id, "nombre": m.nombre, "universidad": m.universidad, "categoria": m.categoria,
+            "texto": m.texto, "creado_en": m.creado_en.isoformat(), "es_mio": True}
+
+
+@app.delete("/api/foro/{mensaje_id}", status_code=204)
+def foro_borrar(mensaje_id: int, joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    try:
+        services.foro_borrar(session, joven, mensaje_id)
+    except LookupError as e:
+        raise HTTPException(409, str(e))
 
 
 @app.post("/api/yo/parche/respuesta")

@@ -10,6 +10,21 @@ def init_db() -> None:
     from . import models  # noqa: F401  registra las tablas
 
     SQLModel.metadata.create_all(engine)
+    _migrar()
+
+
+def _migrar() -> None:
+    """Columnas nuevas sobre una base ya creada (create_all no altera tablas existentes)."""
+    if not config.DATABASE_URL.startswith("sqlite"):
+        return
+    from sqlalchemy import text
+
+    with engine.connect() as con:
+        columnas = {fila[1] for fila in con.execute(text("PRAGMA table_info(joven)"))}
+        for columna in ("telegram_chat_id", "telegram_codigo"):
+            if columna not in columnas:
+                con.execute(text(f"ALTER TABLE joven ADD COLUMN {columna} VARCHAR"))
+        con.commit()
 
 
 def get_session():

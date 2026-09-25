@@ -2,7 +2,7 @@
 
 Prototipo TRL 3 del equipo Dedsec para el reto CicloVida del Hackathon Smart City Expo Cali 2026.
 
-Un estudiante universitario de Cali verifica su correo institucional y crea su perfil. Cada semana el sistema abre parches en las 12 estaciones de la CicloVida, uno por hora (8:00, 9:30, 11:00) y actividad (bici, patines, trotar, caminar); el joven elige uno de la lista, así nadie depende de que otro tome la iniciativa. El sábado a las 5:00 p. m. un algoritmo k-means divide a la gente de cada parche en grupos de 3 a 6 y a las 7:00 p. m. le llega la notificación para confirmar. Ese es el momento en que decide si sale el domingo. Al terminar la jornada, la app le pregunta si fue, si volvería y, de forma opcional, cómo se sintió del 1 al 5. La Secretaría ve un tablero web solo con cifras agregadas por comuna y por grupo.
+Un estudiante universitario de Cali verifica su correo institucional y crea su perfil. Cada semana el sistema abre parches en las 12 estaciones de la CicloVida, uno por hora (8:00, 9:30, 11:00) y actividad (bici, patines, trotar, caminar). Al entrar, un match automático (la misma idea de distancia del k-means) lo une al parche que ya tiene gente con su hora, estación y actividad; si no existe, queda en lista de espera y se le avisa —en la app y por Telegram— apenas aparezca, con parches parecidos como plan B. También puede elegir a mano, ver las zonas en un mapa interactivo y comentar en el foro comunal. El sábado a las 5:00 p. m. un algoritmo k-means divide a la gente de cada parche en grupos de 3 a 6 y a las 7:00 p. m. le llega la notificación para confirmar. Ese es el momento en que decide si sale el domingo. Al terminar la jornada, la app le pregunta si fue, si volvería y, de forma opcional, cómo se sintió del 1 al 5. La Secretaría ve un tablero web solo con cifras agregadas por comuna y por grupo.
 
 ```
 parches-ciclovida/
@@ -15,11 +15,42 @@ parches-ciclovida/
 | Requisito TRL 3 | Dónde |
 |---|---|
 | Registro con correo institucional | `app/lib/screens/registro.dart`, `POST /api/verificacion`, `POST /api/jovenes`, `backend/app/verificacion.py` |
+| Match automático de parche | `POST /api/yo/match`, `emparejar_automatico` en `backend/app/services.py` |
+| Lista de espera con aviso | `revisar_esperas` (tick cada 5 min), `GET /api/yo/notificaciones`, bot de Telegram en `backend/app/telegram.py` |
 | Parches generados por el sistema | `GET /api/parches`, `POST /api/yo/parche`, `app/lib/screens/elegir_parche.dart` |
 | Agrupamiento con k-means | `backend/app/matching.py` (funciones puras, con pruebas) |
 | Notificaciones | `app/lib/notificaciones.dart`: sábado 7:00 p. m. y domingo 1:30 p. m., cada semana |
+| Mapa interactivo de zonas | `app/lib/screens/mapa.dart` (flutter_map + OpenStreetMap, 12 estaciones) |
+| Foro comunal | `GET/POST /api/foro`, `app/lib/screens/foro.dart` |
 | Base de datos | SQLite con SQLModel, `backend/app/models.py` |
 | Tablero | `http://localhost:8000/tablero/`, `backend/static/tablero/` |
+
+## Match automático, espera y Telegram
+
+Al entrar sin parche, la app ya no muestra una lista para escoger: llama a `POST /api/yo/match` y el
+sistema une al joven al parche que **ya tiene gente** con sus mismas características (misma actividad
+y, si las declaró, misma estación y hora), eligiendo el más afín con la misma idea de distancia del
+k-means (hora, ritmo mediano del parche, cercanía de comuna, tamaño). Siempre puede tocar
+"Prefiero elegir yo" y escoger a mano.
+
+Si no existe ninguno, queda en **lista de espera**: el scheduler la revisa cada 5 minutos y, apenas
+alguien compatible se inscribe, lo une y le avisa dentro de la app y por Telegram. Pasados
+`ESPERA_MINUTOS` (10 por defecto), la app le muestra además parches parecidos o disponibles para que
+no siga esperando si no quiere.
+
+Para encender el bot de Telegram: crear un bot con @BotFather y arrancar el backend con
+`TELEGRAM_TOKEN=<token>` y `TELEGRAM_BOT=<usuario_del_bot_sin_@>`. El joven toca "Conectar Telegram"
+en la app (se abre `t.me/<bot>?start=<código>`) y el backend vincula el chat al procesar los updates.
+Sin token, todo lo de Telegram se apaga solo y queda el aviso interno.
+
+## Mapa y foro
+
+- **Mapa** (pestaña Mapa): las 12 estaciones sobre OpenStreetMap; el pin muestra cuánta gente va este
+  domingo desde cada una y al tocarlo se abre la ficha con el punto de encuentro y el botón para ver
+  sus parches.
+- **Foro comunal** (pestaña Foro): mensajes con primer nombre y universidad —lo mismo que ve el
+  grupo—, en tres categorías: mis parches, la app y cómo me siento. Cada quien puede borrar solo sus
+  mensajes, y todos se borran con el derecho de supresión.
 
 ## Ajustes por la evaluación del mentor
 
@@ -56,7 +87,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 - API documentada: http://localhost:8000/docs
 - Pruebas: `pytest` (29 pruebas: k-means, correo institucional, flujo completo, anonimato, reportes, permisos)
 
-Variables útiles: `ADMIN_KEY` (por defecto `dedsec-demo`), `SECRETO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `CORREO_DEMO`, `PERMITIR_MENORES`, `REPORTES_PARA_SUSPENDER`, `K_CONTEO`, `GRUPO_MIN`, `GRUPO_MAX`, `DATABASE_URL`.
+Variables útiles: `ADMIN_KEY` (por defecto `dedsec-demo`), `SECRETO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `CORREO_DEMO`, `PERMITIR_MENORES`, `REPORTES_PARA_SUSPENDER`, `K_CONTEO`, `GRUPO_MIN`, `GRUPO_MAX`, `DATABASE_URL`, `ESPERA_MINUTOS`, `TELEGRAM_TOKEN`, `TELEGRAM_BOT`, `FORO_MAX`.
 
 ### 2. App Flutter (Flutter 3.38.1 o más)
 
@@ -93,7 +124,8 @@ Probado con Flutter 3.38.9: `flutter analyze` sin problemas, `flutter test` pasa
 ## Guion de demo (3 minutos)
 
 1. **Registro.** Correo `@usbcali.edu.co` y el código (en la demo aparece en pantalla). Luego nombre, edad, comuna 19, bici, ritmo moderado. Mostrar el aviso de privacidad y la autorización.
-2. **Elegir parche.** "Elegir mi parche": filtrar por estación, hora y actividad, y "Unirme" en Panamericana 8:00 bici.
+2. **Match automático.** Al entrar, la app busca sola un parche con gente y esas mismas características. Con los datos sintéticos hay gente inscrita, así que el match une de una; si se quiere mostrar la espera, registrarse con una actividad y estación sin gente, ver la tarjeta "Buscando tu parche…" (y "Conectar Telegram"), inscribir a otra persona compatible desde otro navegador y ver llegar el aviso. También se puede "Elegir yo mismo": filtrar por estación, hora y actividad, y "Unirme".
+2b. **Mapa y foro.** Pestaña Mapa: pines con la gente de cada estación y ficha con sus parches. Pestaña Foro: publicar un mensaje en "Mis parches".
 3. **El sábado.** En Ajustes > Herramientas de demo: "Armar los grupos del sábado". Luego "Ver el aviso del sábado": llega la notificación y al tocarla se abre el grupo con punto de encuentro, hora, nombres y universidades.
 4. **Confirmar.** "Confirmo, voy". Mostrar "Reportar un problema" y "Cómo armamos los grupos".
 5. **El domingo.** "Terminar la jornada y abrir encuesta", luego "Ver el aviso de la encuesta" y responderla.

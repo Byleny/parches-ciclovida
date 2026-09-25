@@ -34,6 +34,9 @@ class Joven(SQLModel, table=True):
     acudiente_nombre: str | None = Field(default=None, max_length=80)
     suspendido: bool = False  # por reportes, hasta revisión
     pausa_fecha: date | None = None  # "esta semana no voy"
+    # Telegram (opcional): para avisarle cuando su espera encuentra parche.
+    telegram_chat_id: str | None = Field(default=None, index=True)
+    telegram_codigo: str | None = Field(default=None, index=True)
     sintetico: bool = False  # datos de demostración generados por seed.py
     creado_en: datetime = Field(default_factory=_ahora, sa_type=DateTime)
 
@@ -107,6 +110,39 @@ class Encuesta(SQLModel, table=True):
     asistio: bool
     volveria: bool
     bienestar: int | None = None  # 1 a 5, solo si asistió
+    creado_en: datetime = Field(default_factory=_ahora, sa_type=DateTime)
+
+
+class Espera(SQLModel, table=True):
+    """Quien no encontró parche con gente compatible queda en espera; el sistema lo reintenta
+    en cada tick y le avisa (app y Telegram) apenas aparezca uno."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    joven_id: str = Field(foreign_key="joven.id", index=True)
+    jornada_fecha: date = Field(index=True)
+    creado_en: datetime = Field(default_factory=_ahora, sa_type=DateTime)
+
+
+class Notificacion(SQLModel, table=True):
+    """Avisos dentro de la app: por ahora, "tu espera encontró parche"."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    joven_id: str = Field(foreign_key="joven.id", index=True)
+    titulo: str
+    cuerpo: str
+    leida: bool = False
+    creado_en: datetime = Field(default_factory=_ahora, sa_type=DateTime)
+
+
+class MensajeForo(SQLModel, table=True):
+    """Foro comunal: comentarios sobre los parches, la app o cómo se sienten."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    joven_id: str | None = Field(default=None, foreign_key="joven.id", index=True)
+    nombre: str  # primer nombre, igual que en el grupo
+    universidad: str  # nombre corto
+    categoria: str  # parches | app | animo
+    texto: str = Field(max_length=500)
     creado_en: datetime = Field(default_factory=_ahora, sa_type=DateTime)
 
 

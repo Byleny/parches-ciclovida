@@ -5,6 +5,7 @@ import '../notificaciones.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
+import '../widgets/telegram.dart';
 import 'aviso.dart';
 import 'como_armamos.dart';
 
@@ -113,6 +114,8 @@ class _AjustesScreenState extends State<AjustesScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 20),
+          const TarjetaTelegram(),
           const SizedBox(height: 20),
           _Grupo(
             children: [

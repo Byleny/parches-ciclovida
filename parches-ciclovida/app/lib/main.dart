@@ -3,7 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'notificaciones.dart';
 import 'screens/bienvenida.dart';
-import 'screens/inicio.dart';
+import 'screens/principal.dart';
 import 'sesion.dart';
 import 'theme.dart';
 
@@ -28,7 +28,7 @@ class ParchesApp extends StatelessWidget {
       locale: const Locale('es', 'CO'),
       supportedLocales: const [Locale('es', 'CO'), Locale('es')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      home: registrado ? const InicioScreen() : const BienvenidaScreen(),
+      home: registrado ? const PrincipalScreen() : const BienvenidaScreen(),
     );
   }
 }

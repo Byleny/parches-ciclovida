@@ -92,6 +92,14 @@ MOTIVOS_REPORTE = [
 ]
 MOTIVOS_IDS = {m["id"] for m in MOTIVOS_REPORTE}
 
+# Categorías del foro comunal
+FORO_CATEGORIAS = [
+    {"id": "parches", "nombre": "Mis parches"},
+    {"id": "app", "nombre": "La app"},
+    {"id": "animo", "nombre": "Cómo me siento"},
+]
+FORO_IDS = {c["id"] for c in FORO_CATEGORIAS}
+
 # Territorio inicial: universidades de Cali. Se acepta el dominio o cualquier subdominio
 # (u.icesi.edu.co entra por icesi.edu.co). Confirmar con cada universidad el dominio de sus estudiantes.
 UNIVERSIDADES = [
@@ -134,9 +142,11 @@ def rangos_permitidos() -> list[dict]:
 
 
 def catalogo() -> dict:
-    from .config import PERMITIR_MENORES
+    from .config import ESPERA_MINUTOS, PERMITIR_MENORES
 
     return {
+        "foro_categorias": FORO_CATEGORIAS,
+        "espera_minutos": ESPERA_MINUTOS,
         "comunas": COMUNAS,
         "tramos": TRAMOS,
         "actividades": ACTIVIDADES,
