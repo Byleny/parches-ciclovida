@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parches CicloVida · Tablero</title>
+  <link rel="stylesheet" href="vendor/leaflet.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-in">
+      <img class="logo-cv" src="img/ciclovida.png" alt="CicloVida, Cali en movimiento">
+      <div class="titulo">
+        <h1>Parches CicloVida</h1>
+        <p>Tablero de seguimiento · solo datos agregados</p>
+      </div>
+      <p class="autoria">Propuesta del equipo Dedsec<br>Hackathon Smart City Expo Cali 2026</p>
+    </div>
+  </header>
+
+  <main>
+    <p class="insumo">Insumo de apoyo para la Secretaría del Deporte y la Recreación. No es información oficial ni una decisión de la Alcaldía de Cali.</p>
+    <div id="aviso-sintetico" class="aviso" hidden>
+      <strong>Datos sintéticos de demostración.</strong> Generados para probar el tablero; no son resultados de ningún piloto.
+    </div>
+
+    <div class="controles">
+      <label>Jornada
+        <select id="jornada"></select>
+      </label>
+      <span id="estado-jornada" class="chip"></span>
+      <span class="spacer"></span>
+      <span class="nota-privacidad" id="nota-privacidad"></span>
+    </div>
+
+    <section class="kpis" id="kpis" aria-label="Indicadores de la jornada"></section>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Del registro al domingo</h2>
+        <p class="sub">Cuántos jóvenes llegan a cada paso, sobre el total de inscritos</p>
+        <div id="embudo" class="barras"></div>
+      </section>
+
+      <section class="card">
+        <h2>Asistencia y ganas de volver</h2>
+        <p class="sub">Porcentaje sobre quienes respondieron la encuesta, por jornada</p>
+        <div class="leyenda" id="leyenda-tendencia"></div>
+        <div class="chart-box"><canvas id="tendencia" aria-label="Tendencia de asistencia y de quienes volverían" role="img"></canvas></div>
+      </section>
+
+      <section class="card card-alta">
+        <h2>Inscritos por comuna</h2>
+        <p class="sub">Comuna donde vive cada joven · en color, cuántos tuvieron parche esta jornada</p>
+        <div id="comunas" class="barras barras-comuna"></div>
+        <details class="tabla-alt">
+          <summary>Ver como tabla</summary>
+          <div id="tabla-comunas"></div>
+        </details>
+      </section>
+
+      <section class="card">
+        <h2>Estaciones de la CicloVida</h2>
+        <p class="sub">Tamaño del círculo: jóvenes con parche en esa estación</p>
+        <div id="mapa" class="mapa" role="img" aria-label="Mapa de estaciones con jóvenes emparejados"></div>
+      </section>
+
+      <section class="card">
+        <h2>¿Cómo se sintieron?</h2>
+        <p class="sub">Respuestas de 1 (muy mal) a 5 (muy bien) de quienes fueron</p>
+        <div id="bienestar" class="columnas"></div>
+      </section>
+
+      <section class="card card-ancha">
+        <div class="card-head">
+          <div>
+            <h2>Parches de la jornada</h2>
+            <p class="sub">Un renglón por grupo. Nunca se muestran nombres.</p>
+          </div>
+          <label class="filtro">Estación
+            <select id="filtro-tramo"><option value="">Todas</option></select>
+          </label>
+        </div>
+        <div class="tabla-scroll"><table id="grupos"></table></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="pie">
+    Prototipo TRL 3 del equipo Dedsec · Hackathon Smart City Expo Cali 2026 · Reto CicloVida. No es un canal oficial de la Alcaldía.
+    Estaciones según boletines públicos de la Alcaldía de Cali; ubicaciones del mapa aproximadas.
+    Los reportes de seguridad se cuentan aquí, pero su contenido solo lo ve moderación.
+  </footer>
+
+  <script src="vendor/chart.umd.min.js"></script>
+  <script src="vendor/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

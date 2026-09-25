@@ -1,0 +1,119 @@
+# Parches CicloVida
+
+Prototipo TRL 3 del equipo Dedsec para el reto CicloVida del Hackathon Smart City Expo Cali 2026.
+
+Un estudiante universitario de Cali verifica su correo institucional y crea su perfil. Cada semana el sistema abre parches en las 12 estaciones de la CicloVida, uno por hora (8:00, 9:30, 11:00) y actividad (bici, patines, trotar, caminar); el joven elige uno de la lista, así nadie depende de que otro tome la iniciativa. El sábado a las 5:00 p. m. un algoritmo k-means divide a la gente de cada parche en grupos de 3 a 6 y a las 7:00 p. m. le llega la notificación para confirmar. Ese es el momento en que decide si sale el domingo. Al terminar la jornada, la app le pregunta si fue, si volvería y, de forma opcional, cómo se sintió del 1 al 5. La Secretaría ve un tablero web solo con cifras agregadas por comuna y por grupo.
+
+```
+parches-ciclovida/
+├── app/        App móvil en Flutter (Android, iOS y web para proyectar)
+└── backend/    FastAPI + SQLite: registro, emparejamiento, encuestas, tablero web
+```
+
+## Qué pide el reto y dónde está
+
+| Requisito TRL 3 | Dónde |
+|---|---|
+| Registro con correo institucional | `app/lib/screens/registro.dart`, `POST /api/verificacion`, `POST /api/jovenes`, `backend/app/verificacion.py` |
+| Parches generados por el sistema | `GET /api/parches`, `POST /api/yo/parche`, `app/lib/screens/elegir_parche.dart` |
+| Agrupamiento con k-means | `backend/app/matching.py` (funciones puras, con pruebas) |
+| Notificaciones | `app/lib/notificaciones.dart`: sábado 7:00 p. m. y domingo 1:30 p. m., cada semana |
+| Base de datos | SQLite con SQLModel, `backend/app/models.py` |
+| Tablero | `http://localhost:8000/tablero/`, `backend/static/tablero/` |
+
+## Ajustes por la evaluación del mentor
+
+- **Menores de edad.** El piloto es para jóvenes de 18 a 28 años (`PERMITIR_MENORES=0`). Si se activa, los de 14 a 17 necesitan el nombre y la autorización de su acudiente, y nunca quedan en un grupo con adultos.
+- **Hábeas data (Ley 1581 de 2012).** Aviso de privacidad completo en el registro (`backend/app/privacidad.py`). Se guardan la versión del aviso y la fecha de cada autorización. La pregunta de bienestar es opcional porque puede ser un dato sensible. Cada joven puede borrar sus datos desde Ajustes. El aviso es un borrador: hay que completar los datos entre corchetes y hacerlo revisar antes de un piloto real.
+- **Marca.** Ni la app ni el tablero usan el escudo de la Alcaldía. Los dos dicen que son un prototipo y no un canal oficial, y el tablero se presenta como insumo, no como decisión. El logo de CicloVida también es de la Alcaldía; si quieren riesgo cero, se reemplaza por uno propio en `app/assets/img/` y `backend/static/tablero/img/`.
+- **Riesgo de encuentros entre desconocidos.** Solo se encuentran en estaciones públicas y en horario de CicloVida. El grupo ve el primer nombre, la actividad y si confirmaste, nada más. Hay un botón "Reportar un problema" con la línea 123 visible. Con 2 reportes de personas distintas, la persona sale del emparejamiento hasta que moderación la revise (`GET /api/admin/reportes`).
+- **Filtro de confianza.** Solo entran estudiantes de universidades de Cali, verificados con un código de 6 dígitos enviado a su correo institucional (`@usbcali.edu.co`, `@uao.edu.co`, `@correounivalle.edu.co`, `@javerianacali.edu.co`, `@icesi.edu.co`, `@usc.edu.co` y otros en `backend/app/catalog.py`; se aceptan subdominios). El correo no se guarda: solo su huella HMAC, para que no abra dos cuentas, y el nombre de la universidad, que el grupo ve junto al primer nombre. Sin servidor de correo (`SMTP_HOST` vacío), la API devuelve el código en la respuesta para la demo; en un piloto, `CORREO_DEMO=0`.
+- **"Si usa IA, expliquen sus variables."** El agrupamiento usa k-means con tres variables y sus pesos, explicadas dentro de la app en Ajustes > Cómo armamos los grupos.
+
+## Cómo se arman los grupos
+
+1. **El sistema abre los parches.** Uno por estación, hora y actividad para cada grupo de edad (144 por domingo). El joven elige; la app le recomienda los de su estación y actividad favoritas.
+2. **Nadie queda solo.** El sábado a las 5:00 p. m., quien está en un parche de menos de 3 personas se suma al parche compatible más parecido. Reglas que nunca se relajan: misma estación, menores nunca con mayores, a pie (caminar, trotar) nunca con sobre ruedas (bici, patines), máximo 90 minutos de diferencia. Quien tuvo que ceder algo lo ve escrito en su grupo.
+3. **K-means.** Cada parche se parte en grupos de 3 a 6, idealmente 5, con k-means de tamaño balanceado y determinista sobre ritmo (peso 1,0), rango de edad (0,6) y experiencia, es decir, domingos que ya fue (0,4).
+4. **Quien llega tarde** se suma al grupo con cupo cuyo centroide está más cerca, o se abre uno nuevo.
+
+Con los datos sintéticos de 260 jóvenes, casi todos los grupos quedan de 3 a 6 personas.
+
+## Correr la demo
+
+### 1. Backend y tablero (Python 3.10 o más)
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate          # en Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python -m app.seed --reset         # 260 jóvenes sintéticos y 4 domingos pasados
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+- Tablero: http://localhost:8000/tablero/ (muestra un aviso de "datos sintéticos" mientras existan)
+- API documentada: http://localhost:8000/docs
+- Pruebas: `pytest` (29 pruebas: k-means, correo institucional, flujo completo, anonimato, reportes, permisos)
+
+Variables útiles: `ADMIN_KEY` (por defecto `dedsec-demo`), `SECRETO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `CORREO_DEMO`, `PERMITIR_MENORES`, `REPORTES_PARA_SUSPENDER`, `K_CONTEO`, `GRUPO_MIN`, `GRUPO_MAX`, `DATABASE_URL`.
+
+### 2. App Flutter (Flutter 3.38.1 o más)
+
+La carpeta `app/` trae el código, los logos y las fuentes, pero no las carpetas `android/` e `ios/`: se generan con tu versión de Flutter.
+
+```bash
+cd app
+flutter --version                  # 3.38.1 o más; si no: flutter upgrade
+flutter create . --project-name parches_ciclovida --org co.dedsec --platforms android,ios,web
+python tool/configurar_plataformas.py
+flutter pub get
+flutter test
+```
+
+`configurar_plataformas.py` agrega los permisos, los receivers de notificaciones programadas y el desugaring que pide `flutter_local_notifications`, y permite `http://` en la red local. Se puede correr varias veces.
+
+Para correrla:
+
+```bash
+# Emulador de Android: el computador se ve como 10.0.2.2 y ya viene configurado
+flutter run
+
+# Celular físico en la misma Wi-Fi que el computador
+flutter run --dart-define=API_URL=http://192.168.1.20:8000
+
+# Navegador, para proyectar (las notificaciones se simulan dentro de la app)
+flutter run -d chrome
+```
+
+La IP también se puede cambiar dentro de la app: botón "Servidor" en la bienvenida o Ajustes > Dirección del servidor.
+
+Probado con Flutter 3.38.9: `flutter analyze` sin problemas, `flutter test` pasa y la versión web completa el flujo de registro, elección de parche y grupos del sábado contra el backend. Android e iOS no se han probado en un dispositivo.
+
+## Guion de demo (3 minutos)
+
+1. **Registro.** Correo `@usbcali.edu.co` y el código (en la demo aparece en pantalla). Luego nombre, edad, comuna 19, bici, ritmo moderado. Mostrar el aviso de privacidad y la autorización.
+2. **Elegir parche.** "Elegir mi parche": filtrar por estación, hora y actividad, y "Unirme" en Panamericana 8:00 bici.
+3. **El sábado.** En Ajustes > Herramientas de demo: "Armar los grupos del sábado". Luego "Ver el aviso del sábado": llega la notificación y al tocarla se abre el grupo con punto de encuentro, hora, nombres y universidades.
+4. **Confirmar.** "Confirmo, voy". Mostrar "Reportar un problema" y "Cómo armamos los grupos".
+5. **El domingo.** "Terminar la jornada y abrir encuesta", luego "Ver el aviso de la encuesta" y responderla.
+6. **Tablero.** Recargar http://localhost:8000/tablero/ y elegir la jornada: la respuesta ya está en las cifras, sin ningún nombre.
+
+Si preguntan por qué app y no web: la notificación del sábado en la noche llega justo cuando el joven decide si sale el domingo. Una página web no puede avisarle en ese momento.
+
+## Fuentes de datos
+
+Las 12 estaciones de la CicloVida 2026 (Panamericana, El Prado, Torres de Comfandi, El Ingenio, Morichal, Sol de Oriente, Petecuy, Corredor Verde, Las Américas, Brisas de los Álamos, Siloé y La Fortaleza) y el horario de 8:00 a. m. a 1:00 p. m. salen de los boletines de la Alcaldía de Cali. Las direcciones de cada estación salen de El País (mayo de 2025). Las coordenadas del mapa son aproximadas.
+
+- https://www.cali.gov.co/boletines/publicaciones/191401/la-sexta-ciclovida-de-2026-llega-el-domingo-para-el-disfrute-de-calenos-y-visitantes/
+- https://www.cali.gov.co/boletines/publicaciones/191512/con-58-kilometros-de-bienestar-cali-vivio-una-nueva-jornada-masiva-de-la-ciclovida/
+- https://www.elpais.com.co/cali/este-domingo-18-de-mayo-del-2025-hay-ciclovida-en-cali-esto-es-lo-que-debe-saber-1701.html
+
+## Siguiente paso (TRL 4)
+
+- Notificaciones push desde el servidor con Firebase Cloud Messaging, para avisar también cuando alguien se suma tarde a un parche.
+- Validar estaciones, coordenadas y horarios con la Secretaría del Deporte y la Recreación.
+- Postgres en lugar de SQLite, autenticación real para el tablero y la moderación.
+- Revisión legal del aviso de privacidad y definición del responsable del tratamiento.
+
+Fuentes Barlow y Barlow Condensed bajo licencia SIL Open Font License. Chart.js y Leaflet bajo licencia MIT.

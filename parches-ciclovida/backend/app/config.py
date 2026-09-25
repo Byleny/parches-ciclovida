@@ -1,0 +1,44 @@
+import os
+from zoneinfo import ZoneInfo
+
+TZ = ZoneInfo("America/Bogota")
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./parches.db")
+ADMIN_KEY = os.getenv("ADMIN_KEY", "dedsec-demo")
+SCHEDULER_ON = os.getenv("SCHEDULER", "1") == "1"
+
+GRUPO_MIN = int(os.getenv("GRUPO_MIN", "3"))
+GRUPO_OBJETIVO = int(os.getenv("GRUPO_OBJETIVO", "5"))
+GRUPO_MAX = int(os.getenv("GRUPO_MAX", "6"))
+
+# Anonimato del tablero: conteos por debajo de K_CONTEO se muestran como "<K";
+# promedios con menos de K_PROMEDIO respuestas no se muestran.
+K_CONTEO = int(os.getenv("K_CONTEO", "5"))
+K_PROMEDIO = int(os.getenv("K_PROMEDIO", "3"))
+
+# Calendario semanal (hora de Cali)
+EMPAREJAR_SABADO = os.getenv("EMPAREJAR_SABADO", "17:00")  # cierra inscripciones del domingo
+FINALIZAR_DOMINGO = os.getenv("FINALIZAR_DOMINGO", "13:00")  # fin de la jornada, abre encuesta
+DIAS_ENCUESTA = int(os.getenv("DIAS_ENCUESTA", "4"))  # la encuesta queda abierta hasta el jueves
+
+# Recomendación del mentor: piloto solo con mayores de 18. Con PERMITIR_MENORES=1 se aceptan
+# jóvenes de 14 a 17 con el consentimiento de su acudiente, y nunca se mezclan con adultos.
+PERMITIR_MENORES = os.getenv("PERMITIR_MENORES", "0") == "1"
+
+# Seguridad: con este número de reportes de personas distintas, alguien sale del emparejamiento
+# hasta que un moderador lo revise.
+REPORTES_PARA_SUSPENDER = int(os.getenv("REPORTES_PARA_SUSPENDER", "2"))
+
+# Versión del aviso de privacidad que se guarda con cada autorización (Ley 1581 de 2012).
+AVISO_VERSION = "2026-09-25.2"
+
+# Verificación con correo institucional. El correo no se guarda: solo su huella HMAC con SECRETO.
+SECRETO = os.getenv("SECRETO", "dedsec-demo-cambiar")
+CODIGO_MINUTOS = int(os.getenv("CODIGO_MINUTOS", "15"))
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASS = os.getenv("SMTP_PASS", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "Parches CicloVida <no-responder@parches.local>")
+# Sin servidor de correo, para la demo la API devuelve el código en la respuesta. En un piloto: CORREO_DEMO=0.
+CORREO_DEMO = os.getenv("CORREO_DEMO", "1") == "1"

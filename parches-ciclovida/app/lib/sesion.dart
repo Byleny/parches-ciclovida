@@ -1,0 +1,53 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'api.dart';
+import 'config.dart';
+
+/// Guarda el token del joven y la dirección del servidor en el teléfono.
+class Sesion {
+  Sesion._(this._prefs)
+      : api = Api(
+          baseUrl: _prefs.getString(_kUrl) ?? apiUrlPorDefecto(),
+          token: _prefs.getString(_kToken),
+        );
+
+  static const _kToken = 'token';
+  static const _kUrl = 'api_url';
+  static const _kClave = 'clave_admin';
+
+  static late Sesion actual;
+
+  final SharedPreferences _prefs;
+  final Api api;
+
+  static Future<Sesion> cargar() async {
+    final prefs = await SharedPreferences.getInstance();
+    actual = Sesion._(prefs);
+    return actual;
+  }
+
+  bool get registrado => api.token != null;
+
+  String get apiUrl => api.baseUrl;
+
+  String get claveAdmin => _prefs.getString(_kClave) ?? kClaveAdminPorDefecto;
+
+  Future<void> guardarToken(String token) async {
+    api.token = token;
+    await _prefs.setString(_kToken, token);
+  }
+
+  Future<void> cerrar() async {
+    api.token = null;
+    await _prefs.remove(_kToken);
+  }
+
+  Future<void> cambiarUrl(String url) async {
+    api.baseUrl = url.trim();
+    await _prefs.setString(_kUrl, api.baseUrl);
+  }
+
+  Future<void> guardarClave(String clave) async {
+    await _prefs.setString(_kClave, clave.trim());
+  }
+}

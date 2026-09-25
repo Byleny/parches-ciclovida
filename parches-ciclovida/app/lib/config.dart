@@ -1,0 +1,23 @@
+import 'package:flutter/foundation.dart';
+
+/// Dirección del backend. Se puede fijar al compilar:
+///   flutter run --dart-define=API_URL=http://192.168.1.20:8000
+/// o cambiar dentro de la app en Ajustes > Herramientas de demo.
+const String kApiUrlCompilada = String.fromEnvironment('API_URL');
+
+String apiUrlPorDefecto() {
+  if (kApiUrlCompilada.isNotEmpty) return kApiUrlCompilada;
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    return 'http://10.0.2.2:8000'; // el computador visto desde el emulador de Android
+  }
+  return 'http://localhost:8000';
+}
+
+/// Clave de las acciones de demo (armar parches, cerrar jornada). Debe coincidir con ADMIN_KEY del backend.
+const String kClaveAdminPorDefecto = 'dedsec-demo';
+
+/// Horarios de los avisos semanales (hora de Cali).
+const int kAvisoSabadoHora = 19;
+const int kAvisoSabadoMinuto = 0;
+const int kAvisoDomingoHora = 13;
+const int kAvisoDomingoMinuto = 30;

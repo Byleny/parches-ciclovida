@@ -1,0 +1,172 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+import 'models.dart';
+
+class ApiException implements Exception {
+  ApiException(this.mensaje, {this.status});
+
+  final String mensaje;
+  final int? status;
+
+  bool get sesionInvalida => status == 401;
+
+  @override
+  String toString() => mensaje;
+}
+
+class RegistroResultado {
+  const RegistroResultado(this.token, this.perfil);
+
+  final String token;
+  final Perfil perfil;
+}
+
+/// Cliente del backend FastAPI (ver backend/app/main.py).
+class Api {
+  Api({required this.baseUrl, this.token});
+
+  String baseUrl;
+  String? token;
+
+  final http.Client _client = http.Client();
+  static const _timeout = Duration(seconds: 12);
+
+  Uri _uri(String path, Map<String, String>? query) {
+    var base = baseUrl.trim();
+    while (base.endsWith('/')) {
+      base = base.substring(0, base.length - 1);
+    }
+    final uri = Uri.parse('$base$path');
+    return query == null ? uri : uri.replace(queryParameters: query);
+  }
+
+  Future<dynamic> _send(
+    String method,
+    String path, {
+    Object? body,
+    Map<String, String>? headers,
+    Map<String, String>? query,
+  }) async {
+    final req = http.Request(method, _uri(path, query));
+    req.headers['Accept'] = 'application/json';
+    if (body != null) {
+      req.headers['Content-Type'] = 'application/json';
+      req.body = jsonEncode(body);
+    }
+    final t = token;
+    if (t != null) req.headers['Authorization'] = 'Bearer $t';
+    if (headers != null) req.headers.addAll(headers);
+
+    final http.Response res;
+    try {
+      final streamed = await _client.send(req).timeout(_timeout);
+      res = await http.Response.fromStream(streamed).timeout(_timeout);
+    } on TimeoutException {
+      throw ApiException('El servidor no respondió a tiempo. Revisa tu conexión.');
+    } catch (_) {
+      throw ApiException('No pudimos conectarnos con el servidor ($baseUrl).');
+    }
+
+    dynamic data;
+    final texto = utf8.decode(res.bodyBytes);
+    if (texto.isNotEmpty) {
+      try {
+        data = jsonDecode(texto);
+      } on FormatException {
+        data = null;
+      }
+    }
+    if (res.statusCode >= 200 && res.statusCode < 300) return data;
+    throw ApiException(_mensajeError(data, res.statusCode), status: res.statusCode);
+  }
+
+  static String _mensajeError(dynamic data, int status) {
+    if (data is Map && data['detail'] != null) {
+      final detalle = data['detail'];
+      if (detalle is String) return detalle;
+      if (detalle is List && detalle.isNotEmpty && detalle.first is Map) {
+        final msg = (detalle.first as Map)['msg']?.toString() ?? '';
+        if (msg.isNotEmpty) return msg.replaceFirst('Value error, ', '');
+      }
+    }
+    if (status == 401) return 'Tu sesión ya no es válida. Vuelve a registrarte.';
+    return 'Algo salió mal (error $status).';
+  }
+
+  Future<Json> _json(String method, String path, {Object? body, Map<String, String>? headers, Map<String, String>? query}) async {
+    final data = await _send(method, path, body: body, headers: headers, query: query);
+    return data as Json;
+  }
+
+  // ------------------------------------------------------------ joven
+
+  Future<Catalogo> catalogo() async => Catalogo.fromJson(await _json('GET', '/api/catalogo'));
+
+  Future<RegistroResultado> registrar(Json datos) async {
+    final j = await _json('POST', '/api/jovenes', body: datos);
+    return RegistroResultado(j['token'] as String, Perfil.fromJson(j['joven'] as Json));
+  }
+
+  Future<Perfil> yo() async => Perfil.fromJson(await _json('GET', '/api/yo'));
+
+  Future<Perfil> cambiar(Json cambios) async => Perfil.fromJson(await _json('PATCH', '/api/yo', body: cambios));
+
+  Future<EstadoParche> miParche() async => EstadoParche.fromJson(await _json('GET', '/api/yo/parche'));
+
+  Future<List<ParcheOpcion>> parches({String? tramo, String? franja, String? actividad}) async {
+    final query = <String, String>{
+      'tramo': ?tramo,
+      'franja': ?franja,
+      'actividad': ?actividad,
+    };
+    final j = await _json('GET', '/api/parches', query: query.isEmpty ? null : query);
+    return (j['parches'] as List).map((e) => ParcheOpcion.fromJson(e as Json)).toList();
+  }
+
+  Future<EstadoParche> unirme(int parcheId) async =>
+      EstadoParche.fromJson(await _json('POST', '/api/yo/parche', body: {'parche_id': parcheId}));
+
+  /// Pide el código al correo institucional. En la demo, sin servidor de correo, lo devuelve.
+  Future<({String universidad, String? codigoDemo})> pedirCodigo(String correo) async {
+    final j = await _json('POST', '/api/verificacion', body: {'correo': correo});
+    return (universidad: j['universidad'] as String, codigoDemo: j['codigo_demo'] as String?);
+  }
+
+  Future<EstadoParche> salirme() async => EstadoParche.fromJson(await _json('DELETE', '/api/yo/parche'));
+
+  Future<EstadoParche> responder({required bool va}) async =>
+      EstadoParche.fromJson(await _json('POST', '/api/yo/parche/respuesta', body: {'va': va}));
+
+  Future<EstadoParche> enviarEncuesta({required bool asistio, required bool volveria, int? bienestar}) async =>
+      EstadoParche.fromJson(await _json('POST', '/api/yo/encuesta', body: {
+        'asistio': asistio,
+        'volveria': volveria,
+        'bienestar': bienestar,
+      }));
+
+  Future<AvisoPrivacidad> avisoPrivacidad() async => AvisoPrivacidad.fromJson(await _json('GET', '/api/aviso-privacidad'));
+
+  Future<String> reportar({required int grupoId, required String motivo, int? ref, String detalle = ''}) async {
+    final j = await _json('POST', '/api/yo/reportes', body: {
+      'grupo_id': grupoId,
+      'motivo': motivo,
+      'ref': ref,
+      'detalle': detalle,
+    });
+    return j['mensaje'] as String? ?? 'Recibimos tu reporte.';
+  }
+
+  Future<void> borrarMisDatos() async {
+    await _send('DELETE', '/api/yo');
+  }
+
+  // ------------------------------------------------------------ demo
+
+  Future<Json> adminArmarGrupos(String clave) =>
+      _json('POST', '/api/admin/armar-grupos', headers: {'X-Admin-Key': clave});
+
+  Future<Json> adminFinalizar(String clave) => _json('POST', '/api/admin/finalizar', headers: {'X-Admin-Key': clave});
+}
