@@ -59,3 +59,8 @@ services:
       # URL pública de parches-backend. Vacía = https://parches-backend.onrender.com
       - key: API_URL
         sync: false
+    headers:
+      # app.js y config.js no cambian de nombre: sin caché, cada despliegue se ve de una
+      - path: /*
+        name: Cache-Control
+        value: no-cache
