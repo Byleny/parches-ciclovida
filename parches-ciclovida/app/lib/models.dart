@@ -14,6 +14,45 @@ class Opcion {
   final String? detalle;
 }
 
+/// Quiz "Tu estilo de parche": corto, opcional y sin etiquetas.
+/// La app nunca recibe puntajes ni perfiles: solo envía las respuestas una vez.
+class QuizOpcion {
+  const QuizOpcion({required this.id, required this.texto});
+
+  factory QuizOpcion.fromJson(Json j) => QuizOpcion(id: j['id'] as String, texto: j['texto'] as String);
+
+  final String id;
+  final String texto;
+}
+
+class QuizPregunta {
+  const QuizPregunta({required this.id, required this.texto, required this.opciones});
+
+  factory QuizPregunta.fromJson(Json j) => QuizPregunta(
+        id: j['id'] as int,
+        texto: j['texto'] as String,
+        opciones: (j['opciones'] as List).map((e) => QuizOpcion.fromJson(e as Json)).toList(),
+      );
+
+  final int id;
+  final String texto;
+  final List<QuizOpcion> opciones;
+}
+
+class QuizInfo {
+  const QuizInfo({required this.titulo, required this.detalle, required this.preguntas});
+
+  factory QuizInfo.fromJson(Json j) => QuizInfo(
+        titulo: j['titulo'] as String,
+        detalle: j['detalle'] as String,
+        preguntas: (j['preguntas'] as List).map((e) => QuizPregunta.fromJson(e as Json)).toList(),
+      );
+
+  final String titulo;
+  final String detalle;
+  final List<QuizPregunta> preguntas;
+}
+
 class Comuna {
   const Comuna({required this.id, required this.nombre, this.barrios = const []});
 
@@ -103,6 +142,7 @@ class Catalogo {
     this.universidades = const [],
     this.foroCategorias = const [],
     this.esperaMinutos = 10,
+    this.quiz,
   });
 
   factory Catalogo.fromJson(Json j) {
@@ -126,6 +166,7 @@ class Catalogo {
           : (j['universidades'] as List).map((e) => Universidad.fromJson(e as Json)).toList(),
       foroCategorias: j['foro_categorias'] == null ? const <Opcion>[] : opciones('foro_categorias'),
       esperaMinutos: j['espera_minutos'] as int? ?? 10,
+      quiz: j['quiz'] == null ? null : QuizInfo.fromJson(j['quiz'] as Json),
     );
   }
 
@@ -145,6 +186,7 @@ class Catalogo {
 
   /// Minutos en espera antes de que la app muestre parches parecidos.
   final int esperaMinutos;
+  final QuizInfo? quiz;
 
   Tramo? tramo(String id) {
     for (final t in tramos) {
@@ -178,7 +220,9 @@ class Perfil {
     required this.ritmo,
     this.universidad = '',
     this.tramoId,
+    this.franja,
     this.pausaFecha,
+    this.quizRespondido = false,
   });
 
   factory Perfil.fromJson(Json j) => Perfil(
@@ -188,9 +232,11 @@ class Perfil {
         rangoEdad: j['rango_edad'] as String,
         comuna: j['comuna'] as int,
         tramoId: j['tramo_id'] as String?,
+        franja: j['franja'] as String?,
         actividad: j['actividad'] as String,
         ritmo: j['ritmo'] as String,
         pausaFecha: j['pausa_fecha'] as String?,
+        quizRespondido: j['quiz_respondido'] as bool? ?? false,
       );
 
   final String id;
@@ -203,9 +249,15 @@ class Perfil {
 
   /// Estación favorita: solo sirve para recomendar parches.
   final String? tramoId;
+
+  /// Hora preferida (null = cualquiera). El match la usa como característica.
+  final String? franja;
   final String actividad;
   final String ritmo;
   final String? pausaFecha;
+
+  /// Solo si ya respondió el quiz de estilo; las respuestas nunca llegan a la app.
+  final bool quizRespondido;
 }
 
 /// Un parche de la lista que genera el sistema. Solo cifras, nunca nombres.
@@ -356,6 +408,33 @@ class Grupo {
   final String ritmoNombre;
   final List<Miembro> miembros;
   final int confirmados;
+}
+
+/// Un domingo pasado: a qué parche fue y con quién.
+class HistorialItem {
+  const HistorialItem({
+    required this.fecha,
+    required this.miRespuesta,
+    required this.grupo,
+    this.asistio,
+    this.volveria,
+  });
+
+  factory HistorialItem.fromJson(Json j) => HistorialItem(
+        fecha: j['fecha'] as String,
+        miRespuesta: j['mi_respuesta'] as String? ?? 'pendiente',
+        asistio: j['asistio'] as bool?,
+        volveria: j['volveria'] as bool?,
+        grupo: Grupo.fromJson(j['grupo'] as Json),
+      );
+
+  final String fecha;
+  final String miRespuesta;
+
+  /// null = no respondió la encuesta de esa semana.
+  final bool? asistio;
+  final bool? volveria;
+  final Grupo grupo;
 }
 
 class EncuestaInfo {

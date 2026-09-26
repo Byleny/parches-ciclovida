@@ -7,11 +7,16 @@ El joven elige el parche (estación, hora y actividad). El sábado a las 5:00 p.
    a pie (caminar, trotar) nunca con sobre ruedas (bici, patines) y máximo 90 minutos
    de diferencia. Lo que cambió queda registrado para mostrárselo en la app.
 2. Cada parche se parte en grupos de 3 a 6, lo más cerca posible de 5, con k-means de
-   tamaño balanceado sobre tres variables, cada una normalizada de 0 a 1 y con su peso:
-     * ritmo (tranquilo, moderado, rápido)             peso 1.0
-     * rango de edad (18 a 22, 23 a 28)                peso 0.6
-     * experiencia (domingos que ya fue, hasta 3)      peso 0.4
-   Así cada grupo queda con gente de ritmo, edad y experiencia parecidos.
+   tamaño balanceado sobre estas variables, cada una normalizada de 0 a 1 y con su peso:
+     * ritmo (tranquilo, moderado, rápido)                peso 1.0
+     * rango de edad (18 a 22, 23 a 28)                   peso 0.6
+     * experiencia (domingos que ya fue, hasta 3)         peso 0.4
+     * quiz "Tu estilo de parche" (opcional)              peso 0.2 por pregunta
+       Cinco preguntas de gustos (plan después, charla, ruta nueva, esperar al
+       grupo, madrugar), inspiradas en dimensiones clásicas de afinidad pero sin
+       lenguaje clínico. Es solo un desempate: quien no lo responde queda en el
+       punto medio y se agrupa igual por lo demás. Nunca se muestra a nadie.
+   Así cada grupo queda con gente que disfruta el domingo de forma parecida.
 """
 
 from __future__ import annotations
@@ -22,9 +27,13 @@ from typing import Iterable
 
 from .catalog import ACTIVIDADES_POR_ID, FRANJA_ORDEN, RITMO_ORDEN, SEGMENTO_EDAD
 
-PESOS = {"ritmo": 1.0, "edad": 0.6, "experiencia": 0.4}
+# El quiz pesa menos que cualquier otra variable: es un desempate, no un filtro.
+PESOS = {"ritmo": 1.0, "edad": 0.6, "experiencia": 0.4, "quiz": 0.2}
 EDAD_ORDEN = {"14-17": 0, "18-22": 0, "23-28": 1}  # menores y mayores nunca comparten parche
 EXPERIENCIA_MAX = 3
+
+# Quien no responde el quiz queda en el punto medio: no lo acerca ni lo aleja de nadie.
+QUIZ_NEUTRO = (0.5, 0.5, 0.5, 0.5, 0.5)
 
 
 @dataclass(frozen=True)
@@ -36,6 +45,8 @@ class Participante:
     ritmo: str
     rango_edad: str
     experiencia: int = 0
+    # Las 5 respuestas del quiz "Tu estilo de parche" (0 a 1), o None si no lo respondió.
+    quiz: tuple[float, ...] | None = None
 
     @property
     def segmento(self) -> str:
@@ -93,14 +104,17 @@ def tamanos_balanceados(n: int, minimo: int, objetivo: int, maximo: int) -> list
 
 # ---------------------------------------------------------------- k-means
 
-Vector = tuple[float, float, float]
+Vector = tuple[float, ...]
 
 
 def vector(p: Participante) -> Vector:
+    """Ritmo, edad y experiencia primero; el quiz entra al final como desempate (peso 0,2)."""
+    quiz = p.quiz or QUIZ_NEUTRO
     return (
         PESOS["ritmo"] * p.ritmo_orden / 2,
         PESOS["edad"] * EDAD_ORDEN[p.rango_edad],
         PESOS["experiencia"] * min(p.experiencia, EXPERIENCIA_MAX) / EXPERIENCIA_MAX,
+        *(PESOS["quiz"] * x for x in quiz),
     )
 
 

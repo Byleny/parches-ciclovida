@@ -30,6 +30,10 @@ class Joven(SQLModel, table=True):
     acepta_datos: bool
     autorizacion_version: str = ""  # versión del aviso de privacidad aceptado
     autorizacion_en: datetime | None = Field(default=None, sa_type=DateTime)  # prueba de la autorización
+    # Constancia de la declaración de mayoría de edad: casilla obligatoria en el registro
+    # para quien dice tener 18 o más. Se guarda que se preguntó y cuándo se aceptó.
+    declara_mayor: bool = False
+    declara_mayor_en: datetime | None = Field(default=None, sa_type=DateTime)
     permiso_acudiente: bool = False
     acudiente_nombre: str | None = Field(default=None, max_length=80)
     suspendido: bool = False  # por reportes, hasta revisión
@@ -37,6 +41,10 @@ class Joven(SQLModel, table=True):
     # Telegram (opcional): para avisarle cuando su espera encuentra parche.
     telegram_chat_id: str | None = Field(default=None, index=True)
     telegram_codigo: str | None = Field(default=None, index=True)
+    # Quiz "Tu estilo de parche" (opcional): 5 valores de 0 a 1 como "0.5,1.0,...".
+    # Criterio secundario para armar grupos afines; quien no lo responde queda neutro.
+    # Nunca se muestra a nadie ni llega al tablero.
+    quiz: str | None = None
     sintetico: bool = False  # datos de demostración generados por seed.py
     creado_en: datetime = Field(default_factory=_ahora, sa_type=DateTime)
 

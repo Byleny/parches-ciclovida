@@ -266,14 +266,28 @@ def _candidatas(session: Session, joven: Joven, fecha: date, estricto: bool = Tr
     return pares
 
 
+def _distancia_quiz(joven: Joven, gente: list[Joven]) -> float:
+    """Qué tan lejos está el estilo del joven del promedio del parche. 0 si falta información."""
+    mio = quiz_de(joven)
+    otros = [q for q in (quiz_de(x) for x in gente) if q]
+    if not mio or not otros:
+        return 0.0
+    promedio = [sum(c) / len(otros) for c in zip(*otros)]
+    return round(sum(abs(a - b) for a, b in zip(mio, promedio)) / len(mio), 3)
+
+
 def _afinidad(joven: Joven, s: Salida, gente: list[Joven]) -> tuple:
-    """Menor es mejor: la misma idea de distancia del k-means, aplicada a elegir parche."""
+    """Menor es mejor: la misma idea de distancia del k-means, aplicada a elegir parche.
+
+    Primero lo estructural (actividad, hora, ritmo, cercanía); el quiz solo desempata al final.
+    """
     ritmo = _ritmo_mediano(gente)
     return (
         s.actividad != joven.actividad,
         abs(FRANJA_ORDEN[s.franja] - FRANJA_ORDEN[joven.franja]) if joven.franja else 0,
         abs(RITMO_ORDEN[ritmo] - RITMO_ORDEN[joven.ritmo]) if ritmo else 0,
         0 if joven.tramo_id == s.tramo_id else abs(TRAMOS_POR_ID[s.tramo_id]["comuna"] - joven.comuna),
+        _distancia_quiz(joven, gente),
         -len(gente),
         s.id or 0,
     )
@@ -329,6 +343,9 @@ def revisar_esperas(session: Session, momento: datetime | None = None) -> int:
     """En cada tick: si a alguien en espera ya le sirve un parche con gente, lo une y le avisa."""
     momento = momento or ahora()
     j = jornada_abierta(session, momento)
+    # las esperas de domingos que ya pasaron no sirven: se limpian para no crecer sin fin
+    session.exec(delete(Espera).where(Espera.jornada_fecha < j.fecha))
+    session.commit()
     unidos = 0
     for e in session.exec(select(Espera).where(Espera.jornada_fecha == j.fecha)).all():
         joven = session.get(Joven, e.joven_id)
@@ -389,9 +406,30 @@ def _experiencia(session: Session, joven_id: str, antes_de: date) -> int:
     return len(idas)
 
 
+def quiz_de(joven: Joven) -> tuple[float, ...] | None:
+    """Las 5 respuestas del quiz guardadas como "0.5,1.0,...", o None si no lo respondió."""
+    if not joven.quiz:
+        return None
+    try:
+        valores = tuple(float(x) for x in joven.quiz.split(","))
+        return valores if len(valores) == 5 else None
+    except ValueError:
+        return None
+
+
+def guardar_quiz(session: Session, joven: Joven, respuestas: dict[int, str]) -> None:
+    """Guarda solo el vector interno del quiz. No se devuelve ni se muestra a nadie."""
+    from .catalog import puntuar_quiz
+
+    joven.quiz = ",".join(f"{v:g}" for v in puntuar_quiz(respuestas))
+    session.add(joven)
+    session.commit()
+
+
 def _participante(session: Session, joven: Joven, s: Salida) -> Participante:
     return Participante(id=joven.id, tramo=s.tramo_id, franja=s.franja, actividad=s.actividad, ritmo=joven.ritmo,
-                        rango_edad=joven.rango_edad, experiencia=_experiencia(session, joven.id, s.jornada_fecha))
+                        rango_edad=joven.rango_edad, experiencia=_experiencia(session, joven.id, s.jornada_fecha),
+                        quiz=quiz_de(joven))
 
 
 def _nuevo_grupo(session: Session, s: Salida, nombre: str, nivel: str = "armado") -> Grupo:
@@ -462,6 +500,19 @@ def armar_grupos(session: Session, fecha: date) -> dict:
     jornada.emparejada_en = ahora()
     session.add(jornada)
     session.commit()
+
+    # El aviso del sábado, empatado con Telegram: a cada cuenta real le llega su grupo
+    # dentro de la app y, si vinculó el bot, también al chat.
+    for a in session.exec(select(Asignacion).where(Asignacion.jornada_fecha == fecha)).all():
+        joven = session.get(Joven, a.joven_id)
+        grupo = session.get(Grupo, a.grupo_id)
+        if joven is None or joven.sintetico or grupo is None:
+            continue
+        notificar(
+            session, joven, "¡Tu grupo del domingo está listo!",
+            f"Quedaste en el {grupo.nombre} en {TRAMOS_POR_ID[grupo.tramo_id]['nombre']} a las "
+            f"{FRANJA_NOMBRE[grupo.franja]}. Confirma en la app o respondiendo /confirmo en Telegram.",
+        )
     return {**resumen_jornada(session, fecha), "movidos": len(ajustes)}
 
 
@@ -604,6 +655,35 @@ def estado_para(session: Session, joven: Joven, momento: datetime | None = None)
             "grupo": grupo_json(session, session.get(Grupo, a.grupo_id), yo=joven.id),
         })
     return info
+
+
+def historial_para(session: Session, joven: Joven, limite: int = 20) -> list[dict]:
+    """Los domingos pasados del joven: su grupo, la gente que lo acompañó y si fue.
+
+    Solo jornadas ya finalizadas; los nombres son los mismos que ya vio en su grupo esa semana.
+    """
+    asigns = session.exec(
+        select(Asignacion).where(Asignacion.joven_id == joven.id).order_by(Asignacion.jornada_fecha.desc())
+    ).all()
+    filas: list[dict] = []
+    for a in asigns:
+        jornada = session.get(Jornada, a.jornada_fecha)
+        grupo = session.get(Grupo, a.grupo_id) if a.grupo_id else None
+        if jornada is None or jornada.estado != "finalizada" or grupo is None:
+            continue
+        enc = session.exec(
+            select(Encuesta).where(Encuesta.joven_id == joven.id, Encuesta.jornada_fecha == a.jornada_fecha)
+        ).first()
+        filas.append({
+            "fecha": str(a.jornada_fecha),
+            "mi_respuesta": a.estado,
+            "asistio": enc.asistio if enc else None,
+            "volveria": enc.volveria if enc else None,
+            "grupo": grupo_json(session, grupo, yo=joven.id),
+        })
+        if len(filas) >= limite:
+            break
+    return filas
 
 
 def responder(session: Session, joven: Joven, va: bool) -> Asignacion:

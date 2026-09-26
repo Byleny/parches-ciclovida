@@ -20,7 +20,12 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
     return Scaffold(
       body: IndexedStack(
         index: _pestana,
-        children: const [InicioScreen(), MapaScreen(), ForoScreen()],
+        children: [
+          const InicioScreen(),
+          // el mapa y el foro se recargan cada vez que su pestaña vuelve a quedar activa
+          MapaScreen(activo: _pestana == 1),
+          ForoScreen(activo: _pestana == 2),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _pestana,

@@ -23,6 +23,8 @@ parches-ciclovida/
 | Notificaciones | `app/lib/notificaciones.dart`: sábado 7:00 p. m. y domingo 1:30 p. m., cada semana |
 | Mapa interactivo de zonas | `app/lib/screens/mapa.dart` (flutter_map + OpenStreetMap, 12 estaciones) |
 | Foro comunal | `GET/POST /api/foro`, `app/lib/screens/foro.dart` |
+| Historial de domingos | `GET /api/yo/historial`, `app/lib/screens/historial.dart` (a qué parches fue y con quién) |
+| Quiz "Tu estilo de parche" | `POST /api/yo/quiz`, `QUIZ_PREGUNTAS` en `backend/app/catalog.py`, `app/lib/screens/quiz.dart` |
 | Base de datos | SQLite con SQLModel, `backend/app/models.py` |
 | Tablero | `http://localhost:8000/tablero/`, `backend/static/tablero/` |
 
@@ -41,10 +43,46 @@ lo une y le avisa dentro de la app y por Telegram. Pasados
 `ESPERA_MINUTOS` (10 por defecto), la app le muestra además parches parecidos o disponibles para que
 no siga esperando si no quiere.
 
-Para encender el bot de Telegram: crear un bot con @BotFather y arrancar el backend con
-`TELEGRAM_TOKEN=<token>` y `TELEGRAM_BOT=<usuario_del_bot_sin_@>`. El joven toca "Conectar Telegram"
-en la app (se abre `t.me/<bot>?start=<código>`) y el backend vincula el chat al procesar los updates.
-Sin token, todo lo de Telegram se apaga solo y queda el aviso interno.
+### Anclar el bot de Telegram (5 minutos)
+
+1. En Telegram, habla con **@BotFather** → `/newbot` → dale un nombre y un usuario (p. ej.
+   `ParchesCicloVidaBot`). Te entrega un **token**.
+2. `cd backend && copy .env.example .env` y pega el token en `TELEGRAM_TOKEN=`. Nada más:
+   el `@` del bot se detecta solo con `getMe`, y el menú de comandos se registra al arrancar.
+3. Reinicia el backend. En el log debe salir `Bot de Telegram listo: @TuBot`; también puedes
+   verificar con `GET /api/admin/telegram` (dice si está configurado, el `@` y cuántas cuentas
+   se han vinculado, y qué falta si algo no cuadra).
+4. En la app, toca **Conectar Telegram** (tarjeta de espera o Ajustes): se abre
+   `t.me/<bot>?start=<código>` y el backend vincula el chat. El bot revisa sus mensajes cada
+   20 segundos.
+
+Sin token, todo lo de Telegram se apaga solo y queda el aviso interno de la app.
+
+El bot empata las funciones de la app en el chat (`backend/app/telegram.py`):
+
+| En el chat | Qué hace |
+|---|---|
+| `/parche` | Tu estado del domingo: parche, grupo, punto de encuentro y quiénes confirmaron |
+| `/confirmo` / `/novoy` | Lo mismo que el botón de confirmar de la app |
+| `/ayuda` | La lista de comandos |
+| Aviso de match | Cuando tu lista de espera encuentra parche |
+| Aviso del sábado | Cuando k-means arma tu grupo: te llega en la app y en el chat |
+
+## Quiz "Tu estilo de parche" (afinidad, sin etiquetas)
+
+Cinco preguntas cortas en tono de CicloVida ("Termina la CicloVida, ¿cuál es el plan?: ¡jugo y
+charla con el parche! / foto y a la casa"). Las dimensiones que mide (plan social, charla, gusto
+por lo nuevo, esperar al grupo, madrugar) están inspiradas en dimensiones clásicas de afinidad,
+pero sin lenguaje clínico. Reglas de diseño, pedidas por el equipo:
+
+- **Opcional.** Quien no lo responde queda en el punto medio y se agrupa igual por comuna,
+  estación, actividad y hora.
+- **Criterio secundario.** En k-means pesa 0,2 (menos que ritmo 1,0, edad 0,6 y experiencia 0,4)
+  y en el match automático solo desempata entre parches estructuralmente equivalentes.
+- **Sin etiquetas.** El servidor no devuelve puntajes ni perfiles: la app solo sabe si ya se
+  respondió (`quiz_respondido`). Nadie ve "eres X", ni en su perfil ni en el de otros.
+- **Invisible para la Secretaría.** Las respuestas no llegan al tablero ni a ningún endpoint
+  de administración.
 
 ## Mapa y foro
 
@@ -60,6 +98,9 @@ Sin token, todo lo de Telegram se apaga solo y queda el aviso interno.
 
 ## Ajustes por la evaluación del mentor
 
+- **Mayoría de edad.** En el registro hay una casilla obligatoria "Declaro que tengo 18 años o más";
+  sin marcarla no se puede crear la cuenta, y queda constancia (`declara_mayor`, `declara_mayor_en`)
+  de que se preguntó y cuándo se aceptó, igual que con el aviso de privacidad.
 - **Menores de edad.** El piloto es para jóvenes de 18 a 28 años (`PERMITIR_MENORES=0`). Si se activa, los de 14 a 17 necesitan el nombre y la autorización de su acudiente, y nunca quedan en un grupo con adultos.
 - **Hábeas data (Ley 1581 de 2012).** Aviso de privacidad completo en el registro (`backend/app/privacidad.py`). Se guardan la versión del aviso y la fecha de cada autorización. La pregunta de bienestar es opcional porque puede ser un dato sensible. Cada joven puede borrar sus datos desde Ajustes. El aviso es un borrador: hay que completar los datos entre corchetes y hacerlo revisar antes de un piloto real.
 - **Marca.** Ni la app ni el tablero usan el escudo de la Alcaldía. Los dos dicen que son un prototipo y no un canal oficial, y el tablero se presenta como insumo, no como decisión. El logo de CicloVida también es de la Alcaldía; si quieren riesgo cero, se reemplaza por uno propio en `app/assets/img/` y `backend/static/tablero/img/`.

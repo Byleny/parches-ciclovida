@@ -1,5 +1,28 @@
 import os
+from pathlib import Path
 from zoneinfo import ZoneInfo
+
+
+def _cargar_env() -> None:
+    """Lee backend/.env (KEY=valor, # comentarios) sin pisar variables ya definidas.
+
+    Así el token de Telegram y demás secretos viven en un archivo ignorado por git,
+    en vez de escribirse en la terminal cada vez. Sin dependencias nuevas.
+    """
+    ruta = Path(__file__).resolve().parent.parent / ".env"
+    if not ruta.exists():
+        return
+    for linea in ruta.read_text(encoding="utf-8").splitlines():
+        linea = linea.strip()
+        if not linea or linea.startswith("#") or "=" not in linea:
+            continue
+        clave, _, valor = linea.partition("=")
+        clave, valor = clave.strip(), valor.strip().strip('"').strip("'")
+        if clave and clave not in os.environ:
+            os.environ[clave] = valor
+
+
+_cargar_env()
 
 TZ = ZoneInfo("America/Bogota")
 

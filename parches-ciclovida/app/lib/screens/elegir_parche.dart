@@ -302,6 +302,7 @@ class _HojaEstaciones extends StatelessWidget {
       leading: Icon(id.isEmpty ? Icons.map_outlined : Icons.place_outlined, color: Cv.tealInk),
       title: Text(titulo, style: const TextStyle(fontWeight: FontWeight.w700)),
       subtitle: detalle == null ? null : Text(detalle),
+      isThreeLine: detalle != null && detalle.contains('\n'),
       trailing: sel ? const Icon(Icons.check_circle, color: Cv.tealInk) : null,
       onTap: () => Navigator.of(context).pop(id),
     );

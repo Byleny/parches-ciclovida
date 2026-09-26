@@ -85,7 +85,7 @@ class _TarjetaTelegramState extends State<TarjetaTelegram> {
               const Icon(Icons.check_circle, color: Cv.verdeInk, size: 28)
             else
               FilledButton(
-                onPressed: _abrir,
+                onPressed: info.enlace == null ? null : _abrir,
                 style: FilledButton.styleFrom(
                   backgroundColor: Cv.tealInk,
                   minimumSize: const Size(0, 44),

@@ -22,8 +22,8 @@ from sqlmodel import Session, select
 
 from . import config, services, stats, telegram, verificacion
 from .catalog import (
-    ACTIVIDADES_POR_ID, FORO_IDS, FRANJA_ORDEN, MOTIVOS_IDS, RITMO_ORDEN, SEGMENTO_EDAD, TRAMOS_POR_ID,
-    UNIVERSIDADES_POR_ID, catalogo,
+    ACTIVIDADES_POR_ID, FORO_IDS, FRANJA_ORDEN, MOTIVOS_IDS, QUIZ_POR_ID, RITMO_ORDEN, SEGMENTO_EDAD,
+    TRAMOS_POR_ID, UNIVERSIDADES_POR_ID, catalogo,
 )
 from .privacidad import aviso
 from .db import engine, get_session, init_db
@@ -40,6 +40,12 @@ def _tick() -> None:
             log.info("Grupos del sábado: %s", r["grupos"])
 
 
+def _tick_telegram() -> None:
+    """El bot responde rápido: revisa sus mensajes cada pocos segundos, aparte del tick general."""
+    with Session(engine) as s:
+        telegram.procesar_updates(s)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -49,6 +55,8 @@ async def lifespan(app: FastAPI):
 
         scheduler = BackgroundScheduler(timezone=config.TZ)
         scheduler.add_job(_tick, "interval", minutes=5, id="tick", next_run_time=services.ahora().replace(tzinfo=config.TZ))
+        if telegram.iniciar():  # valida el token, resuelve el @ del bot y registra su menú
+            scheduler.add_job(_tick_telegram, "interval", seconds=20, id="telegram", max_instances=1)
         scheduler.start()
     yield
     if scheduler:
@@ -63,6 +71,15 @@ class JSONUtf8(JSONResponse):
 
 app = FastAPI(title="Parches CicloVida", version="0.1.0", lifespan=lifespan, default_response_class=JSONUtf8)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+
+@app.middleware("http")
+async def sin_cache_api(request, call_next):
+    """El navegador (app web) no debe cachear la API: al refrescar se ven los datos recién guardados."""
+    respuesta = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        respuesta.headers["Cache-Control"] = "no-store"
+    return respuesta
 
 
 # ---------------------------------------------------------------- esquemas
@@ -123,6 +140,7 @@ class Registro(Preferencias):
     nombre: str = Field(min_length=2, max_length=40)
     rango_edad: str
     acepta_datos: bool
+    declara_mayor: bool = False  # casilla obligatoria para 18+: queda constancia de que se preguntó
     permiso_acudiente: bool = False
     acudiente_nombre: str | None = Field(default=None, max_length=80)
 
@@ -148,8 +166,11 @@ class Registro(Preferencias):
                 raise ValueError("Por ahora el piloto es solo para jóvenes de 18 a 28 años")
             if not self.permiso_acudiente or len((self.acudiente_nombre or "").strip()) < 3:
                 raise ValueError("Si tienes entre 14 y 17 años necesitamos la autorización y el nombre de tu acudiente")
+            self.declara_mayor = False  # un menor nunca declara mayoría de edad
         else:
             self.acudiente_nombre = None
+            if not self.declara_mayor:
+                raise ValueError("Necesitamos que confirmes que tienes 18 años o más")
         return self
 
 
@@ -174,6 +195,23 @@ class EncuestaIn(BaseModel):
     asistio: bool
     volveria: bool
     bienestar: int | None = Field(default=None, ge=1, le=5)  # opcional: puede ser dato sensible
+
+
+class QuizIn(BaseModel):
+    """Respuestas del quiz "Tu estilo de parche": {pregunta: opción}. Opcional y sin etiquetas."""
+
+    respuestas: dict[int, str]
+
+    @field_validator("respuestas")
+    @classmethod
+    def _completas(cls, v):
+        for p in QUIZ_POR_ID.values():
+            opcion = v.get(p["id"])
+            if opcion is None:
+                raise ValueError("Falta responder alguna pregunta")
+            if opcion not in {o["id"] for o in p["opciones"]}:
+                raise ValueError("Hay una respuesta que no es una opción válida")
+        return v
 
 
 class ForoIn(BaseModel):
@@ -223,6 +261,8 @@ def perfil(j: Joven) -> dict:
         "universidad": UNIVERSIDADES_POR_ID[j.universidad]["nombre"],
         "tramo_id": j.tramo_id, "actividad": j.actividad, "ritmo": j.ritmo, "franja": j.franja,
         "pausa_fecha": str(j.pausa_fecha) if j.pausa_fecha else None,
+        # solo el hecho de haberlo respondido: las respuestas no salen del servidor
+        "quiz_respondido": bool(j.quiz),
     }
 
 
@@ -269,6 +309,7 @@ def registrar(body: Registro, session: Session = Depends(get_session)):
     joven = Joven(
         **body.model_dump(exclude={"correo", "codigo"}), correo_hash=huella, universidad=uni["id"],
         autorizacion_version=config.AVISO_VERSION, autorizacion_en=services.ahora(),
+        declara_mayor_en=services.ahora() if body.declara_mayor else None,  # constancia con fecha
     )
     session.add(joven)
     session.commit()
@@ -297,8 +338,13 @@ def yo(joven: Joven = Depends(joven_actual)):
 
 @app.patch("/api/yo")
 def cambiar(body: Cambio, joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
-    datos = body.model_dump(exclude_none=True)
+    # exclude_unset (y no exclude_none): un campo enviado como null se guarda como null.
+    # Así "estación: Cualquiera" o "hora: Cualquiera" sí quedan guardados al actualizar.
+    datos = body.model_dump(exclude_unset=True)
     pausa = datos.pop("pausar_esta_semana", None)
+    for k in ("comuna", "actividad", "ritmo"):  # estos nunca pueden quedar vacíos
+        if datos.get(k) is None:
+            datos.pop(k, None)
     if datos:
         Preferencias(**{**perfil(joven), **datos})  # valida
     j = services.jornada_abierta(session)
@@ -323,6 +369,19 @@ def borrar(joven: Joven = Depends(joven_actual), session: Session = Depends(get_
 @app.get("/api/yo/parche")
 def mi_parche(joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
     return services.estado_para(session, joven)
+
+
+@app.post("/api/yo/quiz")
+def responder_quiz(body: QuizIn, joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    """Guarda el quiz "Tu estilo de parche". No devuelve puntajes ni etiquetas: se usa por dentro."""
+    services.guardar_quiz(session, joven, body.respuestas)
+    return {"ok": True, "mensaje": "¡Listo! Usaremos tus gustos para armarte un parche más afín."}
+
+
+@app.get("/api/yo/historial")
+def mi_historial(joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    """Los domingos pasados: a qué parche fue y con quién."""
+    return services.historial_para(session, joven)
 
 
 @app.get("/api/parches")
@@ -389,7 +448,8 @@ def marcar_leidas(joven: Joven = Depends(joven_actual), session: Session = Depen
 @app.get("/api/yo/telegram")
 def telegram_estado(joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
     """Estado del vínculo con el bot y el enlace t.me para crearlo. Sin bot configurado, se apaga."""
-    if not telegram.disponible():
+    # hace falta el token Y el nombre del bot: sin nombre no se puede armar el enlace t.me
+    if not telegram.disponible() or not config.TELEGRAM_BOT:
         return {"disponible": False, "vinculado": False, "enlace": None, "bot": None}
     telegram.procesar_updates(session)  # así el vínculo se refleja apenas la app refresca
     session.refresh(joven)
@@ -481,7 +541,15 @@ def admin_finalizar(session: Session = Depends(get_session)):
     return {"finalizada": str(j.fecha), "siguiente": str(services.jornada_abierta(session).fecha)}
 
 
-@app.get("/api/admin/jornada", dependencies=[Depends(admin)])
+@app.get("/api/admin/telegram", dependencies=[Depends(admin)])
+def admin_telegram(session: Session = Depends(get_session)):
+    """Para verificar el anclaje: si el bot está vivo y cuántas cuentas ya se vincularon."""
+    vinculados = len(session.exec(select(Joven.id).where(Joven.telegram_chat_id != None)).all())  # noqa: E711
+    if not telegram.disponible():
+        return {"configurado": False, "bot": None, "vinculados": vinculados,
+                "falta": "Pon TELEGRAM_TOKEN en backend/.env (ver .env.example) y reinicia el servidor"}
+    return {"configurado": True, "bot": config.TELEGRAM_BOT or None, "vinculados": vinculados,
+            "falta": None if config.TELEGRAM_BOT else "El token no respondió a getMe: revisa que sea el de @BotFather"}
 def admin_jornada(session: Session = Depends(get_session)):
     j = services.jornada_abierta(session)
     return {**services.resumen_jornada(session, j.fecha), "estado": j.estado}

@@ -8,13 +8,15 @@ import '../widgets/comunes.dart';
 import '../widgets/telegram.dart';
 import 'aviso.dart';
 import 'como_armamos.dart';
+import 'historial.dart';
 
 /// Ajustes del joven y, al final, las herramientas para la demo con jurados.
 /// Devuelve 'borrado' si la persona borró sus datos.
 class AjustesScreen extends StatefulWidget {
-  const AjustesScreen({super.key, required this.onPreferencias});
+  const AjustesScreen({super.key, required this.onPreferencias, this.onQuiz});
 
   final Future<void> Function() onPreferencias;
+  final Future<void> Function()? onQuiz;
 
   @override
   State<AjustesScreen> createState() => _AjustesScreenState();
@@ -99,6 +101,19 @@ class _AjustesScreenState extends State<AjustesScreen> {
                 title: const Text('Cambiar mis preferencias'),
                 subtitle: const Text('Actividad, ritmo y estación cercana'),
                 onTap: widget.onPreferencias,
+              ),
+              if (widget.onQuiz != null)
+                ListTile(
+                  leading: const Icon(Icons.local_drink_outlined),
+                  title: const Text('Tu estilo de parche'),
+                  subtitle: const Text('El quiz de 5 preguntas. Puedes cambiarlo cuando quieras'),
+                  onTap: widget.onQuiz,
+                ),
+              ListTile(
+                leading: const Icon(Icons.history),
+                title: const Text('Mis domingos'),
+                subtitle: const Text('A qué parches has ido y con quién'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const HistorialScreen())),
               ),
               ListTile(
                 leading: const Icon(Icons.notifications_active_outlined),

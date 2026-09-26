@@ -21,9 +21,13 @@ def _migrar() -> None:
 
     with engine.connect() as con:
         columnas = {fila[1] for fila in con.execute(text("PRAGMA table_info(joven)"))}
-        for columna in ("telegram_chat_id", "telegram_codigo"):
+        for columna in ("telegram_chat_id", "telegram_codigo", "quiz"):
             if columna not in columnas:
                 con.execute(text(f"ALTER TABLE joven ADD COLUMN {columna} VARCHAR"))
+        if "declara_mayor" not in columnas:
+            # cuentas creadas antes de la casilla: sin constancia, no se inventa
+            con.execute(text("ALTER TABLE joven ADD COLUMN declara_mayor BOOLEAN NOT NULL DEFAULT 0"))
+            con.execute(text("ALTER TABLE joven ADD COLUMN declara_mayor_en DATETIME"))
         con.commit()
 
 

@@ -119,6 +119,57 @@ MOTIVOS_REPORTE = [
 ]
 MOTIVOS_IDS = {m["id"] for m in MOTIVOS_REPORTE}
 
+# Quiz "Tu estilo de parche": 5 preguntas cortas y en tono de CicloVida, opcional.
+# Cada pregunta mapea por dentro a una dimensión de 0 a 1 (sociabilidad del plan, charla,
+# gusto por lo nuevo, esperar al grupo, puntualidad); la idea viene de los Cinco Grandes,
+# pero sin lenguaje clínico ni etiquetas: nadie ve "eres X", ni en su perfil ni en el de otros.
+# Es un criterio SECUNDARIO de desempate al armar grupos (peso menor que ritmo, edad y
+# experiencia) y sus respuestas nunca llegan al tablero de la Secretaría.
+QUIZ_PREGUNTAS = [
+    {"id": 1, "texto": "Termina la CicloVida. ¿Cuál es el plan?", "opciones": [
+        {"id": "a", "texto": "¡Jugo y charla con el parche!", "valor": 1.0},
+        {"id": "b", "texto": "Foto del grupo y a la casa", "valor": 0.0},
+        {"id": "c", "texto": "Depende de cómo esté el ambiente", "valor": 0.5},
+    ]},
+    {"id": 2, "texto": "En plena ruta, tú vas…", "opciones": [
+        {"id": "a", "texto": "Echando cuento todo el camino", "valor": 1.0},
+        {"id": "b", "texto": "En mi mundo, gozándome el paisaje", "valor": 0.0},
+        {"id": "c", "texto": "Un rato de charla, un rato de silencio", "valor": 0.5},
+    ]},
+    {"id": 3, "texto": "¿Ruta de siempre o ruta nueva?", "opciones": [
+        {"id": "a", "texto": "La de siempre, a la fija", "valor": 0.0},
+        {"id": "b", "texto": "¡Nueva! A ver qué aparece", "valor": 1.0},
+    ]},
+    {"id": 4, "texto": "Alguien del parche se queda atrás…", "opciones": [
+        {"id": "a", "texto": "Paramos todos: nadie se queda", "valor": 1.0},
+        {"id": "b", "texto": "Cada quien a su paso y nos vemos adelante", "valor": 0.0},
+    ]},
+    {"id": 5, "texto": "Domingo, 7:50 a. m. Tú estás…", "opciones": [
+        {"id": "a", "texto": "Hace rato en la estación", "valor": 1.0},
+        {"id": "b", "texto": "Llegando justo con la salida", "valor": 0.0},
+    ]},
+]
+QUIZ_POR_ID = {p["id"]: p for p in QUIZ_PREGUNTAS}
+
+
+def puntuar_quiz(respuestas: dict[int, str]) -> tuple[float, ...]:
+    """De {pregunta: opción} al vector interno de 5 valores entre 0 y 1, en orden de pregunta."""
+    valores = []
+    for p in QUIZ_PREGUNTAS:
+        opcion = next(o for o in p["opciones"] if o["id"] == respuestas[p["id"]])
+        valores.append(opcion["valor"])
+    return tuple(valores)
+
+
+def quiz() -> dict:
+    return {
+        "titulo": "Tu estilo de parche",
+        "detalle": "5 preguntas, un minuto. Es opcional: solo sirve para juntarte con gente que "
+                   "disfruta el domingo como tú. Nadie ve tus respuestas, ni siquiera tu grupo.",
+        "preguntas": QUIZ_PREGUNTAS,
+    }
+
+
 # Categorías del foro comunal
 FORO_CATEGORIAS = [
     {"id": "parches", "nombre": "Mis parches"},
@@ -174,6 +225,7 @@ def catalogo() -> dict:
     return {
         "foro_categorias": FORO_CATEGORIAS,
         "espera_minutos": ESPERA_MINUTOS,
+        "quiz": quiz(),
         "comunas": COMUNAS,
         "tramos": TRAMOS,
         "actividades": ACTIVIDADES,

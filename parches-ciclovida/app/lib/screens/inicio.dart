@@ -16,7 +16,9 @@ import 'ajustes.dart';
 import 'bienvenida.dart';
 import 'elegir_parche.dart';
 import 'encuesta.dart';
+import 'historial.dart';
 import 'preferencias.dart';
+import 'quiz.dart';
 import 'reporte.dart';
 
 /// "Mi parche": lo que el joven ve casi siempre.
@@ -270,9 +272,21 @@ class _InicioScreenState extends State<InicioScreen> {
     if (cambio == true) await _cargar();
   }
 
+  Future<void> _abrirQuiz() async {
+    final q = _cat?.quiz;
+    if (q == null) return;
+    final msg = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(builder: (_) => QuizScreen(quiz: q)),
+    );
+    if (msg != null) {
+      _aviso(msg);
+      await _cargar();
+    }
+  }
+
   Future<void> _abrirAjustes() async {
     final resultado = await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(builder: (_) => AjustesScreen(onPreferencias: _abrirPreferencias)),
+      MaterialPageRoute<String>(builder: (_) => AjustesScreen(onPreferencias: _abrirPreferencias, onQuiz: _abrirQuiz)),
     );
     if (resultado == 'borrado') {
       await _salir();
@@ -304,6 +318,13 @@ class _InicioScreenState extends State<InicioScreen> {
         titleSpacing: 16,
         title: Image.asset('assets/img/ciclovida-recorte.png', height: 36, semanticLabel: 'CicloVida'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Mis domingos',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute<void>(builder: (_) => const HistorialScreen()))
+                .then((_) => _cargar()),
+          ),
           IconButton(icon: const Icon(Icons.settings_outlined), tooltip: 'Ajustes', onPressed: _abrirAjustes),
           const SizedBox(width: 4),
         ],
@@ -351,6 +372,10 @@ class _InicioScreenState extends State<InicioScreen> {
       _Encabezado(nombre: nombre, estado: estado),
       const SizedBox(height: 16),
       ..._principal(estado),
+      if (_perfil != null && !_perfil!.quizRespondido && _cat?.quiz != null && estado.estado != 'suspendido') ...[
+        const SizedBox(height: 20),
+        _TarjetaQuiz(titulo: _cat!.quiz!.titulo, onResponder: _abrirQuiz),
+      ],
       const SizedBox(height: 20),
       if (_perfil != null && _cat != null)
         _TarjetaPreferencias(perfil: _perfil!, cat: _cat!, onCambiar: _abrirPreferencias),
@@ -695,6 +720,52 @@ class _TarjetaElegir extends StatelessWidget {
   }
 }
 
+/// Invitación al quiz de estilo: divertido, opcional y sin resultados visibles.
+class _TarjetaQuiz extends StatelessWidget {
+  const _TarjetaQuiz({required this.titulo, required this.onResponder});
+
+  final String titulo;
+  final VoidCallback onResponder;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Card(
+      color: Cv.coralSoft,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const CircleAvatar(radius: 20, backgroundColor: Cv.coralInk, child: Icon(Icons.local_drink, color: Colors.white, size: 22)),
+                const SizedBox(width: 12),
+                Expanded(child: Text('¿Jugo con el parche o directo a casa?', style: t.titleMedium?.copyWith(color: Cv.coralInk))),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Cuéntanos tu estilo de domingo en 5 preguntas (un minuto). Es opcional y nadie ve tus '
+              'respuestas: solo sirven para juntarte con gente que goza el plan como tú.',
+              style: t.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: onResponder,
+                style: FilledButton.styleFrom(backgroundColor: Cv.coralInk, minimumSize: const Size(0, 46), padding: const EdgeInsets.symmetric(horizontal: 20)),
+                child: Text(titulo),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TarjetaEncuesta extends StatelessWidget {
   const _TarjetaEncuesta({required this.info, required this.onTap});
 
@@ -744,6 +815,7 @@ class _TarjetaPreferencias extends StatelessWidget {
     final filas = <(String, String)>[
       if (perfil.universidad.isNotEmpty) ('Estudias en', perfil.universidad),
       ('Estación', tramo == null ? 'Cualquiera' : '${tramo.nombre} · ${tramo.referencia}'),
+      ('Hora', perfil.franja == null ? 'Cualquiera' : cat.nombreDe(cat.franjas, perfil.franja!)),
       ('Actividad', cat.nombreDe(cat.actividades, perfil.actividad)),
       ('Ritmo', cat.nombreDe(cat.ritmos, perfil.ritmo)),
       ('Vives en', 'Comuna ${perfil.comuna}$barrios'),

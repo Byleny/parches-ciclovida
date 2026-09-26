@@ -19,6 +19,7 @@ class PreferenciasScreen extends StatefulWidget {
 class _PreferenciasScreenState extends State<PreferenciasScreen> {
   late int? _comuna = widget.perfil.comuna;
   late String? _tramo = widget.perfil.tramoId;
+  late String? _franja = widget.perfil.franja;
   late String _actividad = widget.perfil.actividad;
   late String _ritmo = widget.perfil.ritmo;
   bool _guardando = false;
@@ -26,15 +27,18 @@ class _PreferenciasScreenState extends State<PreferenciasScreen> {
   bool get _cambio =>
       _comuna != widget.perfil.comuna ||
       _tramo != widget.perfil.tramoId ||
+      _franja != widget.perfil.franja ||
       _actividad != widget.perfil.actividad ||
       _ritmo != widget.perfil.ritmo;
 
   Future<void> _guardar() async {
     setState(() => _guardando = true);
     try {
+      // Se envían todos, incluso los null ("Cualquiera"): el backend guarda lo enviado tal cual.
       await Sesion.actual.api.cambiar({
         'comuna': _comuna,
         'tramo_id': _tramo,
+        'franja': _franja,
         'actividad': _actividad,
         'ritmo': _ritmo,
       });
@@ -69,6 +73,15 @@ class _PreferenciasScreenState extends State<PreferenciasScreen> {
                   SelectorActividad(opciones: cat.actividades, valor: _actividad, onChanged: (v) => setState(() => _actividad = v)),
                   const TituloSeccion('¿A qué ritmo?'),
                   SelectorOpciones(opciones: cat.ritmos, valor: _ritmo, onChanged: (v) => setState(() => _ritmo = v)),
+                  const TituloSeccion(
+                    '¿A qué hora prefieres salir?',
+                    ayuda: 'El match la usa como característica. Con "Cualquiera" tienes más opciones.',
+                  ),
+                  SelectorFila(
+                    opciones: [const Opcion(id: '', nombre: 'Cualquiera'), ...cat.franjas],
+                    valor: _franja ?? '',
+                    onChanged: (v) => setState(() => _franja = v.isEmpty ? null : v),
+                  ),
                   const TituloSeccion('¿En qué comuna vives?'),
                   SelectorComuna(comunas: cat.comunas, valor: _comuna, onChanged: (v) => setState(() => _comuna = v)),
                   const TituloSeccion('Estación que te queda cerca'),

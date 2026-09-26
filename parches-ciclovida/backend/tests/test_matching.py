@@ -58,6 +58,35 @@ def test_kmeans_es_determinista():
     assert [[p.id for p in g] for g in a] == [[p.id for p in g] for g in b]
 
 
+def test_kmeans_desempata_con_el_quiz():
+    """Con todo lo demás igual, el quiz junta a quienes disfrutan el domingo parecido."""
+    sociables = [P(i) for i in range(3)]
+    caseros = [P(i + 3) for i in range(3)]
+    sociables = [Participante(**{**p.__dict__, "quiz": (1.0, 1.0, 1.0, 1.0, 1.0)}) for p in sociables]
+    caseros = [Participante(**{**p.__dict__, "quiz": (0.0, 0.0, 0.0, 0.0, 0.0)}) for p in caseros]
+    grupos = kmeans_balanceado(sociables + caseros, [3, 3])
+    for g in grupos:
+        assert len({p.quiz for p in g}) == 1
+
+
+def test_el_ritmo_manda_sobre_el_quiz():
+    """El quiz es secundario: nunca le gana a una variable estructural como el ritmo."""
+    gente = [
+        Participante(**{**P(1).__dict__, "ritmo": "tranquilo", "quiz": (1.0,) * 5}),
+        Participante(**{**P(2).__dict__, "ritmo": "tranquilo", "quiz": (0.0,) * 5}),
+        Participante(**{**P(3).__dict__, "ritmo": "rapido", "quiz": (1.0,) * 5}),
+        Participante(**{**P(4).__dict__, "ritmo": "rapido", "quiz": (0.0,) * 5}),
+    ]
+    grupos = kmeans_balanceado(gente, [2, 2])
+    for g in grupos:
+        assert len({p.ritmo for p in g}) == 1
+
+
+def test_sin_quiz_queda_neutro_y_agrupa_igual():
+    gente = [P(i) for i in range(6)]  # nadie respondió el quiz
+    assert sorted(len(g) for g in agrupar(gente)) == [6]
+
+
 def test_si_no_alcanza_el_minimo_van_juntos():
     assert [len(g) for g in agrupar([P(1), P(2)])] == [2]
     assert agrupar([]) == []

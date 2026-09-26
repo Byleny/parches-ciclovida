@@ -43,6 +43,13 @@ def _elegir(rng: random.Random, opciones: dict[str, float]) -> str:
     return rng.choices(list(opciones), weights=list(opciones.values()))[0]
 
 
+def _quiz(rng: random.Random) -> str | None:
+    """La mayoría responde el quiz de estilo; el resto queda neutro, como pasaría en la realidad."""
+    if rng.random() > 0.7:
+        return None
+    return ",".join(rng.choice(("0", "0.5", "1")) for _ in range(5))
+
+
 def _joven(rng: random.Random, creado: datetime) -> Joven:
     tramo = _elegir(rng, PESO_TRAMO)
     comuna_tramo = next(t["comuna"] for t in TRAMOS if t["id"] == tramo)
@@ -50,6 +57,7 @@ def _joven(rng: random.Random, creado: datetime) -> Joven:
     rango = _elegir(rng, {r["id"]: pesos[r["id"]] for r in rangos_permitidos()})
     uni = _elegir(rng, PESO_UNIVERSIDAD)
     dominio = next(u["dominios"][0] for u in UNIVERSIDADES if u["id"] == uni)
+    mayor = rango != "14-17"
     return Joven(
         nombre=rng.choice(NOMBRES),
         correo_hash=huella(f"sintetico-{rng.getrandbits(64):x}@{dominio}"),
@@ -62,8 +70,11 @@ def _joven(rng: random.Random, creado: datetime) -> Joven:
         franja=_elegir(rng, {"08:00": 45, "09:30": 35, "11:00": 20}),
         acepta_datos=True,
         autorizacion_version="sintetico",
-        permiso_acudiente=rango == "14-17",
-        acudiente_nombre="Acudiente sintético" if rango == "14-17" else None,
+        declara_mayor=mayor,
+        declara_mayor_en=creado if mayor else None,
+        permiso_acudiente=not mayor,
+        acudiente_nombre=None if mayor else "Acudiente sintético",
+        quiz=_quiz(rng),
         sintetico=True,
         creado_en=creado,
     )

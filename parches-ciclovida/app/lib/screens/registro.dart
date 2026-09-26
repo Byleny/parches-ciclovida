@@ -10,6 +10,7 @@ import '../theme.dart';
 import '../widgets/comunes.dart';
 import '../widgets/selectores.dart';
 import 'aviso.dart';
+import 'ingreso.dart';
 import 'principal.dart';
 
 /// Registro en cuatro pasos: correo universitario, quién eres, cómo te mueves, autorización.
@@ -44,6 +45,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
   String? _actividad;
   String? _ritmo;
   bool _aceptaDatos = false;
+  bool _declaraMayor = false;
   bool _permisoAcudiente = false;
 
   bool get _esMenor => _rango == '14-17';
@@ -84,7 +86,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
       case 2:
         return _actividad != null && _ritmo != null;
       default:
-        return _aceptaDatos && (!_esMenor || (_permisoAcudiente && _acudiente.text.trim().length >= 3));
+        // la casilla de mayoría de edad es obligatoria para 18+; los menores llevan la de su acudiente
+        return _aceptaDatos &&
+            (_esMenor ? (_permisoAcudiente && _acudiente.text.trim().length >= 3) : _declaraMayor);
     }
   }
 
@@ -139,6 +143,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         'actividad': _actividad,
         'ritmo': _ritmo,
         'acepta_datos': _aceptaDatos,
+        'declara_mayor': !_esMenor && _declaraMayor,
         'permiso_acudiente': _permisoAcudiente,
         'acudiente_nombre': _esMenor ? _acudiente.text.trim() : null,
       });
@@ -288,6 +293,14 @@ class _RegistroScreenState extends State<RegistroScreen> {
         onPressed: _pidiendoCodigo || !_correo.text.contains('@') ? null : _pedirCodigo,
         child: Text(enviado ? 'Enviar otro código' : 'Enviarme el código'),
       ),
+      Align(
+        child: TextButton(
+          onPressed: () => Navigator.of(context).pushReplacement(
+            MaterialPageRoute<void>(builder: (_) => const IngresoScreen()),
+          ),
+          child: const Text('¿Ya tienes cuenta? Entra con tu correo'),
+        ),
+      ),
       if (enviado) ...[
         const SizedBox(height: 16),
         Container(
@@ -400,6 +413,15 @@ class _RegistroScreenState extends State<RegistroScreen> {
           child: const Text('Leer el aviso de privacidad completo'),
         ),
       ),
+      if (!_esMenor)
+        CheckboxListTile(
+          value: _declaraMayor,
+          onChanged: (v) => setState(() => _declaraMayor = v ?? false),
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Declaro que tengo 18 años o más'),
+          subtitle: const Text('Obligatorio. Guardamos la fecha en que lo confirmaste.'),
+        ),
       CheckboxListTile(
         value: _aceptaDatos,
         onChanged: (v) => setState(() => _aceptaDatos = v ?? false),

@@ -12,7 +12,7 @@ _n = count()
 
 def registro(nombre, **kw):
     base = dict(nombre=nombre, rango_edad="18-22", comuna=19, tramo_id="panamericana",
-                actividad="bici", ritmo="moderado", acepta_datos=True)
+                actividad="bici", ritmo="moderado", acepta_datos=True, declara_mayor=True)
     base.update(kw)
     return base
 

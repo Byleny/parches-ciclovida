@@ -9,7 +9,10 @@ import '../widgets/comunes.dart';
 /// Foro comunal: comentarios sobre los parches, la app o cómo se sienten.
 /// Cada mensaje muestra solo el primer nombre y la universidad, igual que en el grupo.
 class ForoScreen extends StatefulWidget {
-  const ForoScreen({super.key});
+  const ForoScreen({super.key, this.activo = true});
+
+  /// Cuando la pestaña vuelve a quedar activa, la lista se refresca sola.
+  final bool activo;
 
   @override
   State<ForoScreen> createState() => _ForoScreenState();
@@ -31,6 +34,12 @@ class _ForoScreenState extends State<ForoScreen> {
   void initState() {
     super.initState();
     _cargar();
+  }
+
+  @override
+  void didUpdateWidget(ForoScreen viejo) {
+    super.didUpdateWidget(viejo);
+    if (widget.activo && !viejo.activo) _cargar();
   }
 
   @override
@@ -62,7 +71,11 @@ class _ForoScreenState extends State<ForoScreen> {
     try {
       await _api.foroPublicar(categoria: _categoria, texto: texto);
       _texto.clear();
-      if (mounted) FocusScope.of(context).unfocus();
+      if (mounted) {
+        FocusScope.of(context).unfocus();
+        // que el mensaje recién publicado siempre quede a la vista, aunque haya otro filtro puesto
+        if (_filtro != null && _filtro != _categoria) setState(() => _filtro = null);
+      }
       await _cargar();
     } on ApiException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.mensaje)));

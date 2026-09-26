@@ -118,6 +118,12 @@ class Api {
 
   Future<EstadoParche> miParche() async => EstadoParche.fromJson(await _json('GET', '/api/yo/parche'));
 
+  /// Los domingos pasados: a qué parche fue y con quién.
+  Future<List<HistorialItem>> historial() async {
+    final data = await _send('GET', '/api/yo/historial');
+    return (data as List).map((e) => HistorialItem.fromJson(e as Json)).toList();
+  }
+
   Future<List<ParcheOpcion>> parches({String? tramo, String? franja, String? actividad}) async {
     final query = <String, String>{
       'tramo': ?tramo,
@@ -162,6 +168,14 @@ class Api {
   }
 
   Future<TelegramInfo> telegram() async => TelegramInfo.fromJson(await _json('GET', '/api/yo/telegram'));
+
+  /// Envía el quiz "Tu estilo de parche". El servidor no devuelve puntajes ni etiquetas.
+  Future<String> responderQuiz(Map<int, String> respuestas) async {
+    final j = await _json('POST', '/api/yo/quiz', body: {
+      'respuestas': respuestas.map((k, v) => MapEntry(k.toString(), v)),
+    });
+    return j['mensaje'] as String? ?? '¡Listo!';
+  }
 
   // ------------------------------------------------------------ foro comunal
 

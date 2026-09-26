@@ -27,6 +27,12 @@ class ComoArmamosScreen extends StatelessWidget {
     ('Ritmo', 'Tranquilo, moderado o rápido. Es la que más pesa: 1,0.'),
     ('Rango de edad', '18 a 22 o 23 a 28. Pesa 0,6.'),
     ('Experiencia', 'Cuántos domingos has ido con tu parche, hasta 3. Pesa 0,4.'),
+    (
+      'Tu estilo de parche (opcional)',
+      'El quiz de 5 preguntas de gustos. Es solo un desempate (pesa 0,2, menos que todo lo demás): '
+          'si no lo respondes quedas en el punto medio y te agrupamos igual. Nadie ve tus respuestas '
+          'ni ninguna etiqueta, y no llegan al tablero de la Alcaldía.',
+    ),
   ];
 
   @override
@@ -77,7 +83,7 @@ class ComoArmamosScreen extends StatelessWidget {
                   children: [
                     Text('Las variables de k-means', style: t.headlineSmall),
                     const SizedBox(height: 4),
-                    Text('Solo estas tres, cada una de 0 a 1 multiplicada por su peso:', style: t.bodySmall),
+                    Text('Solo estas, cada una de 0 a 1 multiplicada por su peso:', style: t.bodySmall),
                     const SizedBox(height: 10),
                     for (final v in _variables)
                       Padding(

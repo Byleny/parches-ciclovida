@@ -11,7 +11,10 @@ import 'elegir_parche.dart';
 
 /// Mapa interactivo de las 12 estaciones de la CicloVida, con la gente inscrita hoy.
 class MapaScreen extends StatefulWidget {
-  const MapaScreen({super.key});
+  const MapaScreen({super.key, this.activo = true});
+
+  /// Cuando la pestaña vuelve a quedar activa, los conteos se refrescan solos.
+  final bool activo;
 
   @override
   State<MapaScreen> createState() => _MapaScreenState();
@@ -31,6 +34,12 @@ class _MapaScreenState extends State<MapaScreen> {
   void initState() {
     super.initState();
     _cargar();
+  }
+
+  @override
+  void didUpdateWidget(MapaScreen viejo) {
+    super.didUpdateWidget(viejo);
+    if (widget.activo && !viejo.activo) _cargar();
   }
 
   Future<void> _cargar() async {

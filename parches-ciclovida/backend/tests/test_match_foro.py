@@ -9,7 +9,67 @@ from app import services
 from app.db import engine
 from app.main import app
 from app.models import Espera, Joven
-from test_api import auth, estado, nuevo, parche, setup_function, unir  # noqa: F401
+from test_api import ADMIN, armar, auth, estado, nuevo, parche, setup_function, unir  # noqa: F401
+
+
+def test_preferencias_persisten_incluso_al_limpiarlas():
+    with TestClient(app) as c:
+        ana = nuevo(c, "Ana")  # se registra con estación panamericana
+        # volver a "Cualquiera" (null) también debe guardarse
+        r = c.patch("/api/yo", json={"tramo_id": None, "franja": None}, headers=auth(ana))
+        assert r.status_code == 200 and r.json()["tramo_id"] is None
+        # y un cambio normal persiste al volver a consultar
+        r = c.patch("/api/yo", json={"comuna": 2, "actividad": "trotar", "ritmo": "rapido"}, headers=auth(ana))
+        assert r.status_code == 200
+        yo = c.get("/api/yo", headers=auth(ana)).json()
+        assert yo["comuna"] == 2 and yo["actividad"] == "trotar" and yo["ritmo"] == "rapido"
+        assert yo["tramo_id"] is None
+
+
+def test_historial_muestra_parches_pasados_y_su_gente():
+    with TestClient(app) as c:
+        tokens = [nuevo(c, n) for n in ["Ana", "Luis", "Sara"]]
+        p = parche(c, tokens[0])
+        for t in tokens:
+            unir(c, t, p["id"])
+
+        # antes de que termine la jornada no hay historial
+        assert c.get("/api/yo/historial", headers=auth(tokens[0])).json() == []
+
+        armar(c)
+        c.post("/api/admin/finalizar", headers=ADMIN)
+        c.post("/api/yo/encuesta", json={"asistio": True, "volveria": True, "bienestar": 5}, headers=auth(tokens[0]))
+
+        h = c.get("/api/yo/historial", headers=auth(tokens[0])).json()
+        assert len(h) == 1
+        assert h[0]["asistio"] is True and h[0]["volveria"] is True
+        g = h[0]["grupo"]
+        assert len(g["miembros"]) == 3 and g["miembros"][0]["soy_yo"]
+        assert {m["nombre"] for m in g["miembros"]} == {"Ana", "Luis", "Sara"}
+
+        # quien no respondió la encuesta ve el domingo con asistencia sin responder
+        h2 = c.get("/api/yo/historial", headers=auth(tokens[1])).json()
+        assert len(h2) == 1 and h2[0]["asistio"] is None
+
+
+def test_declaracion_de_mayoria_de_edad_obligatoria_y_con_constancia():
+    from test_api import codigo, registro
+
+    with TestClient(app) as c:
+        correo = "mayor@usbcali.edu.co"
+        # sin la casilla marcada: rechazado con mensaje claro
+        datos = registro("Ana", correo=correo, codigo=codigo(c, correo), declara_mayor=False)
+        r = c.post("/api/jovenes", json=datos)
+        assert r.status_code == 422 and "18" in r.text
+
+        # con la casilla: pasa, y queda la constancia con fecha en la base
+        datos["declara_mayor"] = True
+        datos["codigo"] = codigo(c, correo)
+        r = c.post("/api/jovenes", json=datos)
+        assert r.status_code == 201
+        with Session(engine) as s:
+            j = s.exec(select(Joven)).one()
+            assert j.declara_mayor is True and j.declara_mayor_en is not None
 
 
 def test_ingreso_con_el_mismo_correo():
@@ -148,6 +208,102 @@ def test_unirse_a_mano_borra_la_espera():
         unir(c, ana, p["id"])
         with Session(engine) as s:
             assert s.exec(select(Espera)).first() is None
+
+
+SOCIAL = {"1": "a", "2": "a", "3": "b", "4": "a", "5": "a"}
+CASERO = {"1": "b", "2": "b", "3": "a", "4": "b", "5": "b"}
+
+
+def test_quiz_es_opcional_valida_y_privado():
+    with TestClient(app) as c:
+        cat = c.get("/api/catalogo").json()
+        assert len(cat["quiz"]["preguntas"]) == 5
+
+        ana = nuevo(c, "Ana")
+        assert c.get("/api/yo", headers=auth(ana)).json()["quiz_respondido"] is False
+
+        # incompleto o con una opción inventada: rechazado
+        assert c.post("/api/yo/quiz", json={"respuestas": {"1": "a"}}, headers=auth(ana)).status_code == 422
+        malas = {**SOCIAL, "3": "z"}
+        assert c.post("/api/yo/quiz", json={"respuestas": malas}, headers=auth(ana)).status_code == 422
+
+        assert c.post("/api/yo/quiz", json={"respuestas": SOCIAL}, headers=auth(ana)).status_code == 200
+        # el perfil solo dice que lo respondió: las respuestas y puntajes nunca salen del servidor
+        yo = c.get("/api/yo", headers=auth(ana)).json()
+        assert yo["quiz_respondido"] is True
+        assert "quiz" not in yo and "respuestas" not in yo
+
+
+def test_match_usa_el_quiz_solo_como_desempate():
+    """Dos parches iguales en lo estructural (misma comuna, hora y actividad):
+    el quiz inclina la balanza hacia la gente con gustos parecidos."""
+    with TestClient(app) as c:
+        luis = nuevo(c, "Luis", tramo_id="prado", comuna=11)
+        c.post("/api/yo/quiz", json={"respuestas": SOCIAL}, headers=auth(luis))
+        p_luis = parche(c, luis, tramo="prado")
+        unir(c, luis, p_luis["id"])
+
+        sara = nuevo(c, "Sara", tramo_id="fortaleza", comuna=11)
+        c.post("/api/yo/quiz", json={"respuestas": CASERO}, headers=auth(sara))
+        p_sara = parche(c, sara, tramo="fortaleza")
+        unir(c, sara, p_sara["id"])
+
+        # Ana no fija estación: los dos parches le sirven igual, pero comparte estilo con Luis
+        ana = nuevo(c, "Ana", tramo_id=None, comuna=11)
+        c.post("/api/yo/quiz", json={"respuestas": SOCIAL}, headers=auth(ana))
+        e = c.post("/api/yo/match", headers=auth(ana)).json()
+        assert e["estado"] == "inscrito" and e["salida"]["id"] == p_luis["id"]
+
+
+def test_bot_telegram_empata_las_funciones(monkeypatch):
+    """El bot espeja la app: /start vincula, /parche muestra el estado, /confirmo confirma,
+    y el aviso del sábado también llega por el chat."""
+    from app import telegram
+
+    enviados: list[tuple[str, str]] = []
+    monkeypatch.setattr(telegram, "enviar", lambda chat, texto: enviados.append((chat, texto)))
+
+    with TestClient(app) as c:
+        tokens = [nuevo(c, n) for n in ["Ana", "Luis", "Sara"]]
+        p = parche(c, tokens[0])
+        for t in tokens:
+            unir(c, t, p["id"])
+
+        with Session(engine) as s:
+            ana = s.exec(select(Joven).where(Joven.nombre == "Ana")).one()
+            ana.telegram_codigo = "abc123"
+            s.add(ana)
+            s.commit()
+
+            # chat sin vincular: lo manda a la app
+            telegram.atender(s, "555", "/parche")
+            assert "Conectar Telegram" in enviados[-1][1]
+            # /start con el código: vincula y saluda con la ayuda
+            telegram.atender(s, "555", "/start abc123")
+            assert "Ana" in enviados[-1][1] and "/parche" in enviados[-1][1]
+            # /parche antes del sábado: inscrito, el grupo se arma después
+            telegram.atender(s, "555", "/parche")
+            assert p["nombre"] in enviados[-1][1] and "sábado" in enviados[-1][1]
+            # /confirmo antes de tiempo: el mismo mensaje claro de la app
+            telegram.atender(s, "555", "/confirmo")
+            assert "sábado" in enviados[-1][1]
+            # comando inventado: ayuda
+            telegram.atender(s, "555", "/baile")
+            assert "/ayuda" in enviados[-1][1] or "/parche" in enviados[-1][1]
+
+        armar(c)
+        # el aviso del sábado llegó al chat vinculado (y solo a ese: Luis y Sara no vincularon)
+        avisos = [t for chat, t in enviados if chat == "555" and "grupo del domingo" in t]
+        assert len(avisos) == 1 and "/confirmo" in avisos[0]
+
+        with Session(engine) as s:
+            telegram.atender(s, "555", "/confirmo")
+            assert "vas" in enviados[-1][1]
+            # /parche ya asignado: punto de encuentro y compañeros
+            telegram.atender(s, "555", "/parche")
+            assert "Luis" in enviados[-1][1] and "📍" in enviados[-1][1]
+
+        assert estado(c, tokens[0])["mi_respuesta"] == "confirmado"
 
 
 def test_foro_publicar_listar_borrar():
