@@ -86,43 +86,61 @@ def asegurar_demo(s: Session) -> str | None:
     trae hasta cuatro domingos pasados con su grupo y su encuesta, para que el historial y la racha
     tengan datos. No es simulada: nunca la toma Gemini como personaje del chat.
 
-    Si ya existe, solo se actualiza la huella del correo (la base puede venir de otro servidor, con
-    otro SECRETO). Devuelve el correo, o None si ese correo ya es de otra cuenta o no hay parches.
+    La cuenta se crea de una vez, aunque todavía no estén los simulados, para que se pueda entrar
+    desde el primer segundo; el parche y el historial llegan cuando ya hay simulados (se puede llamar
+    varias veces). Si ya existe, se actualiza la huella del correo (la base puede venir de otro
+    servidor, con otro SECRETO). Devuelve el correo, o None si ese correo ya es de otra cuenta.
     """
     h = huella(DEMO_CORREO)
     if s.exec(select(Joven.id).where(Joven.correo_hash == h, Joven.id != DEMO_ID)).first():
         return None
     demo = s.get(Joven, DEMO_ID)
-    if demo is not None:
-        if demo.correo_hash != h:
-            demo.correo_hash = h
-            s.add(demo)
-            s.commit()
-        return DEMO_CORREO
+    if demo is None:
+        ahora = services.ahora()
+        demo = Joven(
+            id=DEMO_ID,
+            nombre="Demo",
+            correo_hash=h,
+            universidad="usb",
+            rango_edad="18-22",
+            comuna=19,
+            tramo_id="panamericana",
+            actividad="bici",
+            ritmo="moderado",
+            acepta_datos=True,
+            autorizacion_version=config.AVISO_VERSION,
+            autorizacion_en=ahora,
+            declara_mayor=True,
+            declara_mayor_en=ahora,
+            creado_en=ahora - timedelta(days=35),
+        )
+        s.add(demo)
+        s.commit()
+    elif demo.correo_hash != h:
+        demo.correo_hash = h
+        s.add(demo)
+        s.commit()
+    _completar_demo(s, demo)
+    return DEMO_CORREO
 
+
+def _completar_demo(s: Session, demo: Joven) -> None:
+    """Parche con gente este domingo y domingos pasados con grupo. Una sola vez, y solo cuando ya
+    están los simulados: sin ellos no hay parches con gente ni grupos a los cuales sumarla."""
+    if s.exec(select(Asignacion.id).where(Asignacion.joven_id == DEMO_ID)).first():
+        return
+    if not s.exec(select(Joven.id).where(Joven.sintetico == True)).first():  # noqa: E712
+        return
     abierta = services.jornada_abierta(s)
-    salida = _parche_con_mas_gente(s, abierta.fecha)
+    # si alguien ya entró mientras cargaban los simulados y el match le dio parche, se respeta
+    actual = s.exec(select(Inscripcion).where(
+        Inscripcion.joven_id == DEMO_ID, Inscripcion.jornada_fecha == abierta.fecha,
+    )).first()
+    salida = s.get(Salida, actual.salida_id) if actual else _parche_con_mas_gente(s, abierta.fecha)
     if salida is None:
-        return None
-    ahora = services.ahora()
-    demo = Joven(
-        id=DEMO_ID,
-        nombre="Demo",
-        correo_hash=h,
-        universidad="usb",
-        rango_edad="18-22",
-        comuna=tramo_info(salida.tramo_id)["comuna"],
-        tramo_id=salida.tramo_id,
-        actividad=salida.actividad,
-        ritmo="moderado",
-        franja=salida.franja,
-        acepta_datos=True,
-        autorizacion_version=config.AVISO_VERSION,
-        autorizacion_en=ahora,
-        declara_mayor=True,
-        declara_mayor_en=ahora,
-        creado_en=ahora - timedelta(days=35),
-    )
+        return
+    demo.tramo_id, demo.actividad, demo.franja = salida.tramo_id, salida.actividad, salida.franja
+    demo.comuna = tramo_info(salida.tramo_id)["comuna"]
     s.add(demo)
     s.commit()
 
@@ -142,8 +160,8 @@ def asegurar_demo(s: Session) -> str | None:
                        bienestar=5, creado_en=datetime.combine(fecha, time(15, 0))))
     s.commit()
 
-    services.unirse(s, demo, salida.id)
-    return DEMO_CORREO
+    if actual is None:
+        services.unirse(s, demo, salida.id)
 
 
 def _parche_con_mas_gente(s: Session, fecha) -> Salida | None:

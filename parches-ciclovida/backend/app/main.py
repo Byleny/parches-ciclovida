@@ -55,11 +55,13 @@ def _tick_telegram() -> None:
 
 
 def _sembrar_si_vacia() -> None:
-    """Base recién creada (en Render, cada vez que el servidor reinicia): carga los simulados."""
-    with Session(engine) as s:
-        if s.exec(select(Joven.id)).first():
-            return
+    """Base recién creada (en Render, cada vez que el servidor reinicia): carga los simulados.
+    La cuenta demo no cuenta: se crea antes, para que se pueda entrar mientras esto termina."""
     from . import seed
+
+    with Session(engine) as s:
+        if s.exec(select(Joven.id).where(Joven.id != seed.DEMO_ID)).first():
+            return
 
     log.info("Base vacía: cargando los jóvenes simulados…")
     try:
@@ -85,7 +87,7 @@ def _arrancar(scheduler) -> None:
     mientras se siembran los domingos simulados."""
     if config.SEMBRAR_AL_INICIAR:
         _sembrar_si_vacia()
-        _asegurar_demo()
+        _asegurar_demo()  # con los simulados ya cargados: su parche y sus domingos pasados
     if scheduler is None:
         return
     scheduler.add_job(_tick, "interval", minutes=5, id="tick", next_run_time=services.ahora().replace(tzinfo=config.TZ))
@@ -103,6 +105,8 @@ async def lifespan(app: FastAPI):
 
         scheduler = BackgroundScheduler(timezone=config.TZ)
     if config.SEMBRAR_AL_INICIAR:
+        # la cuenta demo existe desde el primer segundo, aunque los simulados tarden en cargar
+        _asegurar_demo()
         # la carga tarda: va en otro hilo para que el servidor abra el puerto de una vez (Render
         # da por caído un servicio que no responde a tiempo)
         threading.Thread(target=_arrancar, args=(scheduler,), daemon=True, name="arranque").start()

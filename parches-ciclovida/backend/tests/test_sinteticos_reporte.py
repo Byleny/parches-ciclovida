@@ -131,3 +131,28 @@ def test_reporte_no_expone_a_personas_reales_y_pide_clave():
         assert len(reales) == 1
         assert not {"id", "nombre", "quiz", "perfil"} & set(reales[0])  # ni nombre ni respuestas
         assert "Ana" not in json.dumps(r, ensure_ascii=False)
+
+
+def test_cuenta_demo_existe_antes_de_los_simulados_y_despues_recibe_su_historial():
+    """En Render los simulados tardan en cargar al arrancar: la cuenta demo tiene que poder entrar
+    desde el primer segundo, y quedar con parche e historial cuando termine la carga."""
+    from app import seed
+
+    SQLModel.metadata.drop_all(engine)
+    with TestClient(app) as c:
+        with Session(engine) as s:
+            assert seed.asegurar_demo(s) == seed.DEMO_CORREO
+        r = c.post("/api/verificacion", json={"correo": seed.DEMO_CORREO, "para": "ingreso"})
+        assert r.status_code == 200, r.text
+        with Session(engine) as s:
+            assert not s.exec(select(Asignacion).where(Asignacion.joven_id == seed.DEMO_ID)).all()
+
+        sembrar(total=240)
+        with Session(engine) as s:
+            assert seed.asegurar_demo(s) == seed.DEMO_CORREO
+            assert s.exec(select(Asignacion).where(Asignacion.joven_id == seed.DEMO_ID)).all()
+            assert services.estado_para(s, s.get(Joven, seed.DEMO_ID))["estado"] == "inscrito"
+            # llamarla otra vez no duplica nada
+            antes = len(s.exec(select(Asignacion).where(Asignacion.joven_id == seed.DEMO_ID)).all())
+            seed.asegurar_demo(s)
+            assert len(s.exec(select(Asignacion).where(Asignacion.joven_id == seed.DEMO_ID)).all()) == antes
