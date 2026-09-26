@@ -449,6 +449,13 @@ def marcar_leidas(joven: Joven = Depends(joven_actual), session: Session = Depen
     return {"ok": True}
 
 
+@app.delete("/api/yo/telegram")
+def desconectar_telegram(joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    """Suelta el chat de Telegram de esta cuenta (por ejemplo, para conectarlo a otra en la demo)."""
+    telegram.desconectar(session, joven)
+    return {"ok": True}
+
+
 @app.get("/api/yo/telegram")
 def telegram_estado(joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
     """Estado del vínculo con el bot y el enlace t.me para crearlo. Sin bot configurado, se apaga."""

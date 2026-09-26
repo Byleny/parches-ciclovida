@@ -169,6 +169,11 @@ class Api {
 
   Future<TelegramInfo> telegram() async => TelegramInfo.fromJson(await _json('GET', '/api/yo/telegram'));
 
+  /// Suelta el chat de Telegram de esta cuenta (para conectarlo a otra, por ejemplo en la demo).
+  Future<void> desconectarTelegram() async {
+    await _send('DELETE', '/api/yo/telegram');
+  }
+
   /// Envía el quiz "Tu estilo de parche". El servidor no devuelve puntajes ni etiquetas.
   Future<String> responderQuiz(Map<int, String> respuestas) async {
     final j = await _json('POST', '/api/yo/quiz', body: {

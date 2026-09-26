@@ -58,6 +58,21 @@ class _TarjetaTelegramState extends State<TarjetaTelegram> {
     }
   }
 
+  /// Suelta el chat de esta cuenta: así se puede conectar el mismo Telegram a otra (útil en la demo).
+  Future<void> _desconectar() async {
+    try {
+      await Sesion.actual.api.desconectarTelegram();
+      await _cargar();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Telegram desconectado de esta cuenta.')),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.mensaje)));
+    }
+  }
+
   Future<void> _copiarCodigo() async {
     final codigo = _info?.codigo;
     if (codigo == null) return;
@@ -114,6 +129,15 @@ class _TarjetaTelegramState extends State<TarjetaTelegram> {
                 ],
               ],
             ),
+            if (info.vinculado)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _desconectar,
+                  style: TextButton.styleFrom(foregroundColor: Cv.inkMuted),
+                  child: const Text('Desconectar'),
+                ),
+              ),
             if (!info.vinculado) ...[
               const SizedBox(height: 12),
               FilledButton.icon(

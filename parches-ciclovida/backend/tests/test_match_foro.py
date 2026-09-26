@@ -555,6 +555,57 @@ def test_enlaces_de_telegram_conservan_el_codigo(monkeypatch):
     assert unquote(web.split("tgaddr=")[1]) == "tg://resolve?domain=Parcherito_bot&start=c0d1g0"
 
 
+def test_un_chat_de_telegram_va_con_una_sola_cuenta(monkeypatch):
+    """Demo con un solo Telegram: al conectarlo desde otra cuenta, el chat pasa a esa cuenta."""
+    from app import telegram
+
+    enviados: list[tuple[str, str, list | None]] = []
+    monkeypatch.setattr(telegram, "enviar", lambda chat, texto, botones=None: enviados.append((chat, texto, botones)))
+    with TestClient(app) as c:
+        ana_tok, beto_tok = nuevo(c, "Ana"), nuevo(c, "Beto")
+        unir(c, ana_tok, parche(c, ana_tok, franja="08:00")["id"])
+        unir(c, beto_tok, parche(c, beto_tok, franja="11:00")["id"])
+        with Session(engine) as s:
+            ana = s.exec(select(Joven).where(Joven.nombre == "Ana")).one()
+            beto = s.exec(select(Joven).where(Joven.nombre == "Beto")).one()
+            ana.telegram_codigo, beto.telegram_codigo = "cod-ana", "cod-beto"
+            s.add(ana)
+            s.add(beto)
+            s.commit()
+
+            telegram.atender(s, "555", "/start cod-ana")
+            telegram.atender(s, "555", "/cuenta")
+            assert "Ana" in enviados[-1][1]
+            # Beto conecta el mismo chat: pasa a Beto y Ana queda sin chat
+            telegram.atender(s, "555", "/start cod-beto")
+            assert "estaba conectado a la cuenta de Ana" in enviados[-2][1]
+            telegram.atender(s, "555", "/parche")
+            assert "11:00" in enviados[-1][1]  # habla como Beto
+            s.refresh(ana)
+            assert ana.telegram_chat_id is None
+            # /start sin código dice con qué cuenta está y cómo cambiarla
+            telegram.atender(s, "555", "/start")
+            assert "Beto" in enviados[-1][1] and "Conectar Telegram" in enviados[-1][1]
+            # /desconectar lo suelta
+            telegram.atender(s, "555", "/desconectar")
+            telegram.atender(s, "555", "/parche")
+            assert "No reconozco este chat" in enviados[-1][1]
+
+            # datos viejos: el chat pegado a dos cuentas -> no adivina, pide reconectar
+            ana.telegram_chat_id = beto.telegram_chat_id = "777"
+            s.add(ana)
+            s.add(beto)
+            s.commit()
+            telegram.atender(s, "777", "/parche")
+            assert "varias cuentas" in enviados[-1][1] and "Ana" in enviados[-1][1]
+
+        # desde la app también se puede desconectar
+        assert c.delete("/api/yo/telegram", headers=auth(ana_tok)).json() == {"ok": True}
+        with Session(engine) as s:
+            ana = s.exec(select(Joven).where(Joven.nombre == "Ana")).one()
+            assert ana.telegram_chat_id is None and ana.telegram_codigo not in (None, "cod-ana")
+
+
 def test_foro_publicar_listar_borrar():
     with TestClient(app) as c:
         ana = nuevo(c, "ana maría")

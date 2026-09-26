@@ -65,10 +65,16 @@ El bot empata las funciones de la app en el chat (`backend/app/telegram.py`):
 | `/parche` | Tu estado del domingo. Si aún no tienes parche, corre el match; si quedas en espera, te propone el que más se ajusta con botones **Unirme**, **Ver otras opciones** y **Prefiero esperar** |
 | `/confirmo` / `/novoy` | Lo mismo que el botón de confirmar de la app (también son botones en el aviso del sábado) |
 | `/foro` | Publicar en el foro: escribes el mensaje y eliges el tema con un botón. Leer el foro es en la app |
+| `/cuenta` | Con qué cuenta está conectado el chat |
+| `/desconectar` | Suelta el chat de tu cuenta (también con **Desconectar** en la tarjeta de Telegram de la app) |
 | `/ayuda` | La lista de comandos |
 | Propuesta de parche | Al entrar en lista de espera: "Hola X, todavía no tenemos parche confirmado… este es el que más se ajusta a tus preferencias" |
 | Aviso de match | Cuando tu lista de espera encuentra parche |
 | Aviso del sábado | Cuando k-means arma tu grupo, con botones ✅ Confirmo / ❌ No voy |
+
+**Un chat, una cuenta.** Un chat de Telegram queda conectado a una sola cuenta. Si en la demo se
+prueba con un solo Telegram y varias cuentas, basta con tocar **Conectar Telegram** desde la cuenta
+que se quiere usar: el chat pasa a esa cuenta y la anterior queda desconectada (el bot lo avisa).
 
 Cambiarse de parche también se hace desde el chat. Como deja un cupo libre, el bot pide
 confirmarlo, igual que el diálogo de la app: con botones **✅ Sí, cámbiame** / **Me quedo**, o

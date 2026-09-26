@@ -47,6 +47,7 @@ AYUDA = (
     "/confirmo — confirmar que vas\n"
     "/novoy — avisar que no vas\n"
     "/foro — publicar un mensaje en el foro\n"
+    "/cuenta — con qué cuenta está conectado este chat\n"
     "/ayuda — este mensaje\n"
     "Leer el foro y ver el mapa es en la app 📱"
 )
@@ -55,6 +56,11 @@ AYUDA_CONVERSACION = (
     "temprano», «¿quién va conmigo?», «cámbiame al parche de las 8» o «publica en el foro que me encantó "
     "el parche»."
 )
+
+
+def _como_cambiar() -> str:
+    return ("Para usar otra cuenta con este chat, ábrela en la app y toca «Conectar Telegram»: el chat pasa a esa "
+            "cuenta. Para soltarla, /desconectar.")
 
 
 def _ayuda() -> str:
@@ -148,6 +154,8 @@ def iniciar() -> str | None:
         {"command": "confirmo", "description": "Confirmar que vas"},
         {"command": "novoy", "description": "Avisar que no vas"},
         {"command": "foro", "description": "Publicar en el foro"},
+        {"command": "cuenta", "description": "Con qué cuenta estás conectado"},
+        {"command": "desconectar", "description": "Soltar este chat de tu cuenta"},
         {"command": "ayuda", "description": "Qué puede hacer este bot"},
     ])
     log.info("Bot de Telegram listo: @%s", config.TELEGRAM_BOT)
@@ -183,8 +191,49 @@ def procesar_updates(session: Session) -> None:
             session.rollback()
 
 
+def _jovenes_de(session: Session, chat_id: str) -> list[Joven]:
+    return list(session.exec(select(Joven).where(Joven.telegram_chat_id == chat_id)).all())
+
+
 def _joven_de(session: Session, chat_id: str) -> Joven | None:
-    return session.exec(select(Joven).where(Joven.telegram_chat_id == chat_id)).first()
+    """La cuenta conectada a este chat. Un chat va con una sola cuenta: si por datos viejos hay varias,
+    no se adivina cuál (se pide reconectar desde la app)."""
+    jovenes = _jovenes_de(session, chat_id)
+    return jovenes[0] if len(jovenes) == 1 else None
+
+
+def _olvidar_chat(chat_id: str) -> None:
+    """Lo que el bot recordaba de este chat era de la cuenta anterior."""
+    asistente.olvidar(chat_id)
+    _foro_esperando.discard(chat_id)
+    _foro_pendiente.pop(chat_id, None)
+
+
+def desconectar(session: Session, joven: Joven) -> None:
+    """Suelta el chat de Telegram de esta cuenta (y le da un código nuevo para volver a conectarse)."""
+    from secrets import token_hex
+
+    if joven.telegram_chat_id:
+        _olvidar_chat(joven.telegram_chat_id)
+    joven.telegram_chat_id = None
+    joven.telegram_codigo = token_hex(6)
+    session.add(joven)
+    session.commit()
+
+
+def vincular(session: Session, chat_id: str, joven: Joven) -> list[str]:
+    """Conecta el chat a esta cuenta y se lo quita a cualquier otra: un chat, una cuenta.
+    Devuelve los nombres de las cuentas que lo tenían antes."""
+    anteriores = [j for j in _jovenes_de(session, chat_id) if j.id != joven.id]
+    for j in anteriores:
+        j.telegram_chat_id = None
+        session.add(j)
+    if anteriores:
+        _olvidar_chat(chat_id)
+    joven.telegram_chat_id = chat_id
+    session.add(joven)
+    session.commit()
+    return [j.nombre for j in anteriores]
 
 
 def atender(session: Session, chat_id: str, texto: str) -> None:
@@ -197,20 +246,38 @@ def atender(session: Session, chat_id: str, texto: str) -> None:
     if comando == "/start":
         candidato = session.exec(select(Joven).where(Joven.telegram_codigo == resto)).first() if resto else None
         if candidato:
-            candidato.telegram_chat_id = chat_id
-            session.add(candidato)
-            session.commit()
-            enviar(chat_id, f"¡Listo, {h(candidato.nombre)}! Ya quedamos conectados 🚲\n\n{_ayuda()}")
+            antes = vincular(session, chat_id, candidato)
+            cambio = (f"\n\nEste chat estaba conectado a la cuenta de {h(', '.join(antes))}; desde ahora es de la tuya."
+                      if antes else "")
+            enviar(chat_id, f"¡Listo, {h(candidato.nombre)}! Ya quedamos conectados 🚲{cambio}\n\n{_ayuda()}")
             enviar_estado(session, chat_id, candidato)
         elif joven:
-            enviar(chat_id, f"Tu cuenta ya está vinculada, {h(joven.nombre)}.\n\n{_ayuda()}")
+            enviar(chat_id, f"Este chat está conectado a la cuenta de {h(joven.nombre)}.\n\n{_como_cambiar()}")
         else:
             enviar(chat_id, "¡Hola! 👋 Para vincular tu cuenta, abre Parches CicloVida, toca «Conectar Telegram» "
                             "y envíame aquí el código que aparece, así: /start <código>")
         return
 
     if joven is None:
-        enviar(chat_id, "No reconozco este chat. Abre Parches CicloVida y toca «Conectar Telegram» para vincularlo.")
+        varias = _jovenes_de(session, chat_id)
+        if varias:
+            enviar(chat_id, f"Este chat quedó conectado a varias cuentas ({h(', '.join(j.nombre for j in varias))}). "
+                            f"{_como_cambiar()}")
+        else:
+            enviar(chat_id, "No reconozco este chat. Abre Parches CicloVida y toca «Conectar Telegram» para vincularlo.")
+        return
+
+    if comando == "/cuenta":
+        from .catalog import UNIVERSIDADES_POR_ID
+
+        enviar(chat_id, f"Estás conectado como <b>{h(joven.nombre)}</b> "
+                        f"({h(UNIVERSIDADES_POR_ID[joven.universidad]['corto'])}).\n\n{_como_cambiar()}")
+        return
+    if comando == "/desconectar":
+        nombre = joven.nombre
+        desconectar(session, joven)
+        enviar(chat_id, f"Listo: este chat ya no está conectado a la cuenta de {h(nombre)}. "
+                        "Para volver a conectarte, toca «Conectar Telegram» en la app.")
         return
 
     # Texto suelto mientras el bot espera el mensaje del foro
