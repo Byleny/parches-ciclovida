@@ -73,8 +73,13 @@ def iniciar() -> str | None:
     if not yo:
         log.warning("TELEGRAM_TOKEN configurado pero getMe falló: revisa el token o la red")
         return None
-    if not config.TELEGRAM_BOT:
-        config.TELEGRAM_BOT = yo.get("username", "")
+    real = yo.get("username", "")
+    # El @ que dice Telegram manda: si el .env trae otro nombre, el enlace t.me
+    # llevaría a un bot ajeno y el /start nunca llegaría a este.
+    if config.TELEGRAM_BOT and config.TELEGRAM_BOT.lstrip("@").lower() != real.lower():
+        log.warning("TELEGRAM_BOT=%s no coincide con el bot del token (@%s): se usa @%s",
+                    config.TELEGRAM_BOT, real, real)
+    config.TELEGRAM_BOT = real
     _api("setMyCommands", commands=[
         {"command": "parche", "description": "Tu parche de este domingo"},
         {"command": "confirmo", "description": "Confirmar que vas"},
