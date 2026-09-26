@@ -26,6 +26,14 @@ from .models import Joven
 
 log = logging.getLogger("parches.telegram")
 _offset = 0  # último update procesado de getUpdates
+_ultimo_conflicto: float = 0.0  # cuándo Telegram avisó que otro programa lee con este mismo token
+
+
+def otra_instancia_reciente(segundos: int = 120) -> bool:
+    """True si hace poco otro programa (p. ej. otro backend) leyó los mensajes con este token."""
+    import time
+
+    return bool(_ultimo_conflicto) and time.time() - _ultimo_conflicto < segundos
 
 # Estado de conversación del foro, por chat. En memoria: el bot corre en una sola instancia.
 _foro_esperando: set[str] = set()  # chats a los que se les pidió escribir el mensaje
@@ -69,11 +77,29 @@ def _api(metodo: str, **params):
         r = httpx.post(f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/{metodo}", json=params, timeout=10)
         data = r.json()
         if not data.get("ok"):
-            log.warning("Telegram rechazó %s: %s", metodo, data.get("description"))
+            descripcion = data.get("description") or ""
+            if metodo == "getUpdates" and "Conflict" in descripcion:
+                _avisar_conflicto()
+            else:
+                log.warning("Telegram rechazó %s: %s", metodo, descripcion)
         return data.get("result") if data.get("ok") else None
     except Exception as e:  # la app nunca se cae por Telegram
         log.warning("Telegram no respondió (%s): %s", metodo, e)
         return None
+
+
+def _avisar_conflicto() -> None:
+    """Dos programas leyendo con el mismo token se roban los mensajes: el /start puede caer en el
+    otro, que tiene otra base de datos y no conoce el código de vinculación. Se avisa fuerte, cada minuto."""
+    import time
+
+    global _ultimo_conflicto
+    ahora = time.time()
+    if ahora - _ultimo_conflicto > 60:
+        log.error("OTRO PROGRAMA está usando este mismo TELEGRAM_TOKEN (Telegram responde 'Conflict'). "
+                  "Los mensajes del bot se reparten entre los dos y el /start puede no vincular. Deja un solo "
+                  "backend con este token, o genera uno nuevo con /revoke en @BotFather.")
+    _ultimo_conflicto = ahora
 
 
 def enviar(chat_id: str, texto: str, botones: Botones | None = None) -> None:

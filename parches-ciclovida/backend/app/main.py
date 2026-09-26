@@ -551,9 +551,13 @@ def admin_telegram(session: Session = Depends(get_session)):
     if not telegram.disponible():
         return {"configurado": False, "bot": None, "vinculados": vinculados, "conversacional": conversacional,
                 "falta": "Pon TELEGRAM_TOKEN en backend/.env (ver .env.example) y reinicia el servidor"}
+    falta = None if config.TELEGRAM_BOT else "El token no respondió a getMe: revisa que sea el de @BotFather"
+    otra = telegram.otra_instancia_reciente()
+    if otra:
+        falta = ("Otro programa está leyendo los mensajes con este mismo token: deja un solo backend con él "
+                 "o genera un token nuevo con /revoke en @BotFather")
     return {"configurado": True, "bot": config.TELEGRAM_BOT or None, "vinculados": vinculados,
-            "conversacional": conversacional,
-            "falta": None if config.TELEGRAM_BOT else "El token no respondió a getMe: revisa que sea el de @BotFather"}
+            "conversacional": conversacional, "otra_instancia_detectada": otra, "falta": falta}
 def admin_jornada(session: Session = Depends(get_session)):
     j = services.jornada_abierta(session)
     return {**services.resumen_jornada(session, j.fecha), "estado": j.estado}
