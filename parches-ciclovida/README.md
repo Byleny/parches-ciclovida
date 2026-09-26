@@ -93,7 +93,7 @@ entiende texto libre: «quiero trotar el domingo temprano por Panamericana», «
 - **Sin key**, el texto libre responde con la lista de comandos, y todo lo demás sigue igual.
   Si Gemini falla o no hay red, el bot responde con una salida amable y no se cae.
 
-El modelo es `gemini-2.5-flash` por defecto; se cambia con `GEMINI_MODEL`. `GET /api/admin/telegram`
+El modelo es `gemini-3.1-flash-lite` por defecto (rápido, ~2 s); si no está disponible o está saturado, prueba en orden `gemini-3.5-flash` y `gemini-flash-latest` (`GEMINI_RESPALDO`). Se cambia con `GEMINI_MODEL`. `GET /api/admin/telegram`
 muestra si el modo conversacional está activo.
 
 ## Quiz "Tu estilo de parche" (afinidad, sin etiquetas)

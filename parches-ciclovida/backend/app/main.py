@@ -56,7 +56,7 @@ async def lifespan(app: FastAPI):
         scheduler = BackgroundScheduler(timezone=config.TZ)
         scheduler.add_job(_tick, "interval", minutes=5, id="tick", next_run_time=services.ahora().replace(tzinfo=config.TZ))
         if telegram.iniciar():  # valida el token, resuelve el @ del bot y registra su menú
-            scheduler.add_job(_tick_telegram, "interval", seconds=20, id="telegram", max_instances=1)
+            scheduler.add_job(_tick_telegram, "interval", seconds=5, id="telegram", max_instances=1, coalesce=True)
         scheduler.start()
     yield
     if scheduler:

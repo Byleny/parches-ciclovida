@@ -65,7 +65,10 @@ TELEGRAM_BOT = os.getenv("TELEGRAM_BOT", "")  # nombre de usuario del bot, sin @
 # ("quiero trotar el domingo temprano") y usa las mismas funciones del backend.
 # Sin key, el bot sigue funcionando con comandos y botones.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+# Si el modelo principal no está disponible (404) o está saturado (429/5xx), se prueban estos en orden.
+GEMINI_RESPALDO = [m.strip() for m in os.getenv("GEMINI_RESPALDO", "gemini-3.5-flash,gemini-flash-latest").split(",")
+                   if m.strip()]
 
 # Foro comunal: largo máximo de cada mensaje.
 FORO_MAX = int(os.getenv("FORO_MAX", "500"))

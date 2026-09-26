@@ -248,7 +248,8 @@ Reglas:
   hacer, propónle el parche que más se ajusta y pregúntale si lo quiere.
 - Cambiarse de un parche a otro es solo desde la app; explícalo si lo pide.
 - Para publicar en el foro, muestra el texto exacto y el tema, y publica solo cuando diga que sí. Leer el foro
-  es en la app.
+  es en la app. Los temas se llaman «Mis parches», «La app» y «Cómo me siento»: di siempre esos nombres,
+  nunca los identificadores internos (parches, app, animo).
 - Si alguien menciona acoso, riesgo o que se sintió inseguro: toma en serio lo que cuenta, dile que use
   «Reportar un problema» dentro de su parche en la app y que en una emergencia llame al 123.
 - Si alguien cuenta que se siente mal emocionalmente, responde con empatía y sin diagnosticar; sugiérele hablar
@@ -258,12 +259,30 @@ Reglas:
 """
 
 
+_REINTENTABLES = {404, 429, 500, 502, 503, 504}
+
+
 def _llamar_gemini(cuerpo: dict) -> dict:
-    """Una llamada a la API de Gemini. Aislada para poder simularla en las pruebas."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{config.GEMINI_MODEL}:generateContent"
-    r = httpx.post(url, json=cuerpo, headers={"x-goog-api-key": config.GEMINI_API_KEY}, timeout=30)
-    r.raise_for_status()
-    return r.json()
+    """Una llamada a la API de Gemini. Aislada para poder simularla en las pruebas.
+
+    Si el modelo principal no existe (404, p. ej. uno retirado) o está saturado (429/5xx),
+    prueba los de respaldo en orden, para que el bot no se quede mudo.
+    """
+    ultimo: Exception | None = None
+    for modelo in dict.fromkeys([config.GEMINI_MODEL, *config.GEMINI_RESPALDO]):
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
+        try:
+            r = httpx.post(url, json=cuerpo, headers={"x-goog-api-key": config.GEMINI_API_KEY}, timeout=30)
+        except httpx.HTTPError as e:
+            ultimo = e
+            continue
+        if r.status_code in _REINTENTABLES:
+            log.warning("Gemini %s respondió %s; pruebo el siguiente modelo", modelo, r.status_code)
+            ultimo = httpx.HTTPStatusError(f"{modelo}: {r.status_code}", request=r.request, response=r)
+            continue
+        r.raise_for_status()  # 400/401/403: la key o el pedido están mal, no sirve reintentar
+        return r.json()
+    raise ultimo or RuntimeError("Sin modelos de Gemini configurados")
 
 
 def conversar(session: Session, joven: Joven, chat_id: str, texto: str) -> tuple[str, list[dict]]:
