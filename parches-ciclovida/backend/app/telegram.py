@@ -209,7 +209,14 @@ def _conversar(session: Session, chat_id: str, joven: Joven, texto: str) -> None
         enviar(chat_id, f"Por ahora entiendo comandos 🙂\n\n{AYUDA}")
         return
     _api("sendChatAction", chat_id=chat_id, action="typing")
-    respuesta, mostrados = asistente.conversar(session, joven, chat_id, texto)
+    try:
+        respuesta, mostrados = asistente.conversar(session, joven, chat_id, texto)
+    except asistente.GeminiNoDisponible:
+        # Plan B: aunque no pueda conversar, le cuenta lo más útil (su parche) con los botones de siempre.
+        enviar(chat_id, "Uy, ahorita tengo mucha gente hablándome y se me enredó la cadena 🚲 "
+                        "Escríbeme de nuevo en un minutico. Mientras tanto, esto es lo que sé de tu parche:")
+        enviar_estado(session, chat_id, joven)
+        return
     botones: Botones = []
     # Los parches que el asistente mencionó también quedan como botones, por si es más fácil tocar.
     if mostrados and services.estado_para(session, joven)["estado"] not in ("inscrito", "asignado"):

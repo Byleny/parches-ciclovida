@@ -260,34 +260,48 @@ Reglas:
 
 
 _REINTENTABLES = {404, 429, 500, 502, 503, 504}
+ESPERAS = (0, 1.5, 3.0)  # segundos antes de cada ronda: los 503 de "alta demanda" suelen durar poco
+
+
+class GeminiNoDisponible(Exception):
+    """Gemini no respondió después de reintentar con todos los modelos."""
 
 
 def _llamar_gemini(cuerpo: dict) -> dict:
     """Una llamada a la API de Gemini. Aislada para poder simularla en las pruebas.
 
-    Si el modelo principal no existe (404, p. ej. uno retirado) o está saturado (429/5xx),
-    prueba los de respaldo en orden, para que el bot no se quede mudo.
+    Si un modelo no existe (404) o está saturado (429/5xx, p. ej. el 503 "high demand"),
+    prueba los de respaldo; si todos fallan, espera un poco y hace otra ronda.
     """
+    import time
+
     ultimo: Exception | None = None
-    for modelo in dict.fromkeys([config.GEMINI_MODEL, *config.GEMINI_RESPALDO]):
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
-        try:
-            r = httpx.post(url, json=cuerpo, headers={"x-goog-api-key": config.GEMINI_API_KEY}, timeout=30)
-        except httpx.HTTPError as e:
-            ultimo = e
-            continue
-        if r.status_code in _REINTENTABLES:
-            log.warning("Gemini %s respondió %s; pruebo el siguiente modelo", modelo, r.status_code)
-            ultimo = httpx.HTTPStatusError(f"{modelo}: {r.status_code}", request=r.request, response=r)
-            continue
-        r.raise_for_status()  # 400/401/403: la key o el pedido están mal, no sirve reintentar
-        return r.json()
-    raise ultimo or RuntimeError("Sin modelos de Gemini configurados")
+    modelos = list(dict.fromkeys([config.GEMINI_MODEL, *config.GEMINI_RESPALDO]))
+    for espera in ESPERAS:
+        if espera:
+            time.sleep(espera)
+        for modelo in modelos:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
+            try:
+                r = httpx.post(url, json=cuerpo, headers={"x-goog-api-key": config.GEMINI_API_KEY}, timeout=20)
+            except httpx.HTTPError as e:
+                ultimo = e
+                continue
+            if r.status_code in _REINTENTABLES:
+                log.warning("Gemini %s respondió %s; pruebo otro", modelo, r.status_code)
+                ultimo = httpx.HTTPStatusError(f"{modelo}: {r.status_code}", request=r.request, response=r)
+                continue
+            r.raise_for_status()  # 400/401/403: la key o el pedido están mal, no sirve reintentar
+            return r.json()
+    raise GeminiNoDisponible(str(ultimo or "sin modelos configurados"))
 
 
 def conversar(session: Session, joven: Joven, chat_id: str, texto: str) -> tuple[str, list[dict]]:
     """Responde un mensaje libre. Devuelve el texto y los parches que se mostraron en este turno
-    (para ofrecerlos también como botones)."""
+    (para ofrecerlos también como botones).
+
+    Lanza GeminiNoDisponible si Gemini no respondió ni reintentando: quien llama decide el plan B.
+    """
     historial = _historial.setdefault(chat_id, [])
     contenidos = [*historial, {"role": "user", "parts": [{"text": texto}]}]
     mostrados: list[dict] = []
@@ -300,10 +314,11 @@ def conversar(session: Session, joven: Joven, chat_id: str, texto: str) -> tuple
                 "tools": [{"function_declarations": HERRAMIENTAS}],
                 "generationConfig": {"temperature": 0.6, "maxOutputTokens": 800},
             })
+        except GeminiNoDisponible:
+            raise
         except Exception as e:  # noqa: BLE001
             log.warning("Gemini no respondió: %s", e)
-            return ("Uy, se me enredó la cadena 🚲 No pude procesar tu mensaje. Intenta de nuevo en un momento "
-                    "o usa /parche, /foro o /ayuda.", [])
+            raise GeminiNoDisponible(str(e)) from e
 
         candidato = (data.get("candidates") or [{}])[0]
         contenido = candidato.get("content") or {"role": "model", "parts": []}

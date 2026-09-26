@@ -438,20 +438,51 @@ def test_bot_conversacional_con_gemini(monkeypatch):
         assert foro[0]["texto"] == "Feliz de salir en parche <3" and foro[0]["categoria"] == "animo"
         assert "&lt;" not in foro[0]["texto"]  # se guarda tal cual; solo se escapa al mostrar en Telegram
 
-        # 4) si Gemini falla, el bot responde con una salida amable y no se cae
+        # 4) si Gemini está saturado (503) aun reintentando, el bot se disculpa y cuenta el estado real
         def falla(_):
-            raise RuntimeError("sin red")
+            raise asistente.GeminiNoDisponible("503 high demand")
 
         monkeypatch.setattr(asistente, "_llamar_gemini", falla)
         with Session(engine) as s:
-            telegram.atender(s, "888", "hola")
-        assert "/parche" in enviados[-1][1]
+            telegram.atender(s, "888", "quiero saber como voy")
+        assert "mucha gente" in enviados[-2][1]
+        assert p["nombre"] in enviados[-1][1]  # plan B: su parche de verdad, sin depender de Gemini
 
         # 5) sin key, el texto libre guía hacia los comandos
         monkeypatch.setattr(config, "GEMINI_API_KEY", "")
         with Session(engine) as s:
             telegram.atender(s, "888", "hola")
         assert "entiendo comandos" in enviados[-1][1]
+
+
+def test_gemini_reintenta_ante_503_y_cambia_de_modelo(monkeypatch):
+    """Un 503 de "alta demanda" no tumba la respuesta: prueba otro modelo y otra ronda."""
+    import httpx
+
+    from app import asistente, config
+
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "clave-de-prueba")
+    monkeypatch.setattr(config, "GEMINI_MODEL", "modelo-a")
+    monkeypatch.setattr(config, "GEMINI_RESPALDO", ["modelo-b"])
+    monkeypatch.setattr(asistente, "ESPERAS", (0, 0))
+    pedidos = []
+
+    def post(url, **_):
+        pedidos.append(url.split("/models/")[1].split(":")[0])
+        codigo = 503 if len(pedidos) < 3 else 200  # a y b saturados en la 1.ª ronda; a responde en la 2.ª
+        return httpx.Response(codigo, json={"candidates": []}, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(asistente.httpx, "post", post)
+    assert asistente._llamar_gemini({}) == {"candidates": []}
+    assert pedidos == ["modelo-a", "modelo-b", "modelo-a"]
+
+    # si nunca responde, avisa con GeminiNoDisponible (y el bot usa su plan B)
+    pedidos.clear()
+    monkeypatch.setattr(asistente.httpx, "post", lambda url, **_: httpx.Response(503, request=httpx.Request("POST", url)))
+    import pytest
+
+    with pytest.raises(asistente.GeminiNoDisponible):
+        asistente._llamar_gemini({})
 
 
 def test_asistente_no_une_si_ya_tiene_otro_parche():
