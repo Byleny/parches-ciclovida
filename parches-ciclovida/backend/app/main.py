@@ -545,6 +545,21 @@ def admin_finalizar(session: Session = Depends(get_session)):
     return {"finalizada": str(j.fecha), "siguiente": str(services.jornada_abierta(session).fecha)}
 
 
+@app.get("/api/admin/emparejamiento", dependencies=[Depends(admin)])
+def admin_emparejamiento(fecha: date | None = Query(default=None), session: Session = Depends(get_session)):
+    """Cada grupo con sus integrantes y por qué quedaron juntos, más el efecto del quiz.
+
+    Del quiz y del perfil solo salen los jóvenes simulados; de las personas reales, ni el nombre ni
+    sus respuestas. No es para el tablero de la Secretaría.
+    """
+    from . import reporte
+
+    r = reporte.generar(session, fecha)
+    if r is None:
+        raise HTTPException(404, "Todavía no hay grupos armados para ese domingo")
+    return r
+
+
 @app.get("/api/admin/telegram", dependencies=[Depends(admin)])
 def admin_telegram(session: Session = Depends(get_session)):
     """Para verificar el anclaje: si el bot está vivo y cuántas cuentas ya se vincularon."""

@@ -24,6 +24,8 @@ def _migrar() -> None:
         for columna in ("telegram_chat_id", "telegram_codigo", "quiz"):
             if columna not in columnas:
                 con.execute(text(f"ALTER TABLE joven ADD COLUMN {columna} VARCHAR"))
+        if "quiz_respuestas" not in columnas:
+            con.execute(text("ALTER TABLE joven ADD COLUMN quiz_respuestas JSON"))
         if "declara_mayor" not in columnas:
             # cuentas creadas antes de la casilla: sin constancia, no se inventa
             con.execute(text("ALTER TABLE joven ADD COLUMN declara_mayor BOOLEAN NOT NULL DEFAULT 0"))

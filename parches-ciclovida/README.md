@@ -70,8 +70,9 @@ El bot empata las funciones de la app en el chat (`backend/app/telegram.py`):
 | Aviso de match | Cuando tu lista de espera encuentra parche |
 | Aviso del sábado | Cuando k-means arma tu grupo, con botones ✅ Confirmo / ❌ No voy |
 
-Cambiarse de un parche a otro sigue siendo solo desde la app, porque deja un cupo libre en un
-grupo y la app pide confirmarlo.
+Cambiarse de parche también se hace desde el chat. Como deja un cupo libre, el bot pide
+confirmarlo, igual que el diálogo de la app: con botones **✅ Sí, cámbiame** / **Me quedo**, o
+conversando. La confirmación la exige el servidor (`confirmo_cambio`), no solo el prompt.
 
 ### Bot conversacional (Gemini)
 
@@ -83,9 +84,12 @@ entiende texto libre: «quiero trotar el domingo temprano por Panamericana», «
   (`ver_mi_estado`, `buscar_parches`, `unirme_a_parche`, `confirmar_asistencia`, `publicar_en_foro`),
   así que nunca inventa parches, horas ni personas. Los parches que menciona también salen como
   botones "Unirme".
-- **Reglas en el prompt.** Une o publica solo si el joven lo pidió o aceptó; cambiarse de parche
-  solo en la app; ante acoso o riesgo remite a "Reportar un problema" y al 123; ante malestar
-  emocional responde con empatía y sin diagnosticar.
+- **Hace las cosas él mismo.** Unirse, cambiarse de parche (con confirmación), confirmar
+  asistencia y publicar en el foro se resuelven en el chat; solo manda a la app para leer el foro,
+  ver el mapa o borrar datos. Si le dictas un mensaje para el foro, lo publica de una.
+- **Reglas en el prompt.** Une o publica solo si el joven lo pidió o aceptó; ante acoso o riesgo
+  remite a "Reportar un problema" y al 123; ante malestar emocional responde con empatía y sin
+  diagnosticar.
 - **Memoria corta.** Recuerda los últimos 12 turnos por chat (en memoria); `/cancelar` la borra.
 - **Privacidad.** A Gemini van los mensajes que el joven le escribe al bot, su primer nombre y sus
   preferencias; nunca el correo ni la universidad. Quedó declarado en el aviso de privacidad
@@ -103,20 +107,41 @@ charla con el parche! / foto y a la casa"). Las dimensiones que mide (plan socia
 por lo nuevo, esperar al grupo, madrugar) están inspiradas en dimensiones clásicas de afinidad,
 pero sin lenguaje clínico. Reglas de diseño, pedidas por el equipo:
 
-- **Opcional.** Quien no lo responde queda en el punto medio y se agrupa igual por comuna,
-  estación, actividad y hora.
-- **Criterio secundario.** En k-means pesa 0,2 (menos que ritmo 1,0, edad 0,6 y experiencia 0,4)
-  y en el match automático solo desempata entre parches estructuralmente equivalentes.
+- **Al inicio, pero opcional.** Aparece apenas se crea el perfil, antes del primer match, con
+  "Ahora no" / "No quiero hacerlo ahora". Quien lo salta ve la invitación en "Mi parche" y en
+  Ajustes para hacerlo después, y mientras tanto queda en el punto medio y se agrupa igual por
+  comuna, estación, actividad y hora.
+- **Criterio secundario.** En k-means pesa 0,2 por pregunta (menos que ritmo 1,0, edad 0,6 y
+  experiencia 0,4) y en el match automático solo desempata entre parches estructuralmente
+  equivalentes. El peso se ajusta con `PESO_QUIZ`; su efecto medido está en "Datos simulados y
+  reporte del emparejamiento".
+- **Se guarda lo que respondió.** `Joven.quiz_respuestas` guarda las respuestas tal cual, como JSON
+  (`{"1": "a", "2": "c", …}`), y `Joven.quiz` el vector de 0 a 1 que usa k-means. El vector se
+  recalcula de las respuestas, así que si se cambia el valor de una opción no hay que migrar nada.
 - **Sin etiquetas.** El servidor no devuelve puntajes ni perfiles: la app solo sabe si ya se
   respondió (`quiz_respondido`). Nadie ve "eres X", ni en su perfil ni en el de otros.
-- **Invisible para la Secretaría.** Las respuestas no llegan al tablero ni a ningún endpoint
-  de administración.
+- **Invisible para la Secretaría.** Las respuestas de personas reales no llegan al tablero ni a
+  ningún reporte: el reporte del emparejamiento solo muestra las de los jóvenes simulados.
 
 ## Mapa y foro
 
-- **Mapa** (pestaña Mapa): las 12 estaciones sobre OpenStreetMap, con leyenda (verde = con gente,
-  azul = aún sin gente, coral = tu parche); el pin muestra cuánta gente va este domingo y la ficha
-  trae punto de encuentro, comuna y barrios cercanos, con el botón para ver sus parches.
+- **Mapa** (pestaña Mapa): cada estación se marca con la **figura de su actividad** (bici, patines,
+  trotar, caminar) en el color de la marca, sin círculos: la actividad con más gente, o la del
+  filtro que elijas arriba (los chips hacen de leyenda). Un número pequeño dice cuántos van este
+  domingo; la figura clara, que aún no hay nadie. Tu estación lleva la etiqueta **Tu parche**, con
+  zoom aparecen los nombres, y el mapa no rota. La ficha de la estación muestra cuánta gente va por
+  actividad y la hora con más gente. El mapa base es OpenStreetMap en gris claro, con un filtro de
+  color (`ColorFiltered`), para que resalten los colores de las actividades. Los mapas base claros
+  gratuitos, como CARTO, ahora piden API key.
+- **Ruta a tu parche** (`app/lib/ruta.dart`): con el botón **Cómo llego a mi parche** la app toma la
+  ubicación del teléfono (geolocator) y traza la ruta por calles hasta la estación de tu parche con el
+  servicio público de rutas de OpenStreetMap (OSRM de FOSSGIS, sin API key): perfil de bici para
+  bici y patines, a pie para trotar y caminar. La tarjeta muestra el tiempo, la distancia y **a qué
+  hora salir** para llegar con 10 minutos de margen, y un botón para **navegar paso a paso** en Google
+  Maps. La ubicación no se envía al backend ni se guarda (quedó en el aviso de privacidad, versión
+  `2026-09-25.4`). En el navegador, la ubicación solo funciona en `localhost` o con HTTPS; desde un
+  celular que abre la app web por `http://192.168…`, el navegador la bloquea. Para un piloto con mucha
+  gente conviene montar un OSRM propio.
 - **Barrios por comuna**: `BARRIOS_COMUNA` en `backend/app/catalog.py` (barrios de referencia, no la
   lista completa del DAP). Al elegir comuna en el registro o en preferencias, la app muestra abajo
   en pequeño los barrios que cubre; la estación elegida muestra su punto, referencia y barrios cercanos.
@@ -134,16 +159,47 @@ pero sin lenguaje clínico. Reglas de diseño, pedidas por el equipo:
 - **Marca.** Ni la app ni el tablero usan el escudo de la Alcaldía. Los dos dicen que son un prototipo y no un canal oficial, y el tablero se presenta como insumo, no como decisión. El logo de CicloVida también es de la Alcaldía; si quieren riesgo cero, se reemplaza por uno propio en `app/assets/img/` y `backend/static/tablero/img/`.
 - **Riesgo de encuentros entre desconocidos.** Solo se encuentran en estaciones públicas y en horario de CicloVida. El grupo ve el primer nombre, la actividad y si confirmaste, nada más. Hay un botón "Reportar un problema" con la línea 123 visible. Con 2 reportes de personas distintas, la persona sale del emparejamiento hasta que moderación la revise (`GET /api/admin/reportes`).
 - **Filtro de confianza.** Solo entran estudiantes de universidades de Cali, verificados con un código de 6 dígitos enviado a su correo institucional (`@usbcali.edu.co`, `@uao.edu.co`, `@correounivalle.edu.co`, `@javerianacali.edu.co`, `@icesi.edu.co`, `@usc.edu.co` y otros en `backend/app/catalog.py`; se aceptan subdominios). El correo no se guarda: solo su huella HMAC, para que no abra dos cuentas, y el nombre de la universidad, que el grupo ve junto al primer nombre. Sin servidor de correo (`SMTP_HOST` vacío), la API devuelve el código en la respuesta para la demo; en un piloto, `CORREO_DEMO=0`.
-- **"Si usa IA, expliquen sus variables."** El agrupamiento usa k-means con tres variables y sus pesos, explicadas dentro de la app en Ajustes > Cómo armamos los grupos.
+- **"Si usa IA, expliquen sus variables."** El agrupamiento usa k-means con ritmo, rango de edad, experiencia y, si la persona lo respondió, su estilo de parche, cada uno con su peso, explicados dentro de la app en Ajustes > Cómo armamos los grupos. `python -m app.reporte` muestra, grupo por grupo, por qué quedaron juntos.
 
 ## Cómo se arman los grupos
 
 1. **El sistema abre los parches.** Uno por estación, hora y actividad para cada grupo de edad (144 por domingo). El joven elige; la app le recomienda los de su estación y actividad favoritas.
 2. **Nadie queda solo.** El sábado a las 5:00 p. m., quien está en un parche de menos de 3 personas se suma al parche compatible más parecido. Reglas que nunca se relajan: misma estación, menores nunca con mayores, a pie (caminar, trotar) nunca con sobre ruedas (bici, patines), máximo 90 minutos de diferencia. Quien tuvo que ceder algo lo ve escrito en su grupo.
-3. **K-means.** Cada parche se parte en grupos de 3 a 6, idealmente 5, con k-means de tamaño balanceado y determinista sobre ritmo (peso 1,0), rango de edad (0,6) y experiencia, es decir, domingos que ya fue (0,4).
+3. **K-means.** Cada parche se parte en grupos de 3 a 6, idealmente 5, con k-means de tamaño balanceado y determinista sobre ritmo (peso 1,0), rango de edad (0,6), experiencia, es decir, domingos que ya fue (0,4), y las cinco respuestas del quiz de estilo (0,2 cada una). Ojo: k-means solo tiene algo que decidir cuando un parche tiene 7 personas o más; con 3 a 6 queda un solo grupo.
 4. **Quien llega tarde** se suma al grupo con cupo cuyo centroide está más cerca, o se abre uno nuevo.
 
-Con los datos sintéticos de 260 jóvenes, casi todos los grupos quedan de 3 a 6 personas.
+Con los 1.500 jóvenes simulados, en el último domingo de la demo hay 1.217 personas en 256 grupos: todas en grupos de 3 a 6, nadie solo, y solo 22 tuvieron que cambiar de hora o actividad. En el domingo abierto, al armar los grupos, quedan 757 personas en 169 grupos, también sin nadie solo. Con los 260 simulados de antes, en ese domingo el 9 % quedaba solo o en pareja y el 35 % tenía que cambiar de hora o actividad.
+
+## Datos simulados y reporte del emparejamiento
+
+- **Los simulados están en un JSON a la vista:** `backend/app/datos/sinteticos.json`, 1.500 jóvenes,
+  uno por línea: universidad, edad, comuna, estación, hora, actividad, ritmo, semana en que llegan y
+  sus respuestas del quiz tal cual (`{"1": "a", …}`, o `null` si no lo respondieron, como el 30 %).
+  Se regenera igualito con `python -m app.sinteticos`, porque usa una semilla fija, y
+  `python -m app.seed --reset` lo carga en la base.
+- **Cuatro perfiles coherentes:** Parchadito social, Madrugador cumplido, Deportista y Contemplativo.
+  Cada perfil tiene sus respuestas típicas del quiz, su ritmo, su hora y sus actividades, con ruido:
+  cada respuesta coincide con la típica el 80 % de las veces. El perfil existe solo en los simulados,
+  para poder comprobar si k-means junta a gente parecida. Las personas reales nunca tienen perfil.
+- **Reporte:** `python -m app.reporte --md reporte.md --json reporte.json`, o `GET /api/admin/emparejamiento`
+  con la clave de administración. Muestra cada grupo con sus integrantes, por qué quedaron juntos
+  (mismo parche, ritmo, edad, experiencia y respuestas en común) y la distancia de cada persona al
+  centro del grupo. De las personas reales no sale ni el nombre ni el quiz. Hay un ejemplo generado
+  en [`docs/reporte_emparejamiento.md`](docs/reporte_emparejamiento.md).
+- **¿Sirve el quiz?** El reporte rearma los parches que k-means divide, con el quiz, sin el quiz y al
+  azar. Con los 1.500 simulados (78 parches, 1.000 personas):
+
+  | Grupos armados… | Afinidad de estilo | Mismo ritmo |
+  |---|---|---|
+  | al azar | 61,0 % | 60,4 % |
+  | sin el quiz | 64,9 % | 80,0 % |
+  | con el quiz, `PESO_QUIZ=0.2` (el actual) | 65,9 % | 80,1 % |
+  | con el quiz, `PESO_QUIZ=0.5` | 71,0 % | 76,1 % |
+
+  Con el peso actual, el quiz le cambia el grupo a 315 de esas 1.000 personas, pero la afinidad de
+  estilo sube apenas 1 punto: sigue siendo un desempate, como pidió el equipo. Con 0,5 sube 6 puntos
+  a cambio de 4 puntos menos de grupos con el mismo ritmo. Es una decisión de diseño: se cambia con
+  `PESO_QUIZ` y se mide con el mismo reporte.
 
 ## Correr la demo
 
@@ -154,15 +210,16 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate          # en Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python -m app.seed --reset         # 260 jóvenes sintéticos y 4 domingos pasados
+python -m app.seed --reset         # 1.500 jóvenes simulados (app/datos/sinteticos.json) y 4 domingos pasados, ~15 s
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 - Tablero: http://localhost:8000/tablero/ (muestra un aviso de "datos sintéticos" mientras existan)
 - API documentada: http://localhost:8000/docs
-- Pruebas: `pytest` (29 pruebas: k-means, correo institucional, flujo completo, anonimato, reportes, permisos)
+- Reporte del emparejamiento: `python -m app.reporte` (ver "Datos simulados y reporte del emparejamiento")
+- Pruebas: `pytest` (60 pruebas: k-means, correo institucional, flujo completo, anonimato, reportes, permisos, match, bot de Telegram, datos simulados y reporte)
 
-Variables útiles: `ADMIN_KEY` (por defecto `dedsec-demo`), `SECRETO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `CORREO_DEMO`, `PERMITIR_MENORES`, `REPORTES_PARA_SUSPENDER`, `K_CONTEO`, `GRUPO_MIN`, `GRUPO_MAX`, `DATABASE_URL`, `ESPERA_MINUTOS`, `TELEGRAM_TOKEN`, `TELEGRAM_BOT`, `FORO_MAX`.
+Variables útiles: `ADMIN_KEY` (por defecto `dedsec-demo`), `SECRETO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `CORREO_DEMO`, `PERMITIR_MENORES`, `REPORTES_PARA_SUSPENDER`, `K_CONTEO`, `GRUPO_MIN`, `GRUPO_MAX`, `PESO_QUIZ`, `DATABASE_URL`, `ESPERA_MINUTOS`, `TELEGRAM_TOKEN`, `TELEGRAM_BOT`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `FORO_MAX`.
 
 ### 2. App Flutter (Flutter 3.38.1 o más)
 

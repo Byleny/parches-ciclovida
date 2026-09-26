@@ -2,7 +2,7 @@ from datetime import date, datetime
 from secrets import token_urlsafe
 from uuid import uuid4
 
-from sqlalchemy import DateTime
+from sqlalchemy import JSON, DateTime
 from sqlmodel import Field, SQLModel
 
 
@@ -41,9 +41,12 @@ class Joven(SQLModel, table=True):
     # Telegram (opcional): para avisarle cuando su espera encuentra parche.
     telegram_chat_id: str | None = Field(default=None, index=True)
     telegram_codigo: str | None = Field(default=None, index=True)
-    # Quiz "Tu estilo de parche" (opcional): 5 valores de 0 a 1 como "0.5,1.0,...".
-    # Criterio secundario para armar grupos afines; quien no lo responde queda neutro.
-    # Nunca se muestra a nadie ni llega al tablero.
+    # Quiz "Tu estilo de parche" (opcional). Criterio secundario para armar grupos afines; quien no
+    # lo responde queda neutro. Nunca se muestra a nadie ni llega al tablero.
+    #   quiz_respuestas: lo que respondió, tal cual, como JSON: {"1": "a", "2": "c", ...}
+    #   quiz: el vector que usa k-means, 5 valores de 0 a 1 como "1,0.5,1,1,0" (se recalcula de las
+    #         respuestas; queda también para las cuentas que respondieron antes de guardarlas)
+    quiz_respuestas: dict | None = Field(default=None, sa_type=JSON)
     quiz: str | None = None
     sintetico: bool = False  # datos de demostración generados por seed.py
     creado_en: datetime = Field(default_factory=_ahora, sa_type=DateTime)

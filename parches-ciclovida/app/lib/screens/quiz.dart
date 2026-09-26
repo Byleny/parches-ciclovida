@@ -5,14 +5,19 @@ import '../models.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
+import 'principal.dart';
 
 /// Quiz "Tu estilo de parche": 5 preguntas rápidas y en tono de domingo.
 /// Es opcional, no muestra resultados ni etiquetas, y solo sirve para que el
 /// sistema desempate entre grupos con gente que disfruta el plan como tú.
 class QuizScreen extends StatefulWidget {
-  const QuizScreen({super.key, required this.quiz});
+  const QuizScreen({super.key, required this.quiz, this.alInicio = false});
 
   final QuizInfo quiz;
+
+  /// Justo después del registro: se puede saltar y, al terminar o saltar, sigue a la app.
+  /// Si lo salta, la invitación queda en "Mi parche" y en Ajustes para hacerlo después.
+  final bool alInicio;
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -24,12 +29,28 @@ class _QuizScreenState extends State<QuizScreen> {
 
   bool get _completo => widget.quiz.preguntas.every((p) => _respuestas.containsKey(p.id));
 
+  void _seguir(String? mensaje) {
+    if (!widget.alInicio) {
+      Navigator.of(context).pop(mensaje);
+      return;
+    }
+    if (mensaje != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje)));
+    }
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const PrincipalScreen()),
+      (route) => false,
+    );
+  }
+
+  void _saltar() => _seguir(null);
+
   Future<void> _enviar() async {
     setState(() => _enviando = true);
     try {
       final mensaje = await Sesion.actual.api.responderQuiz(_respuestas);
       if (!mounted) return;
-      Navigator.of(context).pop(mensaje);
+      _seguir(mensaje);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _enviando = false);
@@ -43,7 +64,19 @@ class _QuizScreenState extends State<QuizScreen> {
     final quiz = widget.quiz;
     final respondidas = _respuestas.length;
     return Scaffold(
-      appBar: AppBar(title: Text(quiz.titulo)),
+      appBar: AppBar(
+        title: Text(quiz.titulo),
+        automaticallyImplyLeading: !widget.alInicio,
+        actions: [
+          if (widget.alInicio)
+            TextButton(
+              onPressed: _enviando ? null : _saltar,
+              style: TextButton.styleFrom(foregroundColor: Cv.inkMuted),
+              child: const Text('Ahora no'),
+            ),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -56,6 +89,12 @@ class _QuizScreenState extends State<QuizScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                 children: [
+                  if (widget.alInicio) ...[
+                    Text('¡Tu perfil está listo! 🎉', style: t.headlineMedium),
+                    const SizedBox(height: 4),
+                    Text('Antes de buscarte parche, cuéntanos cómo te gusta el domingo.', style: t.bodyLarge),
+                    const SizedBox(height: 10),
+                  ],
                   Text(quiz.detalle, style: t.bodyMedium?.copyWith(color: Cv.inkMuted)),
                   const SizedBox(height: 8),
                   for (var i = 0; i < quiz.preguntas.length; i++) ...[
@@ -79,11 +118,23 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: FilledButton(
-                onPressed: _completo && !_enviando ? _enviar : null,
-                child: Text(_completo
-                    ? '¡Listo, ese soy yo!'
-                    : 'Te ${quiz.preguntas.length - respondidas == 1 ? 'falta 1' : 'faltan ${quiz.preguntas.length - respondidas}'}'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FilledButton(
+                    onPressed: _completo && !_enviando ? _enviar : null,
+                    child: Text(_completo
+                        ? '¡Listo, ese soy yo!'
+                        : 'Te ${quiz.preguntas.length - respondidas == 1 ? 'falta 1' : 'faltan ${quiz.preguntas.length - respondidas}'}'),
+                  ),
+                  if (widget.alInicio)
+                    TextButton(
+                      onPressed: _enviando ? null : _saltar,
+                      style: TextButton.styleFrom(foregroundColor: Cv.inkMuted),
+                      child: const Text('No quiero hacerlo ahora'),
+                    ),
+                ],
               ),
             ),
           ],

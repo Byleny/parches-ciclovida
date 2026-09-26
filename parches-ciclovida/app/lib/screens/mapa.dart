@@ -1,15 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import '../formato.dart';
 import '../models.dart';
+import '../ruta.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
 import 'elegir_parche.dart';
 
-/// Mapa interactivo de las 12 estaciones de la CicloVida, con la gente inscrita hoy.
+/// OpenStreetMap en gris claro con un toque frío, como el fondo de la app: las calles se siguen
+/// leyendo y los colores de las actividades resaltan. (Los mapas base claros gratuitos, como CARTO,
+/// ahora piden API key.) Última columna: desplazamiento en 0..255.
+const _filtroMapaBase = ColorFilter.matrix(<double>[
+  0.2050, 0.3769, 0.0381, 0, 97, //
+  0.1120, 0.4699, 0.0381, 0, 97, //
+  0.1120, 0.3769, 0.1311, 0, 100, //
+  0, 0, 0, 1, 0,
+]);
+
+/// Contorno blanco para que la figura de la actividad se lea sobre el mapa sin fondo de círculo.
+const _contorno = <Shadow>[
+  Shadow(color: Colors.white, offset: Offset(1.4, 0)),
+  Shadow(color: Colors.white, offset: Offset(-1.4, 0)),
+  Shadow(color: Colors.white, offset: Offset(0, 1.4)),
+  Shadow(color: Colors.white, offset: Offset(0, -1.4)),
+  Shadow(color: Colors.white, offset: Offset(1, 1)),
+  Shadow(color: Colors.white, offset: Offset(-1, -1)),
+  Shadow(color: Colors.white, offset: Offset(1, -1)),
+  Shadow(color: Colors.white, offset: Offset(-1, 1)),
+  Shadow(color: Color(0x33000000), offset: Offset(0, 2), blurRadius: 4),
+];
+
+/// A partir de este zoom se ven los nombres de las estaciones.
+const _zoomNombres = 13.4;
+
+/// Mapa de las 12 estaciones de la CicloVida: qué actividad se mueve en cada una este domingo,
+/// tu ubicación y la ruta hasta la estación de tu parche.
 class MapaScreen extends StatefulWidget {
   const MapaScreen({super.key, this.activo = true});
 
@@ -21,14 +52,37 @@ class MapaScreen extends StatefulWidget {
 }
 
 class _MapaScreenState extends State<MapaScreen> {
-  static const _centroCali = LatLng(3.4372, -76.5175);
+  static const _margenLlegada = Duration(minutes: 10);
+
+  final MapController _mapa = MapController();
 
   Catalogo? _cat;
+  EstadoParche? _estado;
   Map<String, _ResumenEstacion> _resumen = const {};
   Tramo? _elegido;
   String? _error;
 
+  /// Actividad con la que se filtra el mapa; null = todas.
+  String? _filtro;
+  bool _nombres = false;
+
+  LatLng? _yo;
+  Ruta? _ruta;
+  bool _verRuta = false;
+  bool _buscandoRuta = false;
+  bool _rutaFallo = false;
+
   Api get _api => Sesion.actual.api;
+
+  /// El parche que eligió (sigue ahí aunque el sábado ya tenga grupo).
+  ParcheOpcion? get _miParche => _estado?.salida;
+
+  Tramo? get _tramoDeMiParche {
+    final p = _miParche;
+    return p == null ? null : _cat?.tramo(p.tramoId);
+  }
+
+  List<String> get _ordenActividades => [for (final a in _cat?.actividades ?? const <Opcion>[]) a.id];
 
   @override
   void initState() {
@@ -46,18 +100,29 @@ class _MapaScreenState extends State<MapaScreen> {
     try {
       final cat = _cat ?? await _api.catalogo();
       final parches = await _api.parches();
+      final estado = await _api.miParche();
       final resumen = <String, _ResumenEstacion>{};
       for (final p in parches) {
         final r = resumen.putIfAbsent(p.tramoId, _ResumenEstacion.new);
-        r.estudiantes += p.inscritos;
+        r.porActividad[p.actividad] = (r.porActividad[p.actividad] ?? 0) + p.inscritos;
+        r.porHora[p.horaEncuentro] = (r.porHora[p.horaEncuentro] ?? 0) + p.inscritos;
+        r.nombreHora[p.horaEncuentro] = p.horaNombre;
         if (p.inscritos > 0) r.parchesConGente += 1;
-        if (p.esMio) r.esMia = true;
+        if (p.esMio) r.miActividad = p.actividad;
       }
       if (!mounted) return;
+      final cambioDeParche = estado.salida?.id != _miParche?.id;
       setState(() {
         _cat = cat;
         _resumen = resumen;
+        _estado = estado;
         _error = null;
+        if (cambioDeParche) {
+          // la ruta vieja llevaba a otro parche
+          _ruta = null;
+          _verRuta = false;
+          _rutaFallo = false;
+        }
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -65,20 +130,149 @@ class _MapaScreenState extends State<MapaScreen> {
     }
   }
 
+  void _alMoverMapa(MapCamera camara, bool _) {
+    final nombres = camara.zoom >= _zoomNombres;
+    if (nombres == _nombres) return;
+    // puede llegar en medio de un frame: se aplica al terminar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _nombres = nombres);
+    });
+  }
+
   Future<void> _verParches(Tramo t) async {
     final cat = _cat;
     if (cat == null) return;
     await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(
-        builder: (_) => ElegirParcheScreen(catalogo: cat, tramoInicial: t.id),
-      ),
+      MaterialPageRoute<String>(builder: (_) => ElegirParcheScreen(catalogo: cat, tramoInicial: t.id)),
     );
     await _cargar();
+  }
+
+  void _avisoUbicacion(UbicacionException e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(e.mensaje),
+        action: e.abrirAjustes ? SnackBarAction(label: 'Ajustes', onPressed: Geolocator.openAppSettings) : null,
+      ),
+    );
+  }
+
+  Future<void> _centrarEnMi() async {
+    try {
+      final yo = await ubicacionActual();
+      if (!mounted) return;
+      setState(() => _yo = yo);
+      _mapa.move(yo, 15);
+    } on UbicacionException catch (e) {
+      _avisoUbicacion(e);
+    }
+  }
+
+  Future<void> _trazarRuta() async {
+    final parche = _miParche;
+    final tramo = _tramoDeMiParche;
+    if (parche == null || tramo == null) return;
+    final destino = LatLng(tramo.lat, tramo.lng);
+    setState(() => _buscandoRuta = true);
+    try {
+      final yo = await ubicacionActual();
+      Ruta? ruta;
+      try {
+        ruta = await calcularRuta(yo, destino, parche.actividad);
+      } catch (_) {
+        ruta = null; // sin ruta por calles: se muestra la línea directa y el botón de Google Maps
+      }
+      if (!mounted) return;
+      setState(() {
+        _yo = yo;
+        _ruta = ruta;
+        _rutaFallo = ruta == null;
+        _verRuta = true;
+        _elegido = null;
+      });
+      _mapa.fitCamera(CameraFit.bounds(
+        bounds: LatLngBounds.fromPoints(ruta?.puntos ?? [yo, destino]),
+        padding: const EdgeInsets.fromLTRB(48, 140, 48, 340),
+        maxZoom: 16,
+      ));
+    } on UbicacionException catch (e) {
+      _avisoUbicacion(e);
+    } finally {
+      if (mounted) setState(() => _buscandoRuta = false);
+    }
+  }
+
+  void _cerrarRuta() => setState(() {
+        _verRuta = false;
+        _ruta = null;
+        _rutaFallo = false;
+      });
+
+  Future<void> _navegar() async {
+    final parche = _miParche;
+    final tramo = _tramoDeMiParche;
+    if (parche == null || tramo == null) return;
+    await launchUrl(
+      enlaceNavegacion(LatLng(tramo.lat, tramo.lng), desde: _yo, actividad: parche.actividad),
+      mode: LaunchMode.externalApplication,
+      webOnlyWindowName: '_blank',
+    );
+  }
+
+  /// "Para llegar a las 8:00 a. m., sal a las 7:36 a. m." (con 10 minutos de margen).
+  String? _salirA(Ruta ruta) {
+    final parche = _miParche;
+    final fecha = _estado?.jornadaFecha;
+    if (parche == null || fecha == null) return null;
+    final encuentro = DateTime.tryParse('${fecha}T${parche.horaEncuentro}:00');
+    if (encuentro == null) return null;
+    final salir = encuentro.subtract(Duration(seconds: ruta.segundos.ceil()) + _margenLlegada);
+    return horaBonita('${salir.hour}:${salir.minute.toString().padLeft(2, '0')}');
+  }
+
+  /// Estaciones cercanas (El Prado y La Fortaleza) se pisan con poco zoom. Como en los mapas de
+  /// siempre, las del sur van encima para que no tapen el número de la vecina; la elegida y la de
+  /// tu parche, siempre al frente.
+  List<Tramo> _enOrdenDeDibujo(List<Tramo> tramos) {
+    int prioridad(Tramo t) => t.id == _elegido?.id ? 2 : (t.id == _miParche?.tramoId ? 1 : 0);
+    return [...tramos]
+      ..sort((a, b) {
+        final p = prioridad(a).compareTo(prioridad(b));
+        return p != 0 ? p : b.lat.compareTo(a.lat);
+      });
+  }
+
+  Marker _marcador(Catalogo cat, Tramo t) {
+    final r = _resumen[t.id];
+    final esMia = r?.miActividad != null;
+    // con filtro, la figura de esa actividad; sin filtro, la de tu parche o la que más gente tiene
+    final actividad = _filtro ?? (esMia ? r!.miActividad : r?.dominante(_ordenActividades));
+    final elegido = _elegido?.id == t.id;
+    return Marker(
+      point: LatLng(t.lat, t.lng),
+      width: 132,
+      height: 110,
+      child: _MarcadorEstacion(
+        nombre: t.nombre,
+        actividad: actividad,
+        nombreActividad: actividad == null ? null : cat.nombreDe(cat.actividades, actividad),
+        gente: r?.de(_filtro) ?? 0,
+        esMia: esMia,
+        elegido: elegido,
+        mostrarNombre: _nombres || elegido,
+        atenuado: _verRuta && t.id != _miParche?.tramoId,
+        onTap: () => setState(() => _elegido = t),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final cat = _cat;
+    final tramoMio = _tramoDeMiParche;
+    final colorRuta = _miParche == null ? Cv.ink : coloresDe(_miParche!.actividad).tinta;
+    final mostrarTarjetaRuta = _verRuta && _elegido == null && _miParche != null && tramoMio != null;
     return Scaffold(
       appBar: AppBar(title: const Text('Zonas de la CicloVida')),
       body: cat == null
@@ -93,41 +287,91 @@ class _MapaScreenState extends State<MapaScreen> {
           : Stack(
               children: [
                 FlutterMap(
+                  mapController: _mapa,
                   options: MapOptions(
-                    initialCenter: _centroCali,
-                    initialZoom: 12.2,
+                    initialCameraFit: CameraFit.bounds(
+                      bounds: LatLngBounds.fromPoints([for (final t in cat.tramos) LatLng(t.lat, t.lng)]),
+                      padding: const EdgeInsets.fromLTRB(40, 150, 40, 110),
+                    ),
                     minZoom: 10,
-                    maxZoom: 17,
+                    maxZoom: 18,
+                    // sin rotar con dos dedos: el norte siempre arriba, como en un plano de la ciudad
+                    interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+                    onPositionChanged: _alMoverMapa,
                     onTap: (_, __) => setState(() => _elegido = null),
                   ),
                   children: [
                     TileLayer(
                       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'co.dedsec.parches_ciclovida',
+                      tileBuilder: (context, tile, _) => ColorFiltered(colorFilter: _filtroMapaBase, child: tile),
                     ),
+                    if (_verRuta && _ruta != null)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: _ruta!.puntos,
+                            strokeWidth: 5,
+                            color: colorRuta,
+                            borderStrokeWidth: 2.5,
+                            borderColor: Colors.white,
+                          ),
+                        ],
+                      )
+                    else if (_verRuta && _yo != null && tramoMio != null)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: [_yo!, LatLng(tramoMio.lat, tramoMio.lng)],
+                            strokeWidth: 4,
+                            color: colorRuta,
+                            pattern: StrokePattern.dotted(),
+                          ),
+                        ],
+                      ),
                     MarkerLayer(
                       markers: [
-                        for (final t in cat.tramos)
-                          Marker(
-                            point: LatLng(t.lat, t.lng),
-                            width: 46,
-                            height: 46,
-                            child: _Pin(
-                              resumen: _resumen[t.id],
-                              elegido: _elegido?.id == t.id,
-                              onTap: () => setState(() => _elegido = t),
-                            ),
-                          ),
+                        for (final t in _enOrdenDeDibujo(cat.tramos)) _marcador(cat, t),
+                        if (_yo != null) Marker(point: _yo!, width: 28, height: 28, child: const _PuntoYo()),
                       ],
                     ),
-                    const Align(
+                    Align(
                       alignment: Alignment.bottomLeft,
                       child: Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Text('© OpenStreetMap', style: TextStyle(fontSize: 10, color: Cv.inkMuted)),
+                        padding: const EdgeInsets.all(4),
+                        child: Text(
+                          _verRuta ? '© OpenStreetMap · rutas OSRM (FOSSGIS)' : '© OpenStreetMap',
+                          style: const TextStyle(fontSize: 10, color: Cv.inkMuted),
+                        ),
                       ),
                     ),
                   ],
+                ),
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    child: _BarraFiltros(
+                      actividades: cat.actividades,
+                      filtro: _filtro,
+                      onFiltro: (a) => setState(() => _filtro = a),
+                    ),
+                  ),
+                ),
+                // botón de "mi ubicación", siempre a mano
+                Align(
+                  alignment: const Alignment(1, 0.05),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: FloatingActionButton.small(
+                      heroTag: 'mi-ubicacion',
+                      onPressed: _centrarEnMi,
+                      backgroundColor: Cv.surfaceRaised,
+                      foregroundColor: Cv.ink,
+                      tooltip: 'Mi ubicación',
+                      child: const Icon(Icons.my_location),
+                    ),
+                  ),
                 ),
                 if (_elegido != null)
                   Align(
@@ -138,39 +382,45 @@ class _MapaScreenState extends State<MapaScreen> {
                         tramo: _elegido!,
                         comuna: cat.comuna(_elegido!.comuna),
                         resumen: _resumen[_elegido!.id],
+                        actividades: cat.actividades,
                         onVerParches: () => _verParches(_elegido!),
+                        onComoLlego: _elegido!.id == _miParche?.tramoId ? _trazarRuta : null,
                       ),
                     ),
                   )
-                else
+                else if (mostrarTarjetaRuta)
                   Align(
-                    alignment: Alignment.topCenter,
+                    alignment: Alignment.bottomCenter,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Toca una estación para ver quiénes salen desde ahí este domingo.',
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                              const SizedBox(height: 8),
-                              const Wrap(
-                                spacing: 14,
-                                runSpacing: 4,
-                                children: [
-                                  _Leyenda(color: Cv.verdeInk, texto: 'Con gente'),
-                                  _Leyenda(color: Cv.tealInk, texto: 'Aún sin gente'),
-                                  _Leyenda(color: Cv.coralInk, texto: 'Tu parche'),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
+                      padding: const EdgeInsets.all(12),
+                      child: _TarjetaRuta(
+                        parche: _miParche!,
+                        tramo: tramoMio!,
+                        ruta: _ruta,
+                        fallo: _rutaFallo,
+                        salirA: _ruta == null ? null : _salirA(_ruta!),
+                        ocupado: _buscandoRuta,
+                        onNavegar: _navegar,
+                        onActualizar: _trazarRuta,
+                        onCerrar: _cerrarRuta,
+                      ),
+                    ),
+                  )
+                else if (_miParche != null)
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: FloatingActionButton.extended(
+                        heroTag: 'como-llego',
+                        onPressed: _buscandoRuta ? null : _trazarRuta,
+                        backgroundColor: Cv.ink,
+                        foregroundColor: Colors.white,
+                        icon: _buscandoRuta
+                            ? const SizedBox(
+                                width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                            : Icon(iconoDe(_miParche!.actividad)),
+                        label: Text(_buscandoRuta ? 'Buscando tu ubicación…' : 'Cómo llego a mi parche'),
                       ),
                     ),
                   ),
@@ -181,86 +431,450 @@ class _MapaScreenState extends State<MapaScreen> {
 }
 
 class _ResumenEstacion {
-  int estudiantes = 0;
+  final Map<String, int> porActividad = {};
+  final Map<String, int> porHora = {};
+  final Map<String, String> nombreHora = {};
   int parchesConGente = 0;
-  bool esMia = false;
+
+  /// La actividad de tu parche, si tu parche sale de esta estación.
+  String? miActividad;
+
+  int get total => porActividad.values.fold(0, (a, b) => a + b);
+
+  /// Gente de una actividad, o de todas si es null.
+  int de(String? actividad) => actividad == null ? total : (porActividad[actividad] ?? 0);
+
+  /// La actividad con más gente; con empate gana la que va primero en el catálogo. Null si no hay nadie.
+  String? dominante(List<String> orden) {
+    String? mejor;
+    var max = 0;
+    for (final a in orden) {
+      final n = porActividad[a] ?? 0;
+      if (n > max) {
+        max = n;
+        mejor = a;
+      }
+    }
+    return mejor;
+  }
+
+  /// "8:00 a. m.": la hora con más gente en la estación.
+  String? get horaPico {
+    String? mejor;
+    var max = 0;
+    for (final e in porHora.entries) {
+      if (e.value > max) {
+        max = e.value;
+        mejor = e.key;
+      }
+    }
+    return mejor == null ? null : nombreHora[mejor];
+  }
 }
 
-/// Pin de estación: verde si ya hay gente inscrita, con el conteo encima.
-class _Pin extends StatelessWidget {
-  const _Pin({required this.resumen, required this.elegido, required this.onTap});
+/// Filtro por actividad, con los mismos colores e íconos de toda la app. Hace de leyenda del mapa.
+class _BarraFiltros extends StatelessWidget {
+  const _BarraFiltros({required this.actividades, required this.filtro, required this.onFiltro});
 
-  final _ResumenEstacion? resumen;
-  final bool elegido;
-  final VoidCallback onTap;
+  final List<Opcion> actividades;
+  final String? filtro;
+  final ValueChanged<String?> onFiltro;
 
   @override
   Widget build(BuildContext context) {
-    final gente = resumen?.estudiantes ?? 0;
-    final color = resumen?.esMia ?? false
-        ? Cv.coralInk
-        : gente > 0
-            ? Cv.verdeInk
-            : Cv.tealInk;
-    return GestureDetector(
+    String? nombre;
+    for (final a in actividades) {
+      if (a.id == filtro) nombre = a.nombre.toLowerCase();
+    }
+    return Material(
+      color: Colors.white.withValues(alpha: 0.96),
+      elevation: 3,
+      shadowColor: Colors.black26,
+      borderRadius: BorderRadius.circular(Cv.radioLg),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                children: [
+                  _chip(null, 'Todas'),
+                  for (final a in actividades) ...[const SizedBox(width: 6), _chip(a.id, a.nombre)],
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+              child: Text(
+                nombre == null
+                    ? 'La figura es la actividad con más gente; el número, cuántos van el domingo.'
+                    : 'Parches de $nombre: el número es cuánta gente va; figura clara, aún nadie.',
+                style: const TextStyle(fontSize: 12, height: 1.3, color: Cv.inkMuted),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(String? actividad, String texto) {
+    final sel = filtro == actividad;
+    final col = actividad == null ? null : coloresDe(actividad);
+    final fondo = sel ? (col?.tinta ?? Cv.ink) : Cv.surfaceRaised;
+    final tinta = sel ? Colors.white : (col?.tinta ?? Cv.ink);
+    return ChoiceChip(
+      selected: sel,
+      onSelected: (_) => onFiltro(actividad),
+      avatar: actividad == null ? null : Icon(iconoDe(actividad), size: 18, color: tinta),
+      label: Text(texto),
+      labelStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: tinta),
+      color: WidgetStatePropertyAll(fondo),
+      side: BorderSide(color: sel ? fondo : Cv.line),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
+/// Marcador de estación: la figura de la actividad, sin círculo, con contorno blanco para leerse
+/// sobre el mapa. Un número pequeño dice cuánta gente va; la figura clara, que aún no hay nadie.
+class _MarcadorEstacion extends StatelessWidget {
+  const _MarcadorEstacion({
+    required this.nombre,
+    required this.actividad,
+    required this.nombreActividad,
+    required this.gente,
+    required this.esMia,
+    required this.elegido,
+    required this.mostrarNombre,
+    required this.atenuado,
+    required this.onTap,
+  });
+
+  final String nombre;
+  final String? actividad;
+  final String? nombreActividad;
+  final int gente;
+  final bool esMia;
+  final bool elegido;
+  final bool mostrarNombre;
+  final bool atenuado;
+  final VoidCallback onTap;
+
+  static const _ancho = 132.0;
+  static const _alto = 110.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final tinta = actividad == null ? Cv.inkMuted : coloresDe(actividad!).tinta;
+    final tam = esMia ? 30.0 : 26.0;
+    final vacio = gente == 0;
+    final quien = vacio ? 'nadie todavía' : '$gente ${gente == 1 ? 'estudiante' : 'estudiantes'}';
+    return Semantics(
+      button: true,
       onTap: onTap,
-      child: AnimatedScale(
-        scale: elegido ? 1.25 : 1,
-        duration: const Duration(milliseconds: 150),
-        child: Container(
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))],
+      label: 'Estación $nombre${esMia ? ', tu parche' : ''}'
+          '${nombreActividad == null ? '' : ', ${nombreActividad!.toLowerCase()}'}: $quien',
+      child: ExcludeSemantics(
+        child: AnimatedOpacity(
+          opacity: atenuado ? 0.35 : 1,
+          duration: const Duration(milliseconds: 200),
+          child: SizedBox(
+            width: _ancho,
+            height: _alto,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                // zona de toque de 44 px alrededor de la figura (accesible), el resto deja pasar al mapa
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onTap,
+                  child: SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Center(
+                      child: AnimatedScale(
+                        scale: elegido ? 1.25 : 1,
+                        duration: const Duration(milliseconds: 160),
+                        curve: Curves.easeOutBack,
+                        child: Opacity(
+                          opacity: vacio ? 0.45 : 1,
+                          child: Icon(
+                            actividad == null ? Icons.location_on : iconoDe(actividad!),
+                            size: tam,
+                            color: tinta,
+                            shadows: _contorno,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (!vacio)
+                  Positioned(
+                    left: _ancho / 2 + tam * 0.22,
+                    top: _alto / 2 - tam / 2 - 9,
+                    child: IgnorePointer(child: _Insignia(gente: gente, color: tinta)),
+                  ),
+                if (esMia || mostrarNombre)
+                  Positioned(
+                    top: _alto / 2 + tam / 2 + 2,
+                    left: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: onTap,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (esMia)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Cv.ink,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: Colors.white, width: 1.5),
+                              ),
+                              child: const Text(
+                                'Tu parche',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white, height: 1.2),
+                              ),
+                            ),
+                          if (mostrarNombre)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 1),
+                              child: Text(
+                                nombre,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Cv.ink,
+                                  height: 1.2,
+                                  shadows: _contorno,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
-          alignment: Alignment.center,
-          child: gente > 0
-              ? Text('$gente',
-                  style: const TextStyle(fontFamily: 'BarlowCondensed', fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))
-              : const Icon(Icons.directions_bike, size: 20, color: Colors.white),
         ),
       ),
     );
   }
 }
 
-/// Punto de leyenda del mapa: color + palabra, nunca solo color.
-class _Leyenda extends StatelessWidget {
-  const _Leyenda({required this.color, required this.texto});
+/// El número de estudiantes: una etiqueta pequeña en el color de la actividad.
+class _Insignia extends StatelessWidget {
+  const _Insignia({required this.gente, required this.color});
 
+  final int gente;
   final Color color;
-  final String texto;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 5),
-        Text(texto, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Cv.inkMuted)),
-      ],
+    return Container(
+      constraints: const BoxConstraints(minWidth: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      child: Text(
+        gente > 99 ? '99+' : '$gente',
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white, height: 1.25),
+      ),
+    );
+  }
+}
+
+/// Tu ubicación: punto de tinta con borde blanco y halo suave.
+class _PuntoYo extends StatelessWidget {
+  const _PuntoYo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Tu ubicación',
+      child: Container(
+        decoration: BoxDecoration(color: Cv.ink.withValues(alpha: 0.14), shape: BoxShape.circle),
+        alignment: Alignment.center,
+        child: Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: Cv.ink,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// La ruta hasta tu parche: distancia, tiempo, a qué hora salir y navegación paso a paso.
+class _TarjetaRuta extends StatelessWidget {
+  const _TarjetaRuta({
+    required this.parche,
+    required this.tramo,
+    required this.ruta,
+    required this.fallo,
+    required this.salirA,
+    required this.ocupado,
+    required this.onNavegar,
+    required this.onActualizar,
+    required this.onCerrar,
+  });
+
+  final ParcheOpcion parche;
+  final Tramo tramo;
+  final Ruta? ruta;
+  final bool fallo;
+  final String? salirA;
+  final bool ocupado;
+  final VoidCallback onNavegar;
+  final VoidCallback onActualizar;
+  final VoidCallback onCerrar;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final col = coloresDe(parche.actividad);
+    final r = ruta;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(height: 6, color: col.marca),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 10, 8, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: Text('Ruta a tu parche', style: t.headlineSmall)),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'Actualizar desde donde estoy',
+                      onPressed: ocupado ? null : onActualizar,
+                    ),
+                    IconButton(icon: const Icon(Icons.close), tooltip: 'Cerrar ruta', onPressed: onCerrar),
+                  ],
+                ),
+                Text('${parche.nombre} · Estación ${tramo.nombre}', style: t.titleMedium),
+                Text('${tramo.punto} · ${tramo.referencia}', style: t.bodySmall),
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: r == null
+                      ? Text(
+                          fallo
+                              ? 'No pudimos calcular la ruta por calles ahora. La línea punteada va directo a la '
+                                  'estación; para ir paso a paso, abre la navegación.'
+                              : 'Buscando la ruta…',
+                          style: t.bodyMedium?.copyWith(color: Cv.inkMuted),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(iconoDe(parche.actividad), color: col.tinta, size: 22),
+                                const SizedBox(width: 8),
+                                Text(r.duracionTexto,
+                                    style: TextStyle(
+                                        fontFamily: 'BarlowCondensed', fontSize: 26, fontWeight: FontWeight.w800, color: col.tinta)),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    '· ${r.distanciaTexto} ${r.aPie ? 'a pie' : 'en ${parche.actividadNombre.toLowerCase()}'}',
+                                    style: t.bodyMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (salirA != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Para llegar a las ${parche.horaNombre}, sal a las $salirA (con 10 min de margen).',
+                                style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: FilledButton.icon(
+                    onPressed: onNavegar,
+                    style: FilledButton.styleFrom(backgroundColor: col.tinta),
+                    icon: const Icon(Icons.navigation_outlined, size: 20),
+                    label: const Text('Navegar paso a paso'),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'El domingo hay vías cerradas a los carros: sigue la señalización de la CicloVida. '
+                  'Tu ubicación no se guarda ni se envía a Parches.',
+                  style: t.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _TarjetaEstacion extends StatelessWidget {
-  const _TarjetaEstacion({required this.tramo, required this.comuna, required this.resumen, required this.onVerParches});
+  const _TarjetaEstacion({
+    required this.tramo,
+    required this.comuna,
+    required this.resumen,
+    required this.actividades,
+    required this.onVerParches,
+    this.onComoLlego,
+  });
 
   final Tramo tramo;
   final Comuna? comuna;
   final _ResumenEstacion? resumen;
+  final List<Opcion> actividades;
   final VoidCallback onVerParches;
+
+  /// Solo en la estación de tu parche.
+  final VoidCallback? onComoLlego;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final gente = resumen?.estudiantes ?? 0;
+    final total = resumen?.total ?? 0;
     final conGente = resumen?.parchesConGente ?? 0;
-    final quienes = gente == 0
+    final pico = resumen?.horaPico;
+    final esMia = resumen?.miActividad != null;
+    final quienes = total == 0
         ? 'Nadie todavía este domingo: estrena esta estación'
-        : '$gente ${gente == 1 ? 'estudiante' : 'estudiantes'} en $conGente ${conGente == 1 ? 'parche' : 'parches'} este domingo';
+        : '$total ${total == 1 ? 'estudiante' : 'estudiantes'} en $conGente ${conGente == 1 ? 'parche' : 'parches'}'
+            '${pico == null ? '' : ' · más gente a las $pico'}';
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -276,10 +890,10 @@ class _TarjetaEstacion extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(child: Text('Estación ${tramo.nombre}', style: t.headlineSmall)),
-                    if (resumen?.esMia ?? false)
+                    if (esMia)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(color: Cv.coralInk, borderRadius: BorderRadius.circular(999)),
+                        decoration: BoxDecoration(color: Cv.ink, borderRadius: BorderRadius.circular(999)),
                         child: const Text('Tu parche', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
                       ),
                   ],
@@ -292,20 +906,69 @@ class _TarjetaEstacion extends StatelessWidget {
                       : 'Comuna ${tramo.comuna} · cerca de ${comuna!.barriosResumen()}',
                   style: t.bodySmall,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.groups, size: 18, color: gente > 0 ? Cv.verdeInk : Cv.inkMuted),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text(quienes, style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
+                    for (var i = 0; i < actividades.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 6),
+                      Expanded(child: _CeldaActividad(actividad: actividades[i], gente: resumen?.de(actividades[i].id) ?? 0)),
+                    ],
                   ],
                 ),
+                const SizedBox(height: 8),
+                Text(quienes, style: t.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
-                FilledButton(onPressed: onVerParches, child: const Text('Ver parches de esta estación')),
+                if (onComoLlego != null) ...[
+                  FilledButton.icon(
+                    onPressed: onComoLlego,
+                    icon: const Icon(Icons.directions, size: 20),
+                    label: const Text('Cómo llego'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(onPressed: onVerParches, child: const Text('Ver parches de esta estación')),
+                ] else
+                  FilledButton(onPressed: onVerParches, child: const Text('Ver parches de esta estación')),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Cuánta gente va en cada actividad desde la estación, con su figura y su color.
+class _CeldaActividad extends StatelessWidget {
+  const _CeldaActividad({required this.actividad, required this.gente});
+
+  final Opcion actividad;
+  final int gente;
+
+  @override
+  Widget build(BuildContext context) {
+    final col = coloresDe(actividad.id);
+    final hay = gente > 0;
+    final tinta = hay ? col.tinta : Cv.inkMuted;
+    return Semantics(
+      label: '${actividad.nombre}: ${hay ? '$gente' : 'nadie todavía'}',
+      child: ExcludeSemantics(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: hay ? col.suave : Cv.surface,
+            borderRadius: BorderRadius.circular(Cv.radioMd),
+          ),
+          child: Column(
+            children: [
+              Icon(iconoDe(actividad.id), size: 22, color: hay ? col.tinta : Cv.lineStrong),
+              Text(
+                '$gente',
+                style: TextStyle(fontFamily: 'BarlowCondensed', fontSize: 20, fontWeight: FontWeight.w800, color: tinta, height: 1.1),
+              ),
+              Text(actividad.nombre, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: tinta)),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -19,23 +19,35 @@ def aviso() -> dict:
             "texto": "Tu correo institucional, solo para comprobar que estudias en una universidad de Cali: no lo "
                      "guardamos, guardamos una huella cifrada que no permite recuperarlo y el nombre de tu universidad. "
                      "Además, tu primer nombre, tu rango de edad, la comuna donde vives, tu estación favorita, tu "
-                     "actividad, tu ritmo y el parche que elijas. Después de cada domingo, si fuiste, si volverías "
-                     "y, si quieres, cómo te sentiste del 1 al 5. No pedimos documento, dirección, teléfono ni fotos.",
+                     "actividad, tu ritmo y el parche que elijas. Si respondes el quiz opcional «Tu estilo de parche», "
+                     "guardamos tus respuestas (cinco preguntas sobre cómo te gusta el domingo). Después de cada "
+                     "domingo, si fuiste, si volverías y, si quieres, cómo te sentiste del 1 al 5. No pedimos "
+                     "documento, dirección, teléfono ni fotos.",
         },
         {
             "titulo": "Para qué los usamos",
             "texto": "1) Verificar que todas las personas de los parches son estudiantes. "
                      "2) Recomendarte parches y, dentro del parche que elijas, armar grupos de 3 a 6 con un algoritmo "
-                     "k-means que solo usa tu ritmo, tu rango de edad y cuántos domingos has ido. "
+                     "k-means que usa tu ritmo, tu rango de edad, cuántos domingos has ido y, si respondiste el quiz, "
+                     "tu estilo de parche, solo para desempatar. "
                      "3) Enviarte los avisos del sábado y del domingo. "
                      "4) Medir, solo con cifras agregadas por comuna y por grupo, si la CicloVida acompañada funciona.",
         },
         {
             "titulo": "Quién ve qué",
             "texto": "Tu grupo ve tu primer nombre, tu universidad, tu actividad y si confirmaste. La lista de parches "
-                     "solo muestra cuántas personas van, nunca quiénes. La Secretaría del Deporte y la "
+                     "solo muestra cuántas personas van, nunca quiénes. Nadie ve tus respuestas del quiz: ni tu "
+                     "grupo ni la Secretaría, y la app no te pone ninguna etiqueta. La Secretaría del Deporte y la "
                      "Recreación, si recibe el tablero, ve cifras agregadas: los conteos menores a 5 no se muestran y "
                      "nunca aparecen nombres. No vendemos ni compartimos tus datos con nadie más.",
+        },
+        {
+            "titulo": "Tu ubicación, solo para la ruta",
+            "texto": "Si tocas «Cómo llego» en el mapa, la app te pide la ubicación del teléfono para trazar la ruta "
+                     "hasta la estación de tu parche. Se usa solo en tu teléfono: no la enviamos a Parches CicloVida "
+                     "ni la guardamos. Para calcular la ruta, el punto de partida y el de llegada se envían al servicio "
+                     "de rutas de OpenStreetMap (OSRM), y a Google Maps si eliges navegar paso a paso. Es opcional: "
+                     "el resto de la app funciona sin ella.",
         },
         {
             "titulo": "Si usas el bot de Telegram",

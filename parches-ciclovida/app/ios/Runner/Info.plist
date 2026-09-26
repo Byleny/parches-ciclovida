@@ -50,5 +50,7 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Usamos tu ubicación solo en el teléfono para trazar la ruta hasta la estación de tu parche. No la guardamos.</string>
 </dict>
 </plist>

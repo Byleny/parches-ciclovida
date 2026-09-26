@@ -34,6 +34,12 @@ GRUPO_MIN = int(os.getenv("GRUPO_MIN", "3"))
 GRUPO_OBJETIVO = int(os.getenv("GRUPO_OBJETIVO", "5"))
 GRUPO_MAX = int(os.getenv("GRUPO_MAX", "6"))
 
+# Peso de cada pregunta del quiz de estilo en k-means (ritmo pesa 1.0, edad 0.6, experiencia 0.4).
+# Con los 1.500 simulados: 0.2 casi no mejora la afinidad de estilo (+1 punto sobre no usarlo) y deja
+# el ritmo intacto; 0.5 la sube 6 puntos a cambio de 4 puntos menos de grupos con el mismo ritmo.
+# Medirlo con: python -m app.reporte (ver README).
+PESO_QUIZ = float(os.getenv("PESO_QUIZ", "0.2"))
+
 # Anonimato del tablero: conteos por debajo de K_CONTEO se muestran como "<K";
 # promedios con menos de K_PROMEDIO respuestas no se muestran.
 K_CONTEO = int(os.getenv("K_CONTEO", "5"))
@@ -74,7 +80,8 @@ GEMINI_RESPALDO = [m.strip() for m in os.getenv("GEMINI_RESPALDO", "gemini-3.5-f
 FORO_MAX = int(os.getenv("FORO_MAX", "500"))
 
 # Versión del aviso de privacidad que se guarda con cada autorización (Ley 1581 de 2012).
-AVISO_VERSION = "2026-09-25.3"  # .3: se agregó el bot conversacional (Gemini)
+# .3: bot conversacional (Gemini); .4: ubicación para la ruta al parche; .5: respuestas del quiz de estilo
+AVISO_VERSION = "2026-09-25.5"
 
 # Verificación con correo institucional. El correo no se guarda: solo su huella HMAC con SECRETO.
 SECRETO = os.getenv("SECRETO", "dedsec-demo-cambiar")

@@ -11,7 +11,7 @@ from sqlmodel import Session, delete, select
 from . import config
 from .catalog import (
     ACTIVIDADES, ACTIVIDADES_POR_ID, FRANJA_NOMBRE, FRANJA_ORDEN, FRANJAS, JORNADA_FIN, JORNADA_INICIO,
-    NOMBRES_PARCHE, RITMO_ORDEN, RITMOS, SEGMENTO_EDAD, TRAMOS, TRAMOS_POR_ID, UNIVERSIDADES_POR_ID,
+    NOMBRES_PARCHE, RITMO_ORDEN, RITMOS, SEGMENTO_EDAD, TRAMOS, TRAMOS_POR_ID, UNIVERSIDADES_POR_ID, puntuar_quiz,
 )
 from .matching import EXPERIENCIA_MAX, GrupoPropuesto, Participante, agrupar, grupo_mas_cercano, mejor_grupo_para
 from .models import (
@@ -418,8 +418,33 @@ def _experiencia(session: Session, joven_id: str, antes_de: date) -> int:
     return len(idas)
 
 
+def respuestas_quiz(joven: Joven) -> dict[int, str] | None:
+    """Lo que respondió en el quiz, {pregunta: opción}, o None si no lo respondió."""
+    if not joven.quiz_respuestas:
+        return None
+    try:
+        return {int(k): str(v) for k, v in joven.quiz_respuestas.items()}
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def vector_quiz(respuestas: dict[int, str]) -> str:
+    """Las respuestas como el vector de texto que se guarda en Joven.quiz: "1,0.5,1,1,0"."""
+    return ",".join(f"{v:g}" for v in puntuar_quiz(respuestas))
+
+
 def quiz_de(joven: Joven) -> tuple[float, ...] | None:
-    """Las 5 respuestas del quiz guardadas como "0.5,1.0,...", o None si no lo respondió."""
+    """El vector del quiz para k-means (5 valores de 0 a 1), o None si no lo respondió.
+
+    Sale de las respuestas originales, así que si se ajusta el valor de una opción en el catálogo,
+    todos quedan recalculados. Las cuentas que respondieron antes de guardarlas usan el vector guardado.
+    """
+    respuestas = respuestas_quiz(joven)
+    if respuestas:
+        try:
+            return puntuar_quiz(respuestas)
+        except (KeyError, StopIteration):
+            pass  # respuestas de una versión vieja del quiz: se usa el vector guardado
     if not joven.quiz:
         return None
     try:
@@ -430,10 +455,9 @@ def quiz_de(joven: Joven) -> tuple[float, ...] | None:
 
 
 def guardar_quiz(session: Session, joven: Joven, respuestas: dict[int, str]) -> None:
-    """Guarda solo el vector interno del quiz. No se devuelve ni se muestra a nadie."""
-    from .catalog import puntuar_quiz
-
-    joven.quiz = ",".join(f"{v:g}" for v in puntuar_quiz(respuestas))
+    """Guarda lo que respondió (JSON) y su vector. No se devuelve ni se muestra a nadie."""
+    joven.quiz_respuestas = {str(k): v for k, v in sorted(respuestas.items())}
+    joven.quiz = vector_quiz(respuestas)
     session.add(joven)
     session.commit()
 

@@ -11,7 +11,7 @@ El joven elige el parche (estación, hora y actividad). El sábado a las 5:00 p.
      * ritmo (tranquilo, moderado, rápido)                peso 1.0
      * rango de edad (18 a 22, 23 a 28)                   peso 0.6
      * experiencia (domingos que ya fue, hasta 3)         peso 0.4
-     * quiz "Tu estilo de parche" (opcional)              peso 0.2 por pregunta
+     * quiz "Tu estilo de parche" (opcional)              peso 0.2 por pregunta (PESO_QUIZ)
        Cinco preguntas de gustos (plan después, charla, ruta nueva, esperar al
        grupo, madrugar), inspiradas en dimensiones clásicas de afinidad pero sin
        lenguaje clínico. Es solo un desempate: quien no lo responde queda en el
@@ -25,10 +25,12 @@ import math
 from dataclasses import dataclass, field
 from typing import Iterable
 
+from . import config
 from .catalog import ACTIVIDADES_POR_ID, FRANJA_ORDEN, RITMO_ORDEN, SEGMENTO_EDAD
 
-# El quiz pesa menos que cualquier otra variable: es un desempate, no un filtro.
-PESOS = {"ritmo": 1.0, "edad": 0.6, "experiencia": 0.4, "quiz": 0.2}
+# El quiz pesa menos que cualquier otra variable: es un desempate, no un filtro. Su peso se ajusta
+# con PESO_QUIZ (config.py), midiendo el efecto con app/reporte.py.
+PESOS = {"ritmo": 1.0, "edad": 0.6, "experiencia": 0.4, "quiz": config.PESO_QUIZ}
 EDAD_ORDEN = {"14-17": 0, "18-22": 0, "23-28": 1}  # menores y mayores nunca comparten parche
 EXPERIENCIA_MAX = 3
 

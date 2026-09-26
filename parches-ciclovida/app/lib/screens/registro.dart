@@ -12,6 +12,7 @@ import '../widgets/selectores.dart';
 import 'aviso.dart';
 import 'ingreso.dart';
 import 'principal.dart';
+import 'quiz.dart';
 
 /// Registro en cuatro pasos: correo universitario, quién eres, cómo te mueves, autorización.
 /// La estación y la actividad solo sirven para recomendar parches: el joven elige después.
@@ -151,8 +152,13 @@ class _RegistroScreenState extends State<RegistroScreen> {
       await Notificaciones.pedirPermiso();
       await Notificaciones.programarSemana();
       if (!mounted) return;
+      // Recién registrado: primero el quiz de estilo (se puede saltar), después la app.
+      // Va antes del match automático para que el desempate por afinidad ya cuente desde el primer parche.
+      final quiz = _cat?.quiz;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const PrincipalScreen()),
+        MaterialPageRoute<void>(
+          builder: (_) => quiz == null ? const PrincipalScreen() : QuizScreen(quiz: quiz, alInicio: true),
+        ),
         (route) => false,
       );
     } on ApiException catch (e) {
@@ -403,7 +409,8 @@ class _RegistroScreenState extends State<RegistroScreen> {
       const SizedBox(height: 8),
       const _Punto('Tu correo solo sirve para verificar que estudias: guardamos una huella cifrada y el nombre de tu universidad.'),
       const _Punto('Pedimos tu primer nombre, edad, comuna y preferencias. Nada de documento, dirección, teléfono ni fotos.'),
-      const _Punto('Armamos los grupos con k-means usando solo tu ritmo, tu rango de edad y cuántos domingos has ido.'),
+      const _Punto('Armamos los grupos con k-means usando tu ritmo, tu rango de edad, cuántos domingos has ido y, '
+          'si respondes el quiz opcional, tu estilo de parche (solo para desempatar). Nadie ve tus respuestas.'),
       const _Punto('Tu grupo ve tu primer nombre y tu universidad. La Secretaría solo ve cifras, nunca personas.'),
       const _Punto('La pregunta de cómo te sentiste es opcional. Puedes borrar tus datos cuando quieras desde Ajustes.'),
       Align(

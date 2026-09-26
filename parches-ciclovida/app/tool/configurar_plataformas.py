@@ -7,12 +7,13 @@ Uso (desde la carpeta app/):
 
 Qué hace, sin tocar nada que ya esté bien (se puede correr varias veces):
   Android
-    * permisos: INTERNET, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED
+    * permisos: INTERNET, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED y ubicación (para la ruta al parche)
     * usesCleartextTraffic="true" para hablar con el backend por http:// en la red local
     * receivers de flutter_local_notifications para los avisos programados
     * core library desugaring en app/build.gradle(.kts), que el plugin exige
   iOS
     * NSAppTransportSecurity para permitir http:// en la red local (solo para la demo)
+    * NSLocationWhenInUseUsageDescription: el texto que ve la persona al pedirle la ubicación
 """
 
 from __future__ import annotations
@@ -28,7 +29,12 @@ PERMISOS = [
     "android.permission.INTERNET",
     "android.permission.POST_NOTIFICATIONS",
     "android.permission.RECEIVE_BOOT_COMPLETED",
+    "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.ACCESS_COARSE_LOCATION",
 ]
+
+TEXTO_UBICACION = ("Usamos tu ubicación solo en el teléfono para trazar la ruta hasta la estación de tu parche. "
+                   "No la guardamos.")
 
 RECEIVERS = """        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
@@ -80,19 +86,29 @@ def gradle(ruta: Path) -> list[str]:
 
 def info_plist(ruta: Path) -> list[str]:
     s = ruta.read_text(encoding="utf-8")
-    if "NSAppTransportSecurity" in s:
-        return []
-    bloque = (
-        "\t<key>NSAppTransportSecurity</key>\n"
-        "\t<dict>\n"
-        "\t\t<key>NSAllowsArbitraryLoads</key>\n"
-        "\t\t<true/>\n"
-        "\t</dict>\n"
-    )
-    i = s.rfind("</dict>")
-    s = s[:i] + bloque + s[i:]
+    cambios = []
+    bloques = {
+        "NSAppTransportSecurity": (
+            "\t<key>NSAppTransportSecurity</key>\n"
+            "\t<dict>\n"
+            "\t\t<key>NSAllowsArbitraryLoads</key>\n"
+            "\t\t<true/>\n"
+            "\t</dict>\n",
+            "NSAppTransportSecurity (http en red local)",
+        ),
+        "NSLocationWhenInUseUsageDescription": (
+            "\t<key>NSLocationWhenInUseUsageDescription</key>\n"
+            f"\t<string>{TEXTO_UBICACION}</string>\n",
+            "NSLocationWhenInUseUsageDescription (ruta al parche)",
+        ),
+    }
+    for clave, (bloque, nombre) in bloques.items():
+        if clave not in s:
+            i = s.rfind("</dict>")
+            s = s[:i] + bloque + s[i:]
+            cambios.append(nombre)
     ruta.write_text(s, encoding="utf-8")
-    return ["NSAppTransportSecurity (http en red local)"]
+    return cambios
 
 
 def version_agp(android: Path) -> str | None:
