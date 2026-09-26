@@ -380,7 +380,7 @@ class _InicioScreenState extends State<InicioScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: Image.asset('assets/img/ciclovida-recorte.png', height: 36, semanticLabel: 'CicloVida'),
+        title: Image.asset('assets/img/parche-logo.png', height: 38, semanticLabel: 'Parche CicloVida'),
         actions: [
           IconButton(
             icon: const Icon(Icons.history),

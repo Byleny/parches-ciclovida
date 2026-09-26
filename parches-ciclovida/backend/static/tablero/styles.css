@@ -38,7 +38,7 @@ h1, h2 { margin: 0; }
 
 .top { background: var(--surface-raised); border-bottom: 1px solid var(--line); }
 .top-in { max-width: 1240px; margin: 0 auto; padding: var(--space-3) var(--space-6); display: flex; align-items: center; gap: var(--space-4); }
-.logo-cv { height: 64px; width: 64px; object-fit: cover; }
+.logo-cv { height: 56px; width: 56px; object-fit: contain; flex-shrink: 0; }
 .autoria { margin: 0 0 0 auto; text-align: right; font-size: 13px; color: var(--ink-muted); line-height: 1.35; }
 .insumo { margin: 0 0 var(--space-3); font-size: 13px; color: var(--ink-muted); }
 .titulo h1 { font-family: var(--font-display); font-weight: 800; font-size: 30px; line-height: 1; letter-spacing: .01em; }

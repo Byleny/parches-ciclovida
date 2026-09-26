@@ -32,16 +32,16 @@ class BienvenidaScreen extends StatelessWidget {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.fromLTRB(14, 7, 16, 7),
+                            padding: const EdgeInsets.fromLTRB(12, 6, 16, 6),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(999),
                               boxShadow: Cv.sombra,
                             ),
                             child: Image.asset(
-                              'assets/img/ciclovida-recorte.png',
-                              height: 32,
-                              semanticLabel: 'CicloVida, Cali en movimiento',
+                              'assets/img/parche-logo.png',
+                              height: 44,
+                              semanticLabel: 'Parche CicloVida',
                             ),
                           ),
                           const Spacer(),

@@ -222,10 +222,7 @@ class _TarjetaAviso extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.asset('assets/img/ciclovida.png', width: 40, height: 40, fit: BoxFit.cover),
-                      ),
+                      Image.asset('assets/img/parche-icono.png', width: 40, height: 40),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
