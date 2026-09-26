@@ -177,6 +177,19 @@ class Api {
     return j['mensaje'] as String? ?? '¡Listo!';
   }
 
+  // ------------------------------------------------------------ chat del parche (opcional)
+
+  /// Con [despuesDe], solo los mensajes nuevos (para consultar cada pocos segundos).
+  Future<ChatEstado> chat({int? despuesDe}) async => ChatEstado.fromJson(
+      await _json('GET', '/api/yo/chat', query: despuesDe == null ? null : {'despues_de': '$despuesDe'}));
+
+  Future<ChatEstado> chatUnirme() async => ChatEstado.fromJson(await _json('POST', '/api/yo/chat/unirme'));
+
+  Future<ChatEstado> chatSalir() async => ChatEstado.fromJson(await _json('DELETE', '/api/yo/chat'));
+
+  Future<ChatMensaje> chatEscribir(String texto) async =>
+      ChatMensaje.fromJson(await _json('POST', '/api/yo/chat/mensajes', body: {'texto': texto}));
+
   // ------------------------------------------------------------ foro comunal
 
   Future<List<MensajeForo>> foro({String? categoria}) async {

@@ -84,9 +84,15 @@ class _MapaScreenState extends State<MapaScreen> {
 
   List<String> get _ordenActividades => [for (final a in _cat?.actividades ?? const <Opcion>[]) a.id];
 
+  /// Al volver a la app (por ejemplo, desde Telegram) se recarga si esta pestaña está abierta.
+  late final AppLifecycleListener _ciclo;
+
   @override
   void initState() {
     super.initState();
+    _ciclo = AppLifecycleListener(onResume: () {
+      if (widget.activo) _cargar();
+    });
     _cargar();
   }
 
@@ -94,6 +100,12 @@ class _MapaScreenState extends State<MapaScreen> {
   void didUpdateWidget(MapaScreen viejo) {
     super.didUpdateWidget(viejo);
     if (widget.activo && !viejo.activo) _cargar();
+  }
+
+  @override
+  void dispose() {
+    _ciclo.dispose();
+    super.dispose();
   }
 
   Future<void> _cargar() async {

@@ -14,6 +14,7 @@ import '../widgets/parche_card.dart';
 import '../widgets/telegram.dart';
 import 'ajustes.dart';
 import 'bienvenida.dart';
+import 'chat.dart';
 import 'elegir_parche.dart';
 import 'encuesta.dart';
 import 'historial.dart';
@@ -23,16 +24,23 @@ import 'reporte.dart';
 
 /// "Mi parche": lo que el joven ve casi siempre.
 class InicioScreen extends StatefulWidget {
-  const InicioScreen({super.key});
+  const InicioScreen({super.key, this.activo = true});
+
+  /// Cuando la pestaña vuelve a quedar activa, se sincroniza con el servidor.
+  final bool activo;
 
   @override
   State<InicioScreen> createState() => _InicioScreenState();
 }
 
 class _InicioScreenState extends State<InicioScreen> {
+  /// Cada cuánto se sincroniza sola mientras la app está en pantalla.
+  static const _cadaCuanto = Duration(seconds: 30);
+
   Catalogo? _cat;
   Perfil? _perfil;
   EstadoParche? _estado;
+  ChatEstado? _chat;
   String? _error;
   bool _ocupado = false;
 
@@ -40,8 +48,10 @@ class _InicioScreenState extends State<InicioScreen> {
   /// (recién registrado). Después, el joven decide con los botones.
   bool _matchIntentado = false;
 
-  /// En espera, la pantalla se refresca sola para mostrar el match apenas llegue.
-  Timer? _timerEspera;
+  /// El parche también cambia fuera de la app (bot de Telegram, lista de espera): la pantalla se
+  /// sincroniza al volver a la app, al volver a esta pestaña y cada 30 segundos.
+  Timer? _timerSync;
+  late final AppLifecycleListener _ciclo;
 
   Api get _api => Sesion.actual.api;
 
@@ -49,26 +59,54 @@ class _InicioScreenState extends State<InicioScreen> {
   void initState() {
     super.initState();
     Notificaciones.tocada.addListener(_alTocarNotificacion);
+    _ciclo = AppLifecycleListener(onResume: _sincronizar);
+    _timerSync = Timer.periodic(_cadaCuanto, (_) {
+      if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) _sincronizar();
+    });
     _cargar().then((_) => _alTocarNotificacion());
   }
 
   @override
+  void didUpdateWidget(InicioScreen viejo) {
+    super.didUpdateWidget(viejo);
+    if (widget.activo && !viejo.activo) _sincronizar();
+  }
+
+  @override
   void dispose() {
-    _timerEspera?.cancel();
+    _timerSync?.cancel();
+    _ciclo.dispose();
     Notificaciones.tocada.removeListener(_alTocarNotificacion);
     super.dispose();
   }
 
-  void _ajustarTimerEspera() {
-    if (_estado?.estado == 'en_espera') {
-      _timerEspera ??= Timer.periodic(const Duration(seconds: 45), (_) => _cargar());
-    } else {
-      _timerEspera?.cancel();
-      _timerEspera = null;
+  /// Recarga por cambios hechos fuera de la app, y avisa qué cambió. Se salta si hay una acción en
+  /// curso o si hay otra pantalla encima (elegir parche, ajustes): esas recargan al volver.
+  Future<void> _sincronizar() async {
+    if (!mounted || _ocupado || !(ModalRoute.of(context)?.isCurrent ?? true)) return;
+    await _cargar(avisarCambios: true);
+  }
+
+  /// Si el parche o la respuesta cambiaron desde fuera (por ejemplo, por Telegram), lo dice.
+  void _avisarCambiosDeFuera(EstadoParche antes, EstadoParche ahora) {
+    if (antes.salida?.id != ahora.salida?.id) {
+      // del match de la lista de espera ya avisa la notificación
+      if (antes.estado == 'en_espera') return;
+      if (ahora.salida != null) {
+        _aviso('Tu parche se actualizó: ahora estás en el ${ahora.salida!.nombre}.');
+      } else if (antes.salida != null) {
+        _aviso('Saliste de tu parche.');
+      }
+      return;
+    }
+    if (antes.miRespuesta != ahora.miRespuesta) {
+      if (ahora.miRespuesta == 'confirmado') _aviso('Quedó confirmado que vas el domingo.');
+      if (ahora.miRespuesta == 'declinado') _aviso('Quedó registrado que este domingo no vas.');
     }
   }
 
-  Future<void> _cargar() async {
+  Future<void> _cargar({bool avisarCambios = false}) async {
+    final antes = _estado;
     try {
       final cat = _cat ?? await _api.catalogo();
       final perfil = await _api.yo();
@@ -85,14 +123,24 @@ class _InicioScreenState extends State<InicioScreen> {
           ofrecerParecido = true;
         }
       }
+      // el chat solo existe con parche; si falla, la pantalla sigue sin él
+      ChatEstado? chat;
+      if (estado.estado == 'inscrito' || estado.estado == 'asignado') {
+        try {
+          chat = await _api.chat();
+        } on ApiException {
+          chat = null;
+        }
+      }
       if (!mounted) return;
       setState(() {
         _cat = cat;
         _perfil = perfil;
         _estado = estado;
+        _chat = chat;
         _error = null;
       });
-      _ajustarTimerEspera();
+      if (avisarCambios && antes != null) _avisarCambiosDeFuera(antes, estado);
       await _revisarNotificaciones();
       if (ofrecerParecido) await _ofrecerMasParecido();
     } on ApiException catch (e) {
@@ -170,7 +218,6 @@ class _InicioScreenState extends State<InicioScreen> {
       final estado = await _api.buscarMatch();
       if (!mounted) return;
       setState(() => _estado = estado);
-      _ajustarTimerEspera();
       if (estado.estado == 'inscrito' && estado.salida != null) {
         _aviso('¡Match! Te unimos al ${estado.salida!.nombre}: hay gente con tus mismos planes.');
       } else if (estado.estado == 'en_espera') {
@@ -388,6 +435,75 @@ class _InicioScreenState extends State<InicioScreen> {
     ];
   }
 
+  /// El chat del parche: invitación opcional, o el acceso si ya se unió. Con "Ahora no" queda un
+  /// enlace discreto para entrar después, sin insistir.
+  List<Widget> _seccionChat() {
+    final c = _chat;
+    final parcheId = c?.parcheId;
+    if (c == null || !c.disponible || parcheId == null) return const [];
+    if (c.unido) {
+      return [const SizedBox(height: 12), _TarjetaChat(enElChat: c.enElChat, onAbrir: () => _abrirChat())];
+    }
+    if (Sesion.actual.chatDescartado(parcheId)) {
+      return [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _ocupado ? null : _unirmeAlChat,
+            icon: const Icon(Icons.forum_outlined, size: 20),
+            label: const Text('Unirme al chat del parche'),
+          ),
+        ),
+      ];
+    }
+    return [
+      const SizedBox(height: 12),
+      _InvitacionChat(
+        enElChat: c.enElChat,
+        ocupado: _ocupado,
+        onUnirme: _unirmeAlChat,
+        onAhoraNo: () async {
+          await Sesion.actual.descartarChat(parcheId);
+          if (mounted) setState(() {});
+        },
+      ),
+    ];
+  }
+
+  Future<void> _unirmeAlChat() async {
+    setState(() => _ocupado = true);
+    ChatEstado? estado;
+    try {
+      estado = await _api.chatUnirme();
+    } on ApiException catch (e) {
+      _aviso(e.mensaje);
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+    if (estado != null && mounted) {
+      setState(() => _chat = estado);
+      await _abrirChat(estado);
+    }
+  }
+
+  Future<void> _abrirChat([ChatEstado? abierto]) async {
+    var estado = abierto;
+    if (estado == null) {
+      try {
+        estado = await _api.chat();
+      } on ApiException catch (e) {
+        _aviso(e.mensaje);
+        return;
+      }
+    }
+    if (!mounted || !estado.unido) return;
+    final msg = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(builder: (_) => ChatScreen(estado: estado!)),
+    );
+    await _cargar();
+    if (msg != null) _aviso(msg);
+  }
+
   List<Widget> _principal(EstadoParche estado) {
     switch (estado.estado) {
       case 'asignado':
@@ -402,10 +518,12 @@ class _InicioScreenState extends State<InicioScreen> {
             onCambiar: _elegir,
             onSalir: _salirDelParche,
           ),
+          ..._seccionChat(),
         ];
       case 'inscrito':
         return [
           BoletaParche(parche: estado.salida!, onUnirme: () {}),
+          ..._seccionChat(),
           const SizedBox(height: 12),
           Card(
             child: Padding(
@@ -715,6 +833,86 @@ class _TarjetaElegir extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// "¿Deseas unirte al chat de tu parche?": opcional, con lo que se comparte dicho de frente.
+class _InvitacionChat extends StatelessWidget {
+  const _InvitacionChat({required this.enElChat, required this.ocupado, required this.onUnirme, required this.onAhoraNo});
+
+  final int enElChat;
+  final bool ocupado;
+  final VoidCallback onUnirme;
+  final VoidCallback onAhoraNo;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const CircleAvatar(radius: 20, backgroundColor: Cv.ink, child: Icon(Icons.forum, color: Colors.white, size: 20)),
+                const SizedBox(width: 12),
+                Expanded(child: Text('¿Deseas unirte al chat de tu parche?', style: t.titleMedium)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Es opcional. Ahí cuadran la llegada y se van conociendo antes del domingo. Si entras, el chat ve '
+              'tu primer nombre y tu universidad.${enElChat > 0 ? ' Ya hay $enElChat ${enElChat == 1 ? 'persona' : 'personas'}.' : ''}',
+              style: t.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: ocupado ? null : onUnirme,
+                    style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
+                    icon: const Icon(Icons.forum_outlined, size: 20),
+                    label: const Text('Unirme al chat'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: ocupado ? null : onAhoraNo,
+                  style: TextButton.styleFrom(foregroundColor: Cv.inkMuted),
+                  child: const Text('Ahora no'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Acceso al chat cuando ya se unió.
+class _TarjetaChat extends StatelessWidget {
+  const _TarjetaChat({required this.enElChat, required this.onAbrir});
+
+  final int enElChat;
+  final VoidCallback onAbrir;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        onTap: onAbrir,
+        contentPadding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
+        leading: const CircleAvatar(radius: 20, backgroundColor: Cv.tealSoft, child: Icon(Icons.forum, color: Cv.tealInk, size: 20)),
+        title: const Text('Chat del parche', style: TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text('$enElChat en el chat · toca para abrir'),
+        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }

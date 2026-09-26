@@ -30,6 +30,9 @@ def _migrar() -> None:
             # cuentas creadas antes de la casilla: sin constancia, no se inventa
             con.execute(text("ALTER TABLE joven ADD COLUMN declara_mayor BOOLEAN NOT NULL DEFAULT 0"))
             con.execute(text("ALTER TABLE joven ADD COLUMN declara_mayor_en DATETIME"))
+        columnas_chat = {fila[1] for fila in con.execute(text("PRAGMA table_info(chatmensaje)"))}
+        if columnas_chat and "responde_a" not in columnas_chat:
+            con.execute(text("ALTER TABLE chatmensaje ADD COLUMN responde_a VARCHAR(40)"))
         con.commit()
 
 

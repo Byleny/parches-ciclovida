@@ -30,9 +30,15 @@ class _ForoScreenState extends State<ForoScreen> {
 
   Api get _api => Sesion.actual.api;
 
+  /// Al volver a la app (por ejemplo, tras publicar desde Telegram) se recarga si esta pestaña está abierta.
+  late final AppLifecycleListener _ciclo;
+
   @override
   void initState() {
     super.initState();
+    _ciclo = AppLifecycleListener(onResume: () {
+      if (widget.activo) _cargar();
+    });
     _cargar();
   }
 
@@ -44,6 +50,7 @@ class _ForoScreenState extends State<ForoScreen> {
 
   @override
   void dispose() {
+    _ciclo.dispose();
     _texto.dispose();
     super.dispose();
   }

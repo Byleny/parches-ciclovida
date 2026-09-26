@@ -14,6 +14,7 @@ class Sesion {
   static const _kToken = 'token';
   static const _kUrl = 'api_url';
   static const _kClave = 'clave_admin';
+  static const _kChatDescartado = 'chat_descartado';
 
   static late Sesion actual;
 
@@ -49,5 +50,12 @@ class Sesion {
 
   Future<void> guardarClave(String clave) async {
     await _prefs.setString(_kClave, clave.trim());
+  }
+
+  /// "Ahora no" a la invitación al chat de un parche: no se vuelve a insistir en ese parche.
+  bool chatDescartado(int parcheId) => _prefs.getInt(_kChatDescartado) == parcheId;
+
+  Future<void> descartarChat(int parcheId) async {
+    await _prefs.setInt(_kChatDescartado, parcheId);
   }
 }

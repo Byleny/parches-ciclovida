@@ -157,6 +157,30 @@ class MensajeForo(SQLModel, table=True):
     creado_en: datetime = Field(default_factory=_ahora, sa_type=DateTime)
 
 
+class ChatMiembro(SQLModel, table=True):
+    """Quién se unió al chat de un parche. Es opcional: solo quien entra ve el chat y es visto en él
+    (primer nombre y universidad). En la demo, algunos simulados del parche también entran."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    salida_id: int = Field(foreign_key="salida.id", index=True)
+    joven_id: str = Field(foreign_key="joven.id", index=True)
+    unido_en: datetime = Field(default_factory=_ahora, sa_type=DateTime)
+
+
+class ChatMensaje(SQLModel, table=True):
+    """Mensaje del chat de un parche. Solo lo ven quienes se unieron al chat."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    salida_id: int = Field(foreign_key="salida.id", index=True)
+    joven_id: str | None = Field(default=None, foreign_key="joven.id", index=True)
+    nombre: str  # primer nombre, como en el grupo
+    universidad: str  # nombre corto
+    simulado: bool = False  # lo escribió un joven simulado de la demo (con Gemini)
+    responde_a: str | None = Field(default=None, max_length=40)  # primer nombre de a quién le contesta
+    texto: str = Field(max_length=500)
+    creado_en: datetime = Field(default_factory=_ahora, sa_type=DateTime)
+
+
 class Reporte(SQLModel, table=True):
     """Botón "Reportar un problema". Solo lo ve moderación, nunca el tablero."""
 

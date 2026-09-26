@@ -537,6 +537,111 @@ class MensajeForo {
   final bool esMio;
 }
 
+/// Mensaje del chat del parche. `simulado`: lo escribió un estudiante simulado de la demo (IA).
+class ChatMensaje {
+  const ChatMensaje({
+    required this.id,
+    required this.nombre,
+    required this.universidad,
+    required this.simulado,
+    required this.texto,
+    required this.creadoEn,
+    required this.esMio,
+    this.respondeA,
+  });
+
+  factory ChatMensaje.fromJson(Json j) => ChatMensaje(
+        id: j['id'] as int,
+        nombre: j['nombre'] as String,
+        universidad: j['universidad'] as String? ?? '',
+        simulado: j['simulado'] as bool? ?? false,
+        respondeA: j['responde_a'] as String?,
+        texto: j['texto'] as String,
+        creadoEn: j['creado_en'] as String,
+        esMio: j['es_mio'] as bool? ?? false,
+      );
+
+  final int id;
+  final String nombre;
+  final String universidad;
+  final bool simulado;
+
+  /// Primer nombre de a quién le contesta (otra persona del chat), si le habla a alguien en particular.
+  final String? respondeA;
+  final String texto;
+  final String creadoEn;
+  final bool esMio;
+}
+
+class ChatMiembro {
+  const ChatMiembro({required this.nombre, required this.universidad, required this.simulado, required this.soyYo});
+
+  factory ChatMiembro.fromJson(Json j) => ChatMiembro(
+        nombre: j['nombre'] as String,
+        universidad: j['universidad'] as String? ?? '',
+        simulado: j['simulado'] as bool? ?? false,
+        soyYo: j['soy_yo'] as bool? ?? false,
+      );
+
+  final String nombre;
+  final String universidad;
+  final bool simulado;
+  final bool soyYo;
+}
+
+/// El chat del parche. Sin unirse, el servidor solo dice cuántos hay: ni nombres ni mensajes.
+class ChatEstado {
+  const ChatEstado({
+    required this.disponible,
+    required this.unido,
+    this.parcheId,
+    this.parcheNombre = '',
+    this.estacion = '',
+    this.hora = '',
+    this.actividad = '',
+    this.enElChat = 0,
+    this.miembros = const [],
+    this.mensajes = const [],
+    this.escribiendo = const [],
+    this.simuladosConversan = false,
+  });
+
+  factory ChatEstado.fromJson(Json j) {
+    final p = j['parche'] as Json?;
+    return ChatEstado(
+      disponible: j['disponible'] as bool? ?? false,
+      unido: j['unido'] as bool? ?? false,
+      parcheId: p?['id'] as int?,
+      parcheNombre: p?['nombre'] as String? ?? '',
+      estacion: p?['estacion'] as String? ?? '',
+      hora: p?['hora'] as String? ?? '',
+      actividad: p?['actividad'] as String? ?? '',
+      enElChat: j['en_el_chat'] as int? ?? 0,
+      miembros: (j['miembros'] as List? ?? const []).map((e) => ChatMiembro.fromJson(e as Json)).toList(),
+      mensajes: (j['mensajes'] as List? ?? const []).map((e) => ChatMensaje.fromJson(e as Json)).toList(),
+      escribiendo: (j['escribiendo'] as List? ?? const []).map((e) => e.toString()).toList(),
+      simuladosConversan: j['simulados_conversan'] as bool? ?? false,
+    );
+  }
+
+  final bool disponible;
+  final bool unido;
+  final int? parcheId;
+  final String parcheNombre;
+  final String estacion;
+  final String hora;
+  final String actividad;
+  final int enElChat;
+  final List<ChatMiembro> miembros;
+  final List<ChatMensaje> mensajes;
+
+  /// Quién está escribiendo ("Alguien" mientras los simulados piensan su respuesta).
+  final List<String> escribiendo;
+
+  /// Si los simulados conversan con Gemini (si no, solo saludan).
+  final bool simuladosConversan;
+}
+
 /// Vínculo con el bot de Telegram para recibir el aviso del match.
 class TelegramInfo {
   const TelegramInfo({

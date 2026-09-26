@@ -42,6 +42,15 @@ def aviso() -> dict:
                      "nunca aparecen nombres. No vendemos ni compartimos tus datos con nadie más.",
         },
         {
+            "titulo": "Chat de tu parche (opcional)",
+            "texto": "Unirte al chat de tu parche es opcional. Si entras, quienes estén en ese chat ven tu primer nombre, "
+                     "tu universidad y lo que escribes; quien no entra no ve nada. Si te cambias o te sales del parche, "
+                     "sales también de su chat, y tus mensajes se borran si borras tus datos. En esta demo, algunas "
+                     "personas del chat son estudiantes simulados, marcados con IA: para que respondan, los últimos "
+                     "mensajes del chat, con el primer nombre de quien los escribió, se procesan con Gemini, un servicio "
+                     "de Google. Nunca compartas tu teléfono ni tu dirección: el encuentro es en la estación.",
+        },
+        {
             "titulo": "Tu ubicación, solo para la ruta",
             "texto": "Si tocas «Cómo llego» en el mapa, la app te pide la ubicación del teléfono para trazar la ruta "
                      "hasta la estación de tu parche. Se usa solo en tu teléfono: no la enviamos a Parches CicloVida "

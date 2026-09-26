@@ -123,6 +123,43 @@ pero sin lenguaje clínico. Reglas de diseño, pedidas por el equipo:
 - **Invisible para la Secretaría.** Las respuestas de personas reales no llegan al tablero ni a
   ningún reporte: el reporte del emparejamiento solo muestra las de los jóvenes simulados.
 
+## Chat del parche (opcional)
+
+Apenas te unes a un parche, "Mi parche" pregunta **¿Deseas unirte al chat de tu parche?** con
+**Unirme al chat** y **Ahora no**. Nadie queda adentro sin quererlo; si dices "Ahora no", queda un
+enlace discreto para entrar después. El código está en `backend/app/chat.py` y
+`app/lib/screens/chat.dart`.
+
+- **Conversación real.** Las personas reales que entran al chat del mismo parche se leen entre sí.
+  La app consulta los mensajes nuevos cada 2,5 s y muestra "escribiendo…".
+- **Privacidad.** Solo quien entra ve el chat y es visto en él, con su primer nombre y su universidad,
+  lo mismo que ve su grupo. Quien no entra solo sabe cuántos hay. Al cambiarse o salirse del parche,
+  sale también de su chat, y al borrar la cuenta se borran sus mensajes.
+- **Simulados con IA** (`backend/app/chat_simulado.py`). En la demo, hasta `CHAT_MAX_SIMULADOS`
+  (5) jóvenes simulados del parche entran al chat, primero los de tu grupo si ya se armó. Cada uno
+  habla con **su personalidad del JSON**: su perfil (Parchadito, Madrugador, Deportista o
+  Contemplativo) y sus respuestas del quiz, además de su actividad, ritmo, edad y universidad. Una
+  sola llamada a Gemini con respuesta en JSON decide quién habla, en qué orden, a quién le contesta
+  y qué dice.
+- **Varios a la vez y entre ellos.** A cada mensaje tuyo pueden contestar de 1 a 3 simulados, y
+  alguno puede reaccionarle a otro: se dan la razón, se contradicen con buena onda, se echan
+  bromas. La app muestra a quién le habla cada uno ("↪ a Laura"). Al entrar a un chat vacío,
+  primero charlan entre ellos y después te dan la bienvenida.
+- **Charla cuando el chat está quieto.** Si nadie escribe en `CHAT_CHARLA_SEG` (90 s) y alguien real
+  tiene el chat abierto, los simulados conversan solos (el domingo, la ruta, el clima, la semana en
+  la u) y a veces te invitan. Paran después de `CHAT_CHARLA_MAX` (8) mensajes seguidos sin que
+  escriba una persona real, así que nunca hablan sin fin ni gastan llamadas a Gemini de más.
+- **Reglas de los simulados.** No inventan datos del parche. Nunca piden ni dan teléfonos, direcciones
+  ni redes (si alguien pide WhatsApp, proponen seguir por el chat). El encuentro es siempre en la
+  estación. Nada romántico. Ante un riesgo, recuerdan «Reportar un problema» y el 123. Si les
+  preguntan, dicen que son simulados.
+- **Siempre marcados.** En la app los simulados llevan **✨ IA**, para que nadie crea que habla con una
+  persona real. Sin `GEMINI_API_KEY` solo saludan con un mensaje fijo según su perfil, y si Gemini
+  está caído el chat de las personas reales sigue funcionando.
+- **Qué va a Gemini.** Las fichas de los simulados, los datos del parche y los últimos 25 mensajes con
+  el primer nombre de quien los escribió; de las personas reales, nada más. Está en el aviso de
+  privacidad (versión `2026-09-25.6`).
+
 ## Mapa y foro
 
 - **Mapa** (pestaña Mapa): cada estación se marca con la **figura de su actividad** (bici, patines,
@@ -217,9 +254,9 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 - Tablero: http://localhost:8000/tablero/ (muestra un aviso de "datos sintéticos" mientras existan)
 - API documentada: http://localhost:8000/docs
 - Reporte del emparejamiento: `python -m app.reporte` (ver "Datos simulados y reporte del emparejamiento")
-- Pruebas: `pytest` (60 pruebas: k-means, correo institucional, flujo completo, anonimato, reportes, permisos, match, bot de Telegram, datos simulados y reporte)
+- Pruebas: `pytest` (64 pruebas: k-means, correo institucional, flujo completo, anonimato, reportes, permisos, match, bot de Telegram, datos simulados, reporte y chat del parche)
 
-Variables útiles: `ADMIN_KEY` (por defecto `dedsec-demo`), `SECRETO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `CORREO_DEMO`, `PERMITIR_MENORES`, `REPORTES_PARA_SUSPENDER`, `K_CONTEO`, `GRUPO_MIN`, `GRUPO_MAX`, `PESO_QUIZ`, `DATABASE_URL`, `ESPERA_MINUTOS`, `TELEGRAM_TOKEN`, `TELEGRAM_BOT`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `FORO_MAX`.
+Variables útiles: `ADMIN_KEY` (por defecto `dedsec-demo`), `SECRETO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `CORREO_DEMO`, `PERMITIR_MENORES`, `REPORTES_PARA_SUSPENDER`, `K_CONTEO`, `GRUPO_MIN`, `GRUPO_MAX`, `PESO_QUIZ`, `DATABASE_URL`, `ESPERA_MINUTOS`, `TELEGRAM_TOKEN`, `TELEGRAM_BOT`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `FORO_MAX`, `CHAT_MAX_SIMULADOS`, `CHAT_PAUSA_SEG`, `CHAT_CHARLA_SEG`, `CHAT_CHARLA_MAX`.
 
 ### 2. App Flutter (Flutter 3.38.1 o más)
 

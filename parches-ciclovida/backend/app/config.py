@@ -79,9 +79,21 @@ GEMINI_RESPALDO = [m.strip() for m in os.getenv("GEMINI_RESPALDO", "gemini-3.5-f
 # Foro comunal: largo máximo de cada mensaje.
 FORO_MAX = int(os.getenv("FORO_MAX", "500"))
 
+# Chat del parche. En la demo, hasta CHAT_MAX_SIMULADOS jóvenes simulados del parche entran al chat y
+# conversan con Gemini según su personalidad del JSON. CHAT_PAUSA_SEG es la pausa de "escribiendo…"
+# antes de cada mensaje simulado, para que se sienta como un chat de verdad.
+CHAT_MAX_SIMULADOS = int(os.getenv("CHAT_MAX_SIMULADOS", "5"))
+CHAT_PAUSA_SEG = float(os.getenv("CHAT_PAUSA_SEG", "1.5"))
+# Charla entre simulados: si el chat lleva CHAT_CHARLA_SEG segundos quieto y alguien real lo tiene
+# abierto, conversan entre ellos. Paran después de CHAT_CHARLA_MAX mensajes seguidos sin que escriba
+# una persona real (así no hablan solos sin fin ni gastan llamadas a Gemini).
+CHAT_CHARLA_SEG = float(os.getenv("CHAT_CHARLA_SEG", "90"))
+CHAT_CHARLA_MAX = int(os.getenv("CHAT_CHARLA_MAX", "8"))
+
 # Versión del aviso de privacidad que se guarda con cada autorización (Ley 1581 de 2012).
-# .3: bot conversacional (Gemini); .4: ubicación para la ruta al parche; .5: respuestas del quiz de estilo
-AVISO_VERSION = "2026-09-25.5"
+# .3: bot conversacional (Gemini); .4: ubicación para la ruta al parche; .5: respuestas del quiz de estilo;
+# .6: chat del parche
+AVISO_VERSION = "2026-09-25.6"
 
 # Verificación con correo institucional. El correo no se guarda: solo su huella HMAC con SECRETO.
 SECRETO = os.getenv("SECRETO", "dedsec-demo-cambiar")

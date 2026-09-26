@@ -21,8 +21,8 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
       body: IndexedStack(
         index: _pestana,
         children: [
-          const InicioScreen(),
-          // el mapa y el foro se recargan cada vez que su pestaña vuelve a quedar activa
+          // cada pestaña se recarga cuando vuelve a quedar activa: lo que cambie por Telegram se ve al volver
+          InicioScreen(activo: _pestana == 0),
           MapaScreen(activo: _pestana == 1),
           ForoScreen(activo: _pestana == 2),
         ],

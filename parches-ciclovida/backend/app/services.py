@@ -15,7 +15,8 @@ from .catalog import (
 )
 from .matching import EXPERIENCIA_MAX, GrupoPropuesto, Participante, agrupar, grupo_mas_cercano, mejor_grupo_para
 from .models import (
-    Asignacion, Encuesta, Espera, Grupo, Inscripcion, Jornada, Joven, MensajeForo, Notificacion, Reporte, Salida,
+    Asignacion, ChatMensaje, ChatMiembro, Encuesta, Espera, Grupo, Inscripcion, Jornada, Joven, MensajeForo,
+    Notificacion, Reporte, Salida,
 )
 
 RITMO_NOMBRE = {r["id"]: r["nombre"] for r in RITMOS}
@@ -205,9 +206,12 @@ def _inscripcion(session: Session, joven_id: str, fecha: date) -> Inscripcion | 
 
 
 def quitar_de_la_jornada(session: Session, joven_id: str, fecha: date) -> None:
+    from .chat import salir_de_la_jornada
+
     session.exec(delete(Asignacion).where(Asignacion.joven_id == joven_id, Asignacion.jornada_fecha == fecha))
     session.exec(delete(Inscripcion).where(Inscripcion.joven_id == joven_id, Inscripcion.jornada_fecha == fecha))
     session.exec(delete(Espera).where(Espera.joven_id == joven_id, Espera.jornada_fecha == fecha))
+    salir_de_la_jornada(session, joven_id, fecha)  # sin parche, tampoco queda en su chat
 
 
 def unirse(session: Session, joven: Joven, salida_id: int) -> None:
@@ -811,5 +815,7 @@ def borrar_joven(session: Session, joven: Joven) -> None:
     session.exec(delete(Espera).where(Espera.joven_id == joven.id))
     session.exec(delete(Notificacion).where(Notificacion.joven_id == joven.id))
     session.exec(delete(MensajeForo).where(MensajeForo.joven_id == joven.id))
+    session.exec(delete(ChatMensaje).where(ChatMensaje.joven_id == joven.id))
+    session.exec(delete(ChatMiembro).where(ChatMiembro.joven_id == joven.id))
     session.delete(joven)
     session.commit()

@@ -7,7 +7,7 @@ from datetime import date
 from pathlib import Path
 from typing import Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -20,7 +20,7 @@ for _flujo in (sys.stdout, sys.stderr):
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlmodel import Session, select
 
-from . import config, services, stats, telegram, verificacion
+from . import chat, chat_simulado, config, services, stats, telegram, verificacion
 from .catalog import (
     ACTIVIDADES_POR_ID, FORO_IDS, FRANJA_ORDEN, MOTIVOS_IDS, QUIZ_POR_ID, RITMO_ORDEN, SEGMENTO_EDAD,
     TRAMOS_POR_ID, UNIVERSIDADES_POR_ID, catalogo,
@@ -212,6 +212,10 @@ class QuizIn(BaseModel):
             if opcion not in {o["id"] for o in p["opciones"]}:
                 raise ValueError("Hay una respuesta que no es una opción válida")
         return v
+
+
+class ChatIn(BaseModel):
+    texto: str = Field(min_length=1, max_length=500)
 
 
 class ForoIn(BaseModel):
@@ -467,6 +471,50 @@ def telegram_estado(joven: Joven = Depends(joven_actual), session: Session = Dep
         "enlace_web": telegram.enlace_web_para(joven.telegram_codigo),  # Telegram Web, conserva el código
         "codigo": joven.telegram_codigo,  # respaldo: enviarlo a mano como "/start <código>"
     }
+
+
+# ---------------------------------------------------------------- chat del parche (opcional)
+
+@app.get("/api/yo/chat")
+def mi_chat(tareas: BackgroundTasks, despues_de: int | None = None, joven: Joven = Depends(joven_actual),
+            session: Session = Depends(get_session)):
+    """El chat de su parche. Sin unirse, solo cuántos hay (ni nombres ni mensajes).
+    Con `despues_de`, solo los mensajes nuevos (para consultar cada pocos segundos).
+
+    Mientras alguien real tiene el chat abierto y está quieto un rato, los simulados charlan entre ellos."""
+    info = chat.estado(session, joven, despues_de)
+    if info.get("unido") and not joven.sintetico and chat_simulado.reservar_charla(session, info["parche"]["id"]):
+        tareas.add_task(chat_simulado.generar, info["parche"]["id"], "charla")
+    return info
+
+
+@app.post("/api/yo/chat/unirme")
+def unirme_al_chat(tareas: BackgroundTasks, joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    """Entrar al chat es opcional. En la demo, los simulados del parche le dan la bienvenida (Gemini)."""
+    try:
+        salida, nuevo = chat.unirse(session, joven)
+    except LookupError as e:
+        raise HTTPException(409, str(e))
+    if nuevo:
+        tareas.add_task(chat_simulado.generar, salida.id, "bienvenida", joven.nombre)
+    return chat.estado(session, joven)
+
+
+@app.delete("/api/yo/chat")
+def salir_del_chat(joven: Joven = Depends(joven_actual), session: Session = Depends(get_session)):
+    chat.salir(session, joven)
+    return chat.estado(session, joven)
+
+
+@app.post("/api/yo/chat/mensajes", status_code=201)
+def escribir_en_el_chat(body: ChatIn, tareas: BackgroundTasks, joven: Joven = Depends(joven_actual),
+                        session: Session = Depends(get_session)):
+    try:
+        m = chat.publicar(session, joven, body.texto)
+    except LookupError as e:
+        raise HTTPException(409, str(e))
+    tareas.add_task(chat_simulado.generar, m.salida_id, "respuesta")
+    return chat.mensaje_json(m, joven.id)
 
 
 # ---------------------------------------------------------------- foro comunal

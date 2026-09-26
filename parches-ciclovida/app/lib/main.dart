@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -25,6 +26,14 @@ class ParchesApp extends StatelessWidget {
       title: 'Parches CicloVida',
       debugShowCheckedModeBanner: false,
       theme: temaParches(),
+      // En el navegador, Flutter solo deja arrastrar las listas con el dedo: con esto "jalar para
+      // actualizar" y las filas de chips también funcionan con el mouse al probar en la web.
+      scrollBehavior: const MaterialScrollBehavior().copyWith(dragDevices: {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      }),
       locale: const Locale('es', 'CO'),
       supportedLocales: const [Locale('es', 'CO'), Locale('es')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
