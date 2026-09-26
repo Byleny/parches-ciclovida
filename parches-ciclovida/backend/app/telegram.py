@@ -260,6 +260,14 @@ def atender(session: Session, chat_id: str, texto: str) -> None:
 
     if joven is None:
         varias = _jovenes_de(session, chat_id)
+        if varias and comando == "/desconectar":
+            # chat pegado a varias cuentas (datos viejos): se suelta de todas
+            nombres = ", ".join(j.nombre for j in varias)
+            for j in varias:
+                desconectar(session, j)
+            enviar(chat_id, f"Listo: desconecté este chat de las cuentas de {h(nombres)}. Para conectarte, abre la "
+                            "app con la cuenta que quieras usar y toca «Conectar Telegram».")
+            return
         if varias:
             enviar(chat_id, f"Este chat quedó conectado a varias cuentas ({h(', '.join(j.nombre for j in varias))}). "
                             f"{_como_cambiar()}")

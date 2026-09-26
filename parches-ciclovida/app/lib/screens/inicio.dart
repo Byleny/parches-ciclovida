@@ -10,6 +10,7 @@ import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/boleta.dart';
 import '../widgets/comunes.dart';
+import '../widgets/diseno.dart';
 import '../widgets/parche_card.dart';
 import '../widgets/telegram.dart';
 import 'ajustes.dart';
@@ -114,11 +115,12 @@ class _InicioScreenState extends State<InicioScreen> {
       // Recién llegado sin parche: el match lo une solo a un parche con gente
       // y sus mismas características, o lo deja en lista de espera.
       var ofrecerParecido = false;
+      ParcheOpcion? celebrarMatch;
       if (estado.estado == 'sin_parche' && !_matchIntentado) {
         _matchIntentado = true;
         estado = await _api.buscarMatch();
         if (estado.estado == 'inscrito' && estado.salida != null) {
-          _aviso('¡Match! Te unimos al ${estado.salida!.nombre}: hay gente con tus mismos planes.');
+          celebrarMatch = estado.salida;
         } else if (estado.estado == 'en_espera') {
           ofrecerParecido = true;
         }
@@ -141,6 +143,7 @@ class _InicioScreenState extends State<InicioScreen> {
         _error = null;
       });
       if (avisarCambios && antes != null) _avisarCambiosDeFuera(antes, estado);
+      if (celebrarMatch != null) await _celebrarMatch(celebrarMatch);
       await _revisarNotificaciones();
       if (ofrecerParecido) await _ofrecerMasParecido();
     } on ApiException catch (e) {
@@ -219,7 +222,8 @@ class _InicioScreenState extends State<InicioScreen> {
       if (!mounted) return;
       setState(() => _estado = estado);
       if (estado.estado == 'inscrito' && estado.salida != null) {
-        _aviso('¡Match! Te unimos al ${estado.salida!.nombre}: hay gente con tus mismos planes.');
+        await _celebrarMatch(estado.salida!);
+        await _cargar(); // trae también la invitación al chat del parche nuevo
       } else if (estado.estado == 'en_espera') {
         await _ofrecerMasParecido();
       }
@@ -228,6 +232,19 @@ class _InicioScreenState extends State<InicioScreen> {
     } finally {
       if (mounted) setState(() => _ocupado = false);
     }
+  }
+
+  /// El momento "¡Match!": una celebración con la cinta de colores, no un aviso cualquiera.
+  Future<void> _celebrarMatch(ParcheOpcion s) async {
+    if (!mounted) return;
+    await celebrar(
+      context,
+      titulo: '¡Match!',
+      texto: 'Te unimos al ${s.nombre}: ${s.actividadNombre.toLowerCase()} a las ${s.horaNombre} en la estación '
+          '${s.tramoNombre}. Hay gente con tus mismos planes.',
+      icono: iconoDe(s.actividad),
+      color: coloresDe(s.actividad).tinta,
+    );
   }
 
   /// Popup del match sin resultados: nadie tiene sus mismos planes todavía,
@@ -381,10 +398,23 @@ class _InicioScreenState extends State<InicioScreen> {
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-          children: _contenido(),
+          children: _animar(_contenido()),
         ),
       ),
     );
+  }
+
+  /// Cada bloque entra suave y escalonado (los espacios no se animan). La llave cambia cuando cambia
+  /// lo que hay en ese lugar (del esqueleto a la tarjeta, de la espera al parche), y así vuelve a entrar.
+  List<Widget> _animar(List<Widget> bloques) {
+    var orden = 0;
+    return [
+      for (final b in bloques)
+        if (b is SizedBox)
+          b
+        else
+          Aparecer(key: ValueKey('${b.runtimeType}-$orden'), orden: orden++, child: b),
+    ];
   }
 
   List<Widget> _contenido() {
@@ -407,7 +437,14 @@ class _InicioScreenState extends State<InicioScreen> {
       ];
     }
     if (estado == null) {
-      return const [SizedBox(height: 160), Center(child: CircularProgressIndicator())];
+      // la forma de lo que viene mientras carga
+      return const [
+        Esqueleto(alto: 150),
+        SizedBox(height: 16),
+        Esqueleto(alto: 260),
+        SizedBox(height: 16),
+        Esqueleto(alto: 110),
+      ];
     }
 
     final nombre = _perfil?.nombre;
@@ -423,9 +460,11 @@ class _InicioScreenState extends State<InicioScreen> {
         const SizedBox(height: 20),
         _TarjetaQuiz(titulo: _cat!.quiz!.titulo, onResponder: _abrirQuiz),
       ],
-      const SizedBox(height: 20),
-      if (_perfil != null && _cat != null)
+      const SizedBox(height: 24),
+      if (_perfil != null && _cat != null) ...[
+        const Padding(padding: EdgeInsets.only(left: 4, bottom: 10), child: Rotulo('Tus preferencias')),
         _TarjetaPreferencias(perfil: _perfil!, cat: _cat!, onCambiar: _abrirPreferencias),
+      ],
       const SizedBox(height: 24),
       Text(
         'Tu grupo solo ve tu primer nombre y tu universidad. La Alcaldía solo ve cifras agregadas.',
@@ -531,16 +570,37 @@ class _InicioScreenState extends State<InicioScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const Rotulo('Lo que sigue'),
+                  const SizedBox(height: 8),
                   Text('Tu grupo se arma el sábado', style: Theme.of(context).textTheme.headlineSmall),
-                  const SizedBox(height: 6),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Text(
-                      'A las 5:00 p. m. dividimos a la gente de tu parche en grupos de 3 a 6 con ritmo, edad y '
-                      'experiencia parecidos. A las 7:00 p. m. te avisamos quiénes van contigo.',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                  const SizedBox(height: 16),
+                  const Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: RutaPasos(
+                      nodo: 34,
+                      pasos: [
+                        PasoRuta(
+                          icono: Icons.diversity_3,
+                          color: Cv.coralInk,
+                          titulo: 'Sábado, 5:00 p. m.',
+                          texto: 'Dividimos a la gente de tu parche en grupos de 3 a 6 con ritmo, edad y experiencia parecidos.',
+                        ),
+                        PasoRuta(
+                          icono: Icons.notifications_active,
+                          color: Cv.verdeInk,
+                          titulo: 'Sábado, 7:00 p. m.',
+                          texto: 'Te avisamos quiénes van contigo.',
+                        ),
+                        PasoRuta(
+                          icono: Icons.flag,
+                          color: Cv.tealInk,
+                          titulo: 'Domingo',
+                          texto: 'Se encuentran en la estación y arrancan.',
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 4),
                   Wrap(
                     alignment: WrapAlignment.spaceBetween,
                     children: [
@@ -645,90 +705,79 @@ class _InicioScreenState extends State<InicioScreen> {
   }
 }
 
-/// Cabecera con la fecha del domingo sobre un degradado, como cartel de jornada.
+/// Cartel de la jornada: fondo oscuro con la cinta curvándose como una vía, la fecha en grande y un
+/// anillo que se va llenando a medida que se acerca el domingo.
 class _Encabezado extends StatelessWidget {
   const _Encabezado({required this.nombre, required this.estado});
 
   final String? nombre;
   final EstadoParche estado;
 
-  /// "Faltan 3 días", "¡Es mañana!" o "¡Es hoy!", según la fecha de la jornada.
-  String? _cuentaRegresiva() {
+  /// Días que faltan para la jornada (0 = hoy), o null si la fecha no se entiende.
+  int? _diasQueFaltan() {
     final f = DateTime.tryParse(estado.jornadaFecha);
     if (f == null) return null;
     final hoy = DateTime.now();
-    final dias = DateTime(f.year, f.month, f.day).difference(DateTime(hoy.year, hoy.month, hoy.day)).inDays;
-    if (dias <= 0) return '¡Es hoy!';
-    if (dias == 1) return '¡Es mañana!';
-    return 'Faltan $dias días';
+    return DateTime(f.year, f.month, f.day).difference(DateTime(hoy.year, hoy.month, hoy.day)).inDays;
   }
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(Cv.radioLg),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Cv.ink, Cv.tealInk],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (nombre != null)
+    final dias = _diasQueFaltan();
+    return FondoCarril(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 16, 20),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Rotulo(
+                    dias != null && dias <= 0 ? 'Hoy' : (dias == 1 ? 'Mañana' : 'Este domingo'),
+                    color: Cv.coral,
+                    claro: true,
+                  ),
+                  const SizedBox(height: 8),
+                  if (nombre != null)
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text('Hola, $nombre',
+                              overflow: TextOverflow.ellipsis, style: t.titleMedium?.copyWith(color: Colors.white70)),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.verified, size: 18, color: Colors.white, semanticLabel: 'Estudiante verificado'),
+                      ],
+                    ),
+                  Text(
+                    capitalizar(fechaLarga(estado.jornadaFecha)),
+                    style: t.headlineLarge?.copyWith(color: Colors.white, height: 0.95),
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
-                      Text('Hola, $nombre', style: t.titleMedium?.copyWith(color: Colors.white70)),
+                      const Icon(Icons.schedule, size: 16, color: Colors.white70),
                       const SizedBox(width: 6),
-                      const Icon(Icons.verified, size: 18, color: Colors.white, semanticLabel: 'Estudiante verificado'),
-                    ],
-                  ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        capitalizar(fechaLarga(estado.jornadaFecha)),
-                        style: t.headlineLarge?.copyWith(color: Colors.white),
-                      ),
-                    ),
-                    if (_cuentaRegresiva() != null)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8, bottom: 4),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.16),
-                            border: Border.all(color: Colors.white38),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            _cuentaRegresiva()!,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
-                          ),
+                      Flexible(
+                        child: Text(
+                          'CicloVida de ${horaBonita(estado.inicio)} a ${horaBonita(estado.fin)}',
+                          style: t.bodySmall?.copyWith(color: Colors.white70),
                         ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'CicloVida de ${horaBonita(estado.inicio)} a ${horaBonita(estado.fin)}',
-                  style: t.bodySmall?.copyWith(color: Colors.white70),
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Cinta(alto: 6),
-        ],
+            if (dias != null) ...[
+              const SizedBox(width: 12),
+              AnilloCuenta(dias: dias),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -744,38 +793,62 @@ class _TarjetaEspera extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            color: Cv.tealSoft,
+            padding: const EdgeInsets.fromLTRB(16, 16, 20, 16),
+            child: Row(
               children: [
-                const SizedBox(
-                  width: 46,
-                  height: 46,
-                  child: CircularProgressIndicator(strokeWidth: 3, color: Cv.tealInk),
+                const Radar(icono: Icons.person_search, tamano: 72),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Rotulo('Lista de espera'),
+                      const SizedBox(height: 4),
+                      Text('Buscando tu parche…', style: t.headlineSmall?.copyWith(color: Cv.tealInk)),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(child: Text('Buscando tu parche…', style: t.headlineSmall)),
               ],
             ),
-            const SizedBox(height: 14),
-            Text(
-              'Aún no hay un parche con gente y tus mismas características (hora, estación y actividad). '
-              'Quedaste en lista de espera: apenas alguien encaje contigo, te unimos y te avisamos '
-              'aquí y por Telegram.',
-              style: t.bodyMedium?.copyWith(color: Cv.inkMuted),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Aún no hay un parche con gente y tus mismas características (hora, estación y actividad). '
+                  'Apenas alguien encaje contigo, te unimos y te avisamos aquí y por Telegram.',
+                  style: t.bodyMedium?.copyWith(color: Cv.inkMuted),
+                ),
+                if (minutos > 0) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(color: Cv.surface, borderRadius: BorderRadius.circular(999)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.timer_outlined, size: 16, color: Cv.inkMuted),
+                        const SizedBox(width: 6),
+                        Text(
+                          minutos == 1 ? 'Llevas 1 minuto en espera' : 'Llevas $minutos minutos en espera',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Cv.inkMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
-            if (minutos > 0) ...[
-              const SizedBox(height: 8),
-              Text(
-                minutos == 1 ? 'Llevas 1 minuto en espera.' : 'Llevas $minutos minutos en espera.',
-                style: t.bodySmall,
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -791,18 +864,18 @@ class _TarjetaElegir extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Cv.ink,
-      clipBehavior: Clip.antiAlias,
+    return FondoCarril(
+      intensidad: 0.7,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Cinta(alto: 8),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const Rotulo('Tu domingo', color: Cv.verde, claro: true),
+                const SizedBox(height: 8),
                 Text(
                   'Todavía no tienes parche',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../theme.dart';
 import 'comunes.dart';
+import 'diseno.dart';
 
 /// La tarjeta central de la app: con quién vas, dónde y a qué hora.
 class ParcheCard extends StatelessWidget {
@@ -39,121 +40,164 @@ class ParcheCard extends StatelessWidget {
       if (grupo.miembros.length == 1)
         'Esta vez nadie más eligió un parche compatible. Si alguien se une antes del domingo, te avisamos.',
     ];
-    const blanco = TextStyle(color: Colors.white);
+    final partesHora = grupo.horaNombre.split(' ');
+    final hora = partesHora.first;
+    final sufijo = partesHora.skip(1).join(' ');
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            color: col.tinta,
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Tu grupo del domingo', style: blanco.copyWith(fontSize: 15, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 4),
-                      Text(grupo.nombre, style: t.displaySmall?.merge(blanco)),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${grupo.actividadNombre} a las ${grupo.horaNombre}',
-                        style: blanco.copyWith(fontSize: 19, fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                  child: Icon(iconoDe(grupo.actividad), color: col.tinta, size: 32),
-                ),
-              ],
-            ),
-          ),
-          const Cinta(alto: 6),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _Dato(
-                  icono: Icons.place,
-                  color: col.tinta,
-                  titulo: 'Estación ${grupo.tramoNombre}',
-                  detalle: '${grupo.puntoEncuentro}, ${grupo.referencia}',
-                ),
-                const SizedBox(height: 14),
-                _Dato(
-                  icono: Icons.schedule,
-                  color: col.tinta,
-                  titulo: grupo.horaNombre,
-                  detalle: 'Llega unos minutos antes y busca a tu parche en la estación. '
-                      'Van a ritmo ${grupo.ritmoNombre.toLowerCase()}.',
-                ),
-                for (final n in notas) ...[
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: col.suave, borderRadius: BorderRadius.circular(Cv.radioMd)),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+    // Un pase de abordar: cabecera oscura con la cinta, corte perforado y el grupo abajo.
+    return DecoratedBox(
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(Cv.radioLg), boxShadow: Cv.sombra),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(Cv.radioLg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            FondoCarril(
+              borde: BorderRadius.zero,
+              colores: [col.tinta, Cv.ink],
+              intensidad: 0.55,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Icon(Icons.info_outline, size: 20, color: col.tinta),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(n, style: t.bodyMedium)),
+                        Expanded(child: Rotulo('Tu grupo del domingo', color: col.marca, claro: true)),
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                          child: Icon(iconoDe(grupo.actividad), color: col.tinta, size: 24),
+                        ),
                       ],
                     ),
+                    const SizedBox(height: 6),
+                    Text(grupo.nombre, style: t.displaySmall?.copyWith(color: Colors.white)),
+                    const SizedBox(height: 14),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          hora,
+                          style: const TextStyle(
+                            fontFamily: 'BarlowCondensed', fontSize: 56, fontWeight: FontWeight.w800, height: 0.9, color: Colors.white),
+                        ),
+                        const SizedBox(width: 6),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(sufijo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white70)),
+                        ),
+                        const Spacer(),
+                        Flexible(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(grupo.actividadNombre.toUpperCase(),
+                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 1.4, color: Colors.white70)),
+                              Text(
+                                'Estación ${grupo.tramoNombre}',
+                                textAlign: TextAlign.end,
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Perforacion(),
+            Container(
+              color: Cv.surfaceRaised,
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _Dato(
+                    icono: Icons.place,
+                    color: col.tinta,
+                    titulo: grupo.puntoEncuentro,
+                    detalle: grupo.referencia.isEmpty
+                        ? 'Comuna ${grupo.tramoComuna}'
+                        : '${grupo.referencia} · comuna ${grupo.tramoComuna}',
                   ),
-                ],
-                const Divider(),
-                Row(
-                  children: [
-                    Expanded(child: Text('Van ${grupo.miembros.length}', style: t.titleMedium)),
-                    Text('${grupo.confirmados} confirmaron', style: t.bodySmall),
+                  const SizedBox(height: 14),
+                  _Dato(
+                    icono: Icons.schedule,
+                    color: col.tinta,
+                    titulo: 'Llega unos minutos antes',
+                    detalle: 'Busca a tu parche en la estación. Van a ritmo ${grupo.ritmoNombre.toLowerCase()}.',
+                  ),
+                  for (final n in notas) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: col.suave, borderRadius: BorderRadius.circular(Cv.radioMd)),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline, size: 20, color: col.tinta),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(n, style: t.bodyMedium)),
+                        ],
+                      ),
+                    ),
                   ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.verified, size: 18, color: Cv.verdeInk),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text('Todos verificaron su correo universitario', style: t.bodySmall)),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                for (final m in grupo.miembros) _FilaMiembro(miembro: m),
-                const SizedBox(height: 8),
-                _Respuesta(miRespuesta: miRespuesta, ocupado: ocupado, onResponder: onResponder),
-                if (onCambiar != null || onSalir != null)
-                  Wrap(
-                    alignment: WrapAlignment.spaceBetween,
+                  const Divider(),
+                  Row(
                     children: [
-                      if (onCambiar != null)
-                        TextButton.icon(
-                          onPressed: ocupado ? null : onCambiar,
-                          icon: const Icon(Icons.swap_horiz, size: 20),
-                          label: const Text('Cambiar de parche'),
+                      AvatarPila(
+                        nombres: [for (final m in grupo.miembros) m.nombre],
+                        colores: [for (final m in grupo.miembros) coloresDe(m.actividad).tinta],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Van ${grupo.miembros.length}', style: t.titleMedium),
+                            Text('${grupo.confirmados} ya confirmaron', style: t.bodySmall),
+                          ],
                         ),
-                      if (onSalir != null)
-                        TextButton(
-                          onPressed: ocupado ? null : onSalir,
-                          style: TextButton.styleFrom(foregroundColor: Cv.inkMuted),
-                          child: const Text('Salirme'),
-                        ),
+                      ),
+                      const Icon(Icons.verified, size: 18, color: Cv.verdeInk, semanticLabel: 'Todos verificados'),
                     ],
                   ),
-                const Divider(),
-                _Seguridad(onReportar: onReportar),
-              ],
+                  const SizedBox(height: 4),
+                  Text('Todos verificaron su correo universitario.', style: t.bodySmall),
+                  const SizedBox(height: 8),
+                  for (final m in grupo.miembros) _FilaMiembro(miembro: m),
+                  const SizedBox(height: 8),
+                  _Respuesta(miRespuesta: miRespuesta, ocupado: ocupado, onResponder: onResponder),
+                  if (onCambiar != null || onSalir != null)
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      children: [
+                        if (onCambiar != null)
+                          TextButton.icon(
+                            onPressed: ocupado ? null : onCambiar,
+                            icon: const Icon(Icons.swap_horiz, size: 20),
+                            label: const Text('Cambiar de parche'),
+                          ),
+                        if (onSalir != null)
+                          TextButton(
+                            onPressed: ocupado ? null : onSalir,
+                            style: TextButton.styleFrom(foregroundColor: Cv.inkMuted),
+                            child: const Text('Salirme'),
+                          ),
+                      ],
+                    ),
+                  const Divider(),
+                  _Seguridad(onReportar: onReportar),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

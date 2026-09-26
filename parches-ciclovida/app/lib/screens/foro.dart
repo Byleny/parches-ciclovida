@@ -186,11 +186,24 @@ class _ForoScreenState extends State<ForoScreen> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(24),
                             children: [
-                              const SizedBox(height: 40),
-                              const Icon(Icons.forum_outlined, size: 56, color: Cv.lineStrong),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 32),
+                              Center(
+                                child: Container(
+                                  width: 88,
+                                  height: 88,
+                                  decoration: const BoxDecoration(color: Cv.verdeSoft, shape: BoxShape.circle),
+                                  child: const Icon(Icons.forum, size: 42, color: Cv.verdeInk),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
                               Text(
-                                'Nadie ha escrito todavía.\nCuenta cómo te fue en tu parche o qué mejorarías de la app.',
+                                'Estrena el foro',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.headlineSmall,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Nadie ha escrito todavía. Cuenta cómo te fue en tu parche o qué mejorarías de la app.',
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Cv.inkMuted),
                               ),
@@ -274,10 +287,10 @@ class _Mensaje extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: col.suave,
+              backgroundColor: col.tinta,
               child: Text(
                 mensaje.nombre.isEmpty ? '?' : mensaje.nombre[0].toUpperCase(),
-                style: TextStyle(fontFamily: 'BarlowCondensed', fontSize: 20, fontWeight: FontWeight.w800, color: col.tinta),
+                style: const TextStyle(fontFamily: 'BarlowCondensed', fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white),
               ),
             ),
             const SizedBox(width: 12),

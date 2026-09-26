@@ -192,6 +192,35 @@ enlace discreto para entrar después. El código está en `backend/app/chat.py` 
   grupo—, en tres categorías: mis parches, la app y cómo me siento. Cada quien puede borrar solo sus
   mensajes, y todos se borran con el derecho de supresión.
 
+## Diseño: la CicloVida como una vía
+
+Los colores no cambian: los cuatro de las letras V, I, D, A del logo (rojo, coral, verde, teal) y el
+gris tinta de "CICLO", con sus tonos `Ink` para texto blanco encima (contraste AA) y `Soft` para
+fondos tenues (`app/lib/theme.dart`). Lo nuevo es cómo se usan. Las piezas están en
+`app/lib/widgets/diseno.dart`:
+
+- **La cinta es un carril.** `FondoCarril` es el fondo oscuro de los encabezados: la cinta de cuatro
+  colores entra por una esquina y se curva como una vía, con una línea de carril punteada. Lo usan la
+  bienvenida, el cartel del domingo, "Todavía no tienes parche" y la cabecera del parche.
+- **El parche es un pase de abordar.** La tarjeta del grupo tiene una cabecera oscura en el color de su
+  actividad, con la hora en grande y la estación. Debajo va un corte perforado (`Perforacion`) y, más
+  abajo, el punto de encuentro y las caras del grupo apiladas (`AvatarPila`). Las boletas de la lista
+  también llevan su corte con muescas.
+- **Cuenta regresiva.** `AnilloCuenta` muestra los días que faltan para el domingo en un anillo con los
+  cuatro colores, que se va llenando durante la semana.
+- **Momentos que se celebran.** Cuando el match te encuentra parche aparece "¡Match!" con un estallido
+  en los colores de la cinta (`celebrar`), en vez de un aviso abajo. La lista de espera muestra un
+  radar que busca (`Radar`).
+- **Rutas de pasos.** "Así funciona" en la bienvenida y "Lo que sigue" antes del sábado son paradas
+  unidas por una línea punteada (`RutaPasos`).
+- **Movimiento suave.** Las tarjetas entran escalonadas (`Aparecer`) y, mientras carga, se ve la forma
+  de lo que viene (`Esqueleto`) en lugar de un círculo girando. Si el teléfono tiene activado "reducir
+  movimiento", no hay animaciones.
+- **Barra flotante.** La navegación es una píldora oscura. La pestaña activa se vuelve blanca, con el
+  color de su sección: coral para Mi parche, teal para Mapa y verde para Foro.
+- **Rótulos.** Las secciones llevan un `Rotulo` pequeño en mayúsculas con un trazo de color, como la
+  señalización de la vía.
+
 ## Ajustes por la evaluación del mentor
 
 - **Mayoría de edad.** En el registro hay una casilla obligatoria "Declaro que tengo 18 años o más";

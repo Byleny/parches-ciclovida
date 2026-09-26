@@ -598,6 +598,23 @@ def test_un_chat_de_telegram_va_con_una_sola_cuenta(monkeypatch):
             s.commit()
             telegram.atender(s, "777", "/parche")
             assert "varias cuentas" in enviados[-1][1] and "Ana" in enviados[-1][1]
+            # ...y /desconectar, que el mismo aviso sugiere, sí funciona: lo suelta de todas
+            telegram.atender(s, "777", "/desconectar")
+            assert "desconecté este chat" in enviados[-1][1]
+            s.refresh(ana)
+            s.refresh(beto)
+            assert ana.telegram_chat_id is None and beto.telegram_chat_id is None
+            telegram.atender(s, "777", "/parche")
+            assert "No reconozco este chat" in enviados[-1][1]
+            # y conectar desde la app (/start con código) también resuelve el caso de varias cuentas
+            ana.telegram_chat_id = beto.telegram_chat_id = "888"
+            beto.telegram_codigo = "cod-beto-2"
+            s.add(ana)
+            s.add(beto)
+            s.commit()
+            telegram.atender(s, "888", "/start cod-beto-2")
+            s.refresh(ana)
+            assert ana.telegram_chat_id is None and "Beto" in enviados[-2][1]
 
         # desde la app también se puede desconectar
         assert c.delete("/api/yo/telegram", headers=auth(ana_tok)).json() == {"ok": True}

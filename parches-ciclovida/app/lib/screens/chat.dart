@@ -249,10 +249,10 @@ class _Avatar extends StatelessWidget {
     final color = _colorDe(nombre);
     return CircleAvatar(
       radius: 16,
-      backgroundColor: color.withValues(alpha: 0.14),
+      backgroundColor: color,
       child: Text(
         nombre.isEmpty ? '?' : nombre[0].toUpperCase(),
-        style: TextStyle(fontFamily: 'BarlowCondensed', fontSize: 17, fontWeight: FontWeight.w800, color: color),
+        style: const TextStyle(fontFamily: 'BarlowCondensed', fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
       ),
     );
   }

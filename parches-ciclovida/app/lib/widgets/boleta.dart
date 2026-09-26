@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../theme.dart';
+import 'diseno.dart';
 
 /// Un parche de la lista, como una boleta: la hora en el bloque de color y el resto al lado.
 class BoletaParche extends StatelessWidget {
@@ -25,6 +26,9 @@ class BoletaParche extends StatelessWidget {
       child: Material(
         color: Cv.surfaceRaised,
         clipBehavior: Clip.antiAlias,
+        elevation: 2,
+        shadowColor: const Color(0x331D1E22),
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Cv.radioLg),
           side: mio ? BorderSide(color: col.marca, width: 3) : BorderSide.none,
@@ -35,7 +39,13 @@ class BoletaParche extends StatelessWidget {
             children: [
               Container(
                 width: 88,
-                color: col.tinta,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [col.tinta, Color.lerp(col.tinta, Cv.ink, 0.45)!],
+                  ),
+                ),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -47,6 +57,7 @@ class BoletaParche extends StatelessWidget {
                   ],
                 ),
               ),
+              const _CorteVertical(),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
@@ -106,6 +117,39 @@ class BoletaParche extends StatelessWidget {
     final de = unis <= 1 ? '' : ' de $unis universidades';
     final ritmo = parche.ritmoNombre == null ? '' : ', la mayoría a ritmo ${parche.ritmoNombre!.toLowerCase()}';
     return '${n == 1 ? '1 estudiante va' : '$n estudiantes van'}$de$ritmo';
+  }
+}
+
+/// El corte de la boleta: muescas arriba y abajo (del color de la página) y una línea punteada.
+class _CorteVertical extends StatelessWidget {
+  const _CorteVertical();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 14,
+      child: Column(
+        children: [
+          Container(
+            width: 14,
+            height: 7,
+            decoration: const BoxDecoration(
+              color: Cv.surface,
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(7)),
+            ),
+          ),
+          const Expanded(child: Center(child: LineaPunteada(vertical: true))),
+          Container(
+            width: 14,
+            height: 7,
+            decoration: const BoxDecoration(
+              color: Cv.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

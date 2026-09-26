@@ -29,8 +29,18 @@ class Cv {
 
   static const cinta = [rojo, coral, verde, teal];
 
+  /// Un tono más claro que la tinta, para degradados oscuros (encabezados, boletos).
+  static const fondoOscuro = Color(0xFF2B2D34);
+
   static const radioMd = 14.0;
   static const radioLg = 22.0;
+  static const radioXl = 28.0;
+
+  /// Sombra suave para lo que flota sobre la página (boletos, barra de navegación).
+  static const sombra = [
+    BoxShadow(color: Color(0x1F1D1E22), blurRadius: 24, offset: Offset(0, 10)),
+    BoxShadow(color: Color(0x0F1D1E22), blurRadius: 4, offset: Offset(0, 1)),
+  ];
 }
 
 /// Cada actividad lleva uno de los cuatro colores del logo.
@@ -175,9 +185,12 @@ ThemeData temaParches() {
         textStyle: const TextStyle(fontFamily: 'Barlow', fontSize: 16, fontWeight: FontWeight.w700),
       ),
     ),
+    // Tarjetas con una sombra suave: se despegan de la página en vez de verse planas.
     cardTheme: const CardThemeData(
       color: Cv.surfaceRaised,
-      elevation: 0,
+      elevation: 2,
+      shadowColor: Color(0x331D1E22),
+      surfaceTintColor: Colors.transparent,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Cv.radioLg))),
     ),
