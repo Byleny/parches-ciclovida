@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
@@ -165,6 +166,15 @@ class BienvenidaScreen extends StatelessWidget {
                         onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const IngresoScreen())),
                         child: const Text('Ya tengo cuenta'),
                       ),
+                      if (kModoDemo) ...[
+                        const SizedBox(height: 4),
+                        TextButton.icon(
+                          onPressed: () => Navigator.of(context)
+                              .push(MaterialPageRoute<void>(builder: (_) => const IngresoScreen(usarDemo: true))),
+                          icon: const Icon(Icons.visibility_outlined, size: 20),
+                          label: const Text('Puedes iniciar sesión con la cuenta demo'),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,

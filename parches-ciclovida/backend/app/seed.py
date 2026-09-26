@@ -21,15 +21,20 @@ from __future__ import annotations
 import argparse
 import math
 import random
+from collections import Counter
 from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, SQLModel, select
 
-from . import services, sinteticos
-from .catalog import SEGMENTO_EDAD, UNIVERSIDADES_POR_ID
+from . import config, services, sinteticos
+from .catalog import SEGMENTO_EDAD, TRAMOS_POR_ID, UNIVERSIDADES_POR_ID
 from .db import engine, init_db
-from .models import Asignacion, Encuesta, Inscripcion, Jornada, Joven, Salida
+from .models import Asignacion, Encuesta, Grupo, Inscripcion, Jornada, Joven, Salida
 from .verificacion import huella
+
+# Cuenta pública para recorrer la app por dentro (el código de ingreso sale en pantalla en la demo).
+DEMO_CORREO = "demo@usbcali.edu.co"
+DEMO_ID = "demo"
 
 
 def _joven(d: dict, creado: datetime) -> Joven:
@@ -74,6 +79,90 @@ def _unir(s: Session, joven: Joven, fecha) -> None:
 
 def _elegir(rng: random.Random, opciones: dict) -> object:
     return rng.choices(list(opciones), weights=list(opciones.values()))[0]
+
+
+def asegurar_demo(s: Session) -> str | None:
+    """La cuenta demo: entra con demo@usbcali.edu.co. Llega al parche con más gente de este domingo y
+    trae hasta cuatro domingos pasados con su grupo y su encuesta, para que el historial y la racha
+    tengan datos. No es simulada: nunca la toma Gemini como personaje del chat.
+
+    Si ya existe, solo se actualiza la huella del correo (la base puede venir de otro servidor, con
+    otro SECRETO). Devuelve el correo, o None si ese correo ya es de otra cuenta o no hay parches.
+    """
+    h = huella(DEMO_CORREO)
+    if s.exec(select(Joven.id).where(Joven.correo_hash == h, Joven.id != DEMO_ID)).first():
+        return None
+    demo = s.get(Joven, DEMO_ID)
+    if demo is not None:
+        if demo.correo_hash != h:
+            demo.correo_hash = h
+            s.add(demo)
+            s.commit()
+        return DEMO_CORREO
+
+    abierta = services.jornada_abierta(s)
+    salida = _parche_con_mas_gente(s, abierta.fecha)
+    if salida is None:
+        return None
+    ahora = services.ahora()
+    demo = Joven(
+        id=DEMO_ID,
+        nombre="Demo",
+        correo_hash=h,
+        universidad="usb",
+        rango_edad="18-22",
+        comuna=TRAMOS_POR_ID[salida.tramo_id]["comuna"],
+        tramo_id=salida.tramo_id,
+        actividad=salida.actividad,
+        ritmo="moderado",
+        franja=salida.franja,
+        acepta_datos=True,
+        autorizacion_version=config.AVISO_VERSION,
+        autorizacion_en=ahora,
+        declara_mayor=True,
+        declara_mayor_en=ahora,
+        creado_en=ahora - timedelta(days=35),
+    )
+    s.add(demo)
+    s.commit()
+
+    pasadas = s.exec(
+        select(Jornada.fecha).where(Jornada.estado == "finalizada").order_by(Jornada.fecha.desc()).limit(4)
+    ).all()
+    for fecha in sorted(pasadas):
+        grupo = _grupo_para_demo(s, demo, fecha)
+        if grupo is None:
+            continue
+        if grupo.salida_id is not None:
+            s.add(Inscripcion(salida_id=grupo.salida_id, joven_id=DEMO_ID, jornada_fecha=fecha,
+                              creado_en=datetime.combine(fecha - timedelta(days=3), time(18, 0))))
+        s.add(Asignacion(grupo_id=grupo.id, joven_id=DEMO_ID, jornada_fecha=fecha, estado="confirmado",
+                         respondido_en=datetime.combine(fecha - timedelta(days=1), time(19, 30))))
+        s.add(Encuesta(joven_id=DEMO_ID, jornada_fecha=fecha, grupo_id=grupo.id, asistio=True, volveria=True,
+                       bienestar=5, creado_en=datetime.combine(fecha, time(15, 0))))
+    s.commit()
+
+    services.unirse(s, demo, salida.id)
+    return DEMO_CORREO
+
+
+def _parche_con_mas_gente(s: Session, fecha) -> Salida | None:
+    """El parche de 18 a 28 años con más inscritos ese domingo: la demo llega a un parche vivo."""
+    salidas = s.exec(select(Salida).where(Salida.jornada_fecha == fecha, Salida.segmento == "mayor")).all()
+    cuenta = Counter(i.salida_id for i in s.exec(select(Inscripcion).where(Inscripcion.jornada_fecha == fecha)).all())
+    return max(salidas, key=lambda x: cuenta[x.id], default=None)
+
+
+def _grupo_para_demo(s: Session, demo: Joven, fecha) -> Grupo | None:
+    """Un grupo de ese domingo en su estación y actividad con cupo; primero los de su misma hora."""
+    miembros = Counter(a.grupo_id for a in s.exec(select(Asignacion).where(Asignacion.jornada_fecha == fecha)).all())
+    grupos = s.exec(select(Grupo).where(
+        Grupo.jornada_fecha == fecha, Grupo.segmento == "mayor",
+        Grupo.tramo_id == demo.tramo_id, Grupo.actividad == demo.actividad,
+    )).all()
+    libres = [g for g in grupos if miembros[g.id] < config.GRUPO_MAX]
+    libres.sort(key=lambda g: (g.franja != demo.franja, -miembros[g.id]))
+    return libres[0] if libres else None
 
 
 def sembrar(total: int | None = None, semanas: int = 4, reset: bool = False, semilla: int = 2026) -> dict:
@@ -144,3 +233,5 @@ if __name__ == "__main__":
     ap.add_argument("--reset", action="store_true", help="borra la base antes de sembrar")
     args = ap.parse_args()
     print(sembrar(args.jovenes, args.semanas, args.reset))
+    with Session(engine) as sesion:
+        print("Cuenta demo:", asegurar_demo(sesion) or "no se pudo crear")

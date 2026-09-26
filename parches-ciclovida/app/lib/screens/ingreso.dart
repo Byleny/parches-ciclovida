@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../config.dart';
 import '../notificaciones.dart';
 import '../sesion.dart';
 import '../theme.dart';
@@ -10,7 +11,10 @@ import 'principal.dart';
 /// Volver a entrar: el mismo correo institucional del registro y un código nuevo.
 /// La cuenta es la misma de siempre; no se crea nada.
 class IngresoScreen extends StatefulWidget {
-  const IngresoScreen({super.key});
+  const IngresoScreen({super.key, this.usarDemo = false});
+
+  /// Llega desde "Puedes iniciar sesión con la cuenta demo": entra con ella de una vez.
+  final bool usarDemo;
 
   @override
   State<IngresoScreen> createState() => _IngresoScreenState();
@@ -24,6 +28,17 @@ class _IngresoScreenState extends State<IngresoScreen> {
   String? _universidad;
   String? _codigoDemo;
   bool _ocupado = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.usarDemo) {
+      _correo.text = kCorreoDemo;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _pedirCodigo();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -48,6 +63,8 @@ class _IngresoScreenState extends State<IngresoScreen> {
         _universidad = r.universidad;
         _codigoDemo = r.codigoDemo;
         _codigo.clear();
+        // la cuenta demo es pública: su código se llena solo y queda tocar "Entrar"
+        if (_esDemo(_correoEnviado) && r.codigoDemo != null) _codigo.text = r.codigoDemo!;
       });
     } on ApiException catch (e) {
       _aviso(e.mensaje);
@@ -73,6 +90,13 @@ class _IngresoScreenState extends State<IngresoScreen> {
       _aviso(e.mensaje);
       if (mounted) setState(() => _ocupado = false);
     }
+  }
+
+  bool _esDemo(String? correo) => correo?.trim().toLowerCase() == kCorreoDemo;
+
+  Future<void> _usarDemo() async {
+    _correo.text = kCorreoDemo;
+    await _pedirCodigo();
   }
 
   bool get _puedeEntrar =>
@@ -163,8 +187,88 @@ class _IngresoScreenState extends State<IngresoScreen> {
               child: const Text('Entrar'),
             ),
           ],
+          if (kModoDemo && !(enviado && _esDemo(_correoEnviado))) ...[
+            const SizedBox(height: 28),
+            _TarjetaDemo(onUsar: _ocupado ? null : _usarDemo),
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// Los datos de la cuenta demo y el atajo para entrar con ella.
+class _TarjetaDemo extends StatelessWidget {
+  const _TarjetaDemo({required this.onUsar});
+
+  final VoidCallback? onUsar;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return BloqueColor(
+      color: Cv.brisaCoral,
+      borde: Cv.coralSoft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const IconoBurbuja(Icons.visibility_outlined, color: Cv.coralInk, fondo: Colors.white, tamano: 44),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Rotulo('Cuenta demo', color: Cv.coral),
+                    const SizedBox(height: 4),
+                    Text('¿Solo quieres mirar?', style: t.titleMedium),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Entra sin registrarte: ya tiene parche este domingo, domingos pasados y racha.',
+            style: t.bodyMedium,
+          ),
+          const SizedBox(height: 12),
+          const _DatoDemo(icono: Icons.alternate_email, etiqueta: 'Correo', valor: kCorreoDemo),
+          const SizedBox(height: 6),
+          const _DatoDemo(icono: Icons.pin_outlined, etiqueta: 'Código', valor: 'te sale en pantalla al pedirlo'),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: onUsar,
+            style: botonDeColor(Cv.coralInk, minimo: const Size.fromHeight(48)),
+            icon: const Icon(Icons.login, size: 20),
+            label: const Text('Usar la cuenta demo'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DatoDemo extends StatelessWidget {
+  const _DatoDemo({required this.icono, required this.etiqueta, required this.valor});
+
+  final IconData icono;
+  final String etiqueta;
+  final String valor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icono, size: 18, color: Cv.coralInk),
+        const SizedBox(width: 8),
+        Text('$etiqueta:', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Cv.inkMuted)),
+        const SizedBox(width: 6),
+        Expanded(
+          child: SelectableText(valor, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Cv.ink)),
+        ),
+      ],
     );
   }
 }

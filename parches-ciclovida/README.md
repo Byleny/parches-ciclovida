@@ -423,6 +423,11 @@ Cómo queda cada uno:
   reinicio y cuando el plan gratis lo duerme. Al arrancar con la base vacía carga solo los 1.500
   jóvenes simulados (`SEMBRAR_AL_INICIAR=1`, unos 20 s; en los logs sale "Datos simulados listos").
   Las cuentas creadas en la demo se pierden cuando el servicio duerme o se redespliega.
+- **Cuenta demo** para recorrer la app sin registrarse: en la app, "Ya tengo cuenta" con
+  `demo@usbcali.edu.co`, "Enviarme el código" y el código que sale en pantalla. Está inscrita en el
+  parche con más gente de este domingo y trae cuatro domingos pasados con grupo y encuesta (historial
+  y racha con datos). El backend la crea al arrancar (y `python -m app.seed --reset` también), así
+  que no hace falta subir `parches.db` al repositorio.
 - **Plan gratis.** El backend se duerme tras 15 minutos sin visitas. La primera petición después
   tarda cerca de un minuto: si la app muestra "No pudimos conectarnos", toca **Reintentar**. Antes
   de presentar, abre `https://<backend>/api/salud` y espera el `{"ok":true}`. Mientras duerme,

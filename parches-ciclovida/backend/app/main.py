@@ -68,11 +68,24 @@ def _sembrar_si_vacia() -> None:
         log.exception("No se pudieron cargar los datos simulados")
 
 
+def _asegurar_demo() -> None:
+    from . import seed
+
+    try:
+        with Session(engine) as s:
+            correo = seed.asegurar_demo(s)
+        if correo:
+            log.info("Cuenta demo lista: %s (el código de ingreso sale en pantalla)", correo)
+    except Exception:
+        log.exception("No se pudo crear la cuenta demo")
+
+
 def _arrancar(scheduler) -> None:
     """Carga inicial (si se pidió) y después el reloj de la semana, para que el tick no corra
     mientras se siembran los domingos simulados."""
     if config.SEMBRAR_AL_INICIAR:
         _sembrar_si_vacia()
+        _asegurar_demo()
     if scheduler is None:
         return
     scheduler.add_job(_tick, "interval", minutes=5, id="tick", next_run_time=services.ahora().replace(tzinfo=config.TZ))

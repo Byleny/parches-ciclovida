@@ -17,6 +17,10 @@ String apiUrlPorDefecto() {
 /// abrir la encuesta). Para una versión sin atajos: flutter run --dart-define=DEMO=false
 const bool kModoDemo = bool.fromEnvironment('DEMO', defaultValue: true);
 
+/// Cuenta pública para recorrer la app sin registrarse. La crea el backend al arrancar
+/// (backend/app/seed.py, DEMO_CORREO): este correo tiene que ser el mismo.
+const String kCorreoDemo = 'demo@usbcali.edu.co';
+
 /// Clave de las acciones de demo (armar parches, cerrar jornada). Debe coincidir con ADMIN_KEY del backend.
 const String kClaveAdminPorDefecto = 'dedsec-demo';
 
