@@ -12,7 +12,9 @@ import '../theme.dart';
 import '../widgets/boleta.dart';
 import '../widgets/comunes.dart';
 import '../widgets/demo.dart';
+import '../widgets/compartir.dart';
 import '../widgets/diseno.dart';
+import '../widgets/domingo.dart';
 import '../widgets/parche_card.dart';
 import '../widgets/telegram.dart';
 import 'ajustes.dart';
@@ -487,7 +489,11 @@ class _InicioScreenState extends State<InicioScreen> {
         const SizedBox(height: 16),
       ],
       _Encabezado(nombre: nombre, estado: estado),
-      const SizedBox(height: 16),
+      const SizedBox(height: 12),
+      if (estado.estado != 'suspendido') ...[
+        RachaYClima(racha: estado.racha, clima: estado.clima),
+        const SizedBox(height: 16),
+      ],
       ..._principal(estado),
       if (_perfil != null && !_perfil!.quizRespondido && _cat?.quiz != null && estado.estado != 'suspendido') ...[
         const SizedBox(height: 20),
@@ -590,11 +596,32 @@ class _InicioScreenState extends State<InicioScreen> {
             onCambiar: _elegir,
             onSalir: _salirDelParche,
           ),
+          _BotonCompartir(
+            parche: ParcheParaCompartir(
+              nombre: estado.grupo!.nombre,
+              fecha: estado.jornadaFecha,
+              horaNombre: estado.grupo!.horaNombre,
+              actividad: estado.grupo!.actividad,
+              actividadNombre: estado.grupo!.actividadNombre,
+              tramoNombre: estado.grupo!.tramoNombre,
+            ),
+          ),
           ..._seccionChat(),
         ];
       case 'inscrito':
+        final s = estado.salida!;
         return [
-          BoletaParche(parche: estado.salida!, onUnirme: () {}),
+          BoletaParche(parche: s, onUnirme: () {}),
+          _BotonCompartir(
+            parche: ParcheParaCompartir(
+              nombre: s.nombre,
+              fecha: estado.jornadaFecha,
+              horaNombre: s.horaNombre,
+              actividad: s.actividad,
+              actividadNombre: s.actividadNombre,
+              tramoNombre: s.tramoNombre,
+            ),
+          ),
           ..._seccionChat(),
           const SizedBox(height: 12),
           Card(
@@ -809,6 +836,27 @@ class _Encabezado extends StatelessWidget {
               AnilloCuenta(dias: dias),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Invitar a los amigos con una imagen del parche (sin la gente del grupo).
+class _BotonCompartir extends StatelessWidget {
+  const _BotonCompartir({required this.parche});
+
+  final ParcheParaCompartir parche;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Align(
+        child: TextButton.icon(
+          onPressed: () => abrirCompartir(context, parche),
+          icon: const Icon(Icons.ios_share, size: 20),
+          label: const Text('Compartir mi parche'),
         ),
       ),
     );

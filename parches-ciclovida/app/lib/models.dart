@@ -690,6 +690,8 @@ class EstadoParche {
     this.grupo,
     this.encuesta,
     this.espera,
+    this.clima,
+    this.racha = Racha.vacia,
   });
 
   factory EstadoParche.fromJson(Json j) {
@@ -707,6 +709,8 @@ class EstadoParche {
       grupo: j['grupo'] == null ? null : Grupo.fromJson(j['grupo'] as Json),
       encuesta: j['encuesta'] == null ? null : EncuestaInfo.fromJson(j['encuesta'] as Json),
       espera: j['espera'] == null ? null : EsperaInfo.fromJson(j['espera'] as Json),
+      clima: j['clima'] == null ? null : Clima.fromJson(j['clima'] as Json),
+      racha: j['racha'] == null ? Racha.vacia : Racha.fromJson(j['racha'] as Json),
     );
   }
 
@@ -734,7 +738,57 @@ class EstadoParche {
   /// Solo cuando el estado es en_espera.
   final EsperaInfo? espera;
 
+  /// Pronóstico del domingo a la hora del parche (o al abrir la CicloVida). Null si no hay.
+  final Clima? clima;
+  final Racha racha;
+
   bool get encuestaPendiente => encuesta != null && !encuesta!.respondida;
+}
+
+/// El clima del domingo a una hora, de Open-Meteo.
+class Clima {
+  const Clima({
+    required this.hora,
+    required this.temperatura,
+    required this.lluvia,
+    required this.cielo,
+    required this.icono,
+    required this.consejo,
+  });
+
+  factory Clima.fromJson(Json j) => Clima(
+        hora: j['hora'] as String,
+        temperatura: (j['temperatura'] as num).round(),
+        lluvia: (j['lluvia'] as num).round(),
+        cielo: j['cielo'] as String,
+        icono: j['icono'] as String,
+        consejo: j['consejo'] as String,
+      );
+
+  final String hora;
+  final int temperatura;
+
+  /// Probabilidad de lluvia, de 0 a 100.
+  final int lluvia;
+  final String cielo;
+
+  /// sol | nubes_sol | nubes | lluvia | tormenta
+  final String icono;
+  final String consejo;
+}
+
+/// Domingos seguidos que ha ido a su parche.
+class Racha {
+  const Racha({required this.actual, required this.mejor, required this.total});
+
+  factory Racha.fromJson(Json j) =>
+      Racha(actual: j['actual'] as int, mejor: j['mejor'] as int, total: j['total'] as int);
+
+  static const vacia = Racha(actual: 0, mejor: 0, total: 0);
+
+  final int actual;
+  final int mejor;
+  final int total;
 }
 
 class SeccionAviso {

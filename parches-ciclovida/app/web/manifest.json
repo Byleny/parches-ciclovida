@@ -1,11 +1,12 @@
 {
-    "name": "parches_ciclovida",
-    "short_name": "parches_ciclovida",
+    "name": "Parches CicloVida",
+    "short_name": "Parches",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F7F3E5",
+    "theme_color": "#20784E",
+    "description": "Sal en parche a la CicloVida de Cali: grupos de estudiantes universitarios verificados que van juntos cada domingo.",
+    "lang": "es-CO",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

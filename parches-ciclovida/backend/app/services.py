@@ -100,6 +100,9 @@ def tick(session: Session, momento: datetime | None = None) -> dict:
     from . import telegram
 
     telegram.procesar_updates(session)
+    from . import clima
+
+    clima.pronostico(j.fecha, JORNADA_INICIO)  # deja el pronóstico listo antes de que lo pida la app
     unidos = revisar_esperas(session, momento)
     if unidos:
         resumen["esperas_unidas"] = unidos
@@ -543,15 +546,18 @@ def armar_grupos(session: Session, fecha: date) -> dict:
 
     # El aviso del sábado, empatado con Telegram: a cada cuenta real le llega su grupo
     # dentro de la app y, si vinculó el bot, también al chat.
+    from . import clima
+
     for a in session.exec(select(Asignacion).where(Asignacion.jornada_fecha == fecha)).all():
         joven = session.get(Joven, a.joven_id)
         grupo = session.get(Grupo, a.grupo_id)
         if joven is None or joven.sintetico or grupo is None:
             continue
+        tiempo = clima.resumen(fecha, grupo.franja)
         notificar(
             session, joven, "¡Tu grupo del domingo está listo!",
             f"Quedaste en el {grupo.nombre} en {TRAMOS_POR_ID[grupo.tramo_id]['nombre']} a las "
-            f"{FRANJA_NOMBRE[grupo.franja]}. ¿Vas?",
+            f"{FRANJA_NOMBRE[grupo.franja]}. ¿Vas?" + (f"\n{tiempo}" if tiempo else ""),
             botones=[[("✅ Confirmo, voy", "confirmo"), ("❌ No voy", "novoy")], [("Ver mi grupo", "parche")]],
         )
     return {**resumen_jornada(session, fecha), "movidos": len(ajustes)}
@@ -660,6 +666,8 @@ def estado_para(session: Session, joven: Joven, momento: datetime | None = None)
         "grupo": None,
         "espera": None,
         "encuesta": encuesta_abierta(session, joven, momento),
+        "clima": None,
+        "racha": racha_para(session, joven),
     }
     if joven.suspendido:
         info["estado"] = "suspendido"
@@ -695,7 +703,37 @@ def estado_para(session: Session, joven: Joven, momento: datetime | None = None)
             "tarde": a.tarde,
             "grupo": grupo_json(session, session.get(Grupo, a.grupo_id), yo=joven.id),
         })
+    from . import clima
+
+    hora = (info["grupo"] or info["salida"] or {}).get("hora_encuentro") or JORNADA_INICIO
+    info["clima"] = clima.pronostico(j.fecha, hora)
     return info
+
+
+def _fue(asignacion: Asignacion, encuesta: Encuesta | None) -> bool:
+    """Si fue ese domingo: lo que dijo en la encuesta y, si no la respondió, si había confirmado."""
+    return encuesta.asistio if encuesta else asignacion.estado == "confirmado"
+
+
+def racha_para(session: Session, joven: Joven) -> dict:
+    """Domingos seguidos que ha ido, contando hacia atrás desde el último que ya terminó.
+
+    actual: la racha viva (se rompe si faltó el último domingo). mejor: la más larga. total: todos.
+    """
+    finalizadas = set(session.exec(select(Jornada.fecha).where(Jornada.estado == "finalizada")).all())
+    encuestas = {e.jornada_fecha: e for e in session.exec(select(Encuesta).where(Encuesta.joven_id == joven.id)).all()}
+    fue = sorted(
+        a.jornada_fecha
+        for a in session.exec(select(Asignacion).where(Asignacion.joven_id == joven.id)).all()
+        if a.jornada_fecha in finalizadas and _fue(a, encuestas.get(a.jornada_fecha))
+    )
+    mejor = seguidas = 0
+    for i, fecha in enumerate(fue):
+        seguidas = seguidas + 1 if i and fecha - fue[i - 1] == timedelta(days=7) else 1
+        mejor = max(mejor, seguidas)
+    ultimo = max(finalizadas) if finalizadas else None
+    actual = seguidas if fue and fue[-1] == ultimo else 0
+    return {"actual": actual, "mejor": mejor, "total": len(fue)}
 
 
 def historial_para(session: Session, joven: Joven, limite: int = 20) -> list[dict]:

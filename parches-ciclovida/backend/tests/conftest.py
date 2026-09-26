@@ -11,4 +11,5 @@ os.environ["SCHEDULER"] = "0"
 os.environ["TELEGRAM_TOKEN"] = ""
 os.environ["TELEGRAM_BOT"] = ""
 os.environ["GEMINI_API_KEY"] = ""
+os.environ["CLIMA"] = "0"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))

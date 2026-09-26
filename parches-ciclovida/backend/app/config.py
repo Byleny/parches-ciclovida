@@ -76,6 +76,9 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 GEMINI_RESPALDO = [m.strip() for m in os.getenv("GEMINI_RESPALDO", "gemini-3.5-flash,gemini-flash-latest").split(",")
                    if m.strip()]
 
+# Pronóstico del domingo (Open-Meteo, gratis y sin clave). Con CLIMA=0 la app simplemente no lo muestra.
+CLIMA_ON = os.getenv("CLIMA", "1") == "1"
+
 # Foro comunal: largo máximo de cada mensaje.
 FORO_MAX = int(os.getenv("FORO_MAX", "500"))
 

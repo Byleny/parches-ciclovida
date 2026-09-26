@@ -76,6 +76,12 @@ El bot empata las funciones de la app en el chat (`backend/app/telegram.py`):
 prueba con un solo Telegram y varias cuentas, basta con tocar **Conectar Telegram** desde la cuenta
 que se quiere usar: el chat pasa a esa cuenta y la anterior queda desconectada (el bot lo avisa).
 
+**Un token, un backend.** Si dos backends corren con el mismo `TELEGRAM_TOKEN` (por ejemplo, el de
+dos personas del equipo), los dos leen los mismos mensajes y los dos contestan. El que no tiene el
+chat vinculado en su base de datos responde «No reconozco este chat», justo debajo de la respuesta
+buena. Cada quien debe usar su propio bot (`/newbot` en @BotFather), o solo un computador debe dejar
+el token en su `.env`.
+
 Cambiarse de parche también se hace desde el chat. Como deja un cupo libre, el bot pide
 confirmarlo, igual que el diálogo de la app: con botones **✅ Sí, cámbiame** / **Me quedo**, o
 conversando. La confirmación la exige el servidor (`confirmo_cambio`), no solo el prompt.
@@ -191,6 +197,21 @@ enlace discreto para entrar después. El código está en `backend/app/chat.py` 
 - **Foro comunal** (pestaña Foro): mensajes con primer nombre y universidad —lo mismo que ve el
   grupo—, en tres categorías: mis parches, la app y cómo me siento. Cada quien puede borrar solo sus
   mensajes, y todos se borran con el derecho de supresión.
+
+## Racha, clima del domingo y compartir
+
+- **Racha** (`racha_para` en `backend/app/services.py`): los domingos seguidos que la persona ha ido,
+  contando hacia atrás desde el último que ya terminó. Un domingo cuenta si en la encuesta dijo que
+  fue; si no la respondió, cuenta si había confirmado. Faltar el último domingo la deja en cero,
+  pero la app recuerda la mejor racha. Sale en el inicio de la app y, desde 2 domingos, en Telegram.
+- **Clima del domingo** (`backend/app/clima.py`): el pronóstico por horas de Open-Meteo (gratis, sin
+  API key) para el centro de Cali, a la hora del parche: temperatura, probabilidad de lluvia y un
+  consejo (impermeable, agua, bloqueador). Se pide una vez por hora y se guarda en memoria; si no hay
+  red, la app no lo muestra. También va en el aviso del sábado y en `/parche` de Telegram. Se apaga
+  con `CLIMA=0`.
+- **Compartir mi parche** (`app/lib/widgets/compartir.dart`): una imagen 4:5 con el logo, el parche,
+  la hora, la actividad y la estación, lista para WhatsApp o Instagram con la hoja de compartir del
+  teléfono (`share_plus`). No lleva los nombres del grupo: esa imagen puede terminar en cualquier red.
 
 ## Diseño: la CicloVida como una vía
 
@@ -330,7 +351,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 - Reporte del emparejamiento: `python -m app.reporte` (ver "Datos simulados y reporte del emparejamiento")
 - Pruebas: `pytest` (64 pruebas: k-means, correo institucional, flujo completo, anonimato, reportes, permisos, match, bot de Telegram, datos simulados, reporte y chat del parche)
 
-Variables útiles: `ADMIN_KEY` (por defecto `dedsec-demo`), `SECRETO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `CORREO_DEMO`, `PERMITIR_MENORES`, `REPORTES_PARA_SUSPENDER`, `K_CONTEO`, `GRUPO_MIN`, `GRUPO_MAX`, `PESO_QUIZ`, `DATABASE_URL`, `ESPERA_MINUTOS`, `TELEGRAM_TOKEN`, `TELEGRAM_BOT`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `FORO_MAX`, `CHAT_MAX_SIMULADOS`, `CHAT_PAUSA_SEG`, `CHAT_CHARLA_SEG`, `CHAT_CHARLA_MAX`.
+Variables útiles: `ADMIN_KEY` (por defecto `dedsec-demo`), `SECRETO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `CORREO_DEMO`, `PERMITIR_MENORES`, `REPORTES_PARA_SUSPENDER`, `K_CONTEO`, `GRUPO_MIN`, `GRUPO_MAX`, `PESO_QUIZ`, `DATABASE_URL`, `ESPERA_MINUTOS`, `TELEGRAM_TOKEN`, `TELEGRAM_BOT`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `FORO_MAX`, `CHAT_MAX_SIMULADOS`, `CHAT_PAUSA_SEG`, `CHAT_CHARLA_SEG`, `CHAT_CHARLA_MAX`, `CLIMA`.
 
 ### 2. App Flutter (Flutter 3.38.1 o más)
 

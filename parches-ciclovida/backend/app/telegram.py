@@ -494,6 +494,21 @@ def _responder(session: Session, chat_id: str, joven: Joven, va: bool) -> None:
         enviar(chat_id, h(str(e)))
 
 
+_EMOJI_CIELO = {"sol": "☀️", "nubes_sol": "⛅", "nubes": "☁️", "lluvia": "🌧️", "tormenta": "⛈️"}
+
+
+def _clima_y_racha(info: dict) -> str:
+    """El pronóstico a la hora del parche y la racha, cuando los hay."""
+    lineas = []
+    if c := info.get("clima"):
+        lineas.append(f"{_EMOJI_CIELO.get(c['icono'], '🌤️')} {h(c['cielo'])}, {c['temperatura']} °C · "
+                      f"{c['lluvia']} % de lluvia. {h(c['consejo'])}")
+    racha = (info.get("racha") or {}).get("actual", 0)
+    if racha >= 2:
+        lineas.append(f"🔥 Llevas {racha} domingos seguidos. Si vas, llegas a {racha + 1}.")
+    return "\n\n" + "\n".join(lineas) if lineas else ""
+
+
 def _resumen_estado(info: dict) -> str:
     """El mismo estado que muestra la pantalla de inicio, contado en un mensaje."""
     fecha = info["jornada"]["fecha"]
@@ -507,6 +522,7 @@ def _resumen_estado(info: dict) -> str:
             f"📍 {h(g['punto_encuentro'])} ({h(g['referencia'])})\n"
             f"Van contigo: {otros or 'por definir'}\n"
             f"{g['confirmados']} de {len(g['miembros'])} han confirmado."
+            + _clima_y_racha(info)
         )
     if estado == "inscrito":
         s = info["salida"]
@@ -514,6 +530,7 @@ def _resumen_estado(info: dict) -> str:
             f"Estás en el <b>{h(s['nombre'])}</b> · domingo {fecha}\n"
             f"{h(s['actividad_nombre'])} a las {h(s['hora_nombre'])} en {h(s['tramo']['nombre'])}.\n"
             "El sábado a las 5:00 p. m. armamos tu grupo y te aviso por aquí."
+            + _clima_y_racha(info)
         )
     if estado == "en_espera":
         return "Sigo buscando un parche con tus mismos planes 🔍 Apenas aparezca, te aviso por aquí."
