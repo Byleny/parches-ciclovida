@@ -12,7 +12,7 @@ import 'como_armamos.dart';
 import 'historial.dart';
 
 /// Ajustes del joven y, al final, las herramientas para la demo con jurados.
-/// Devuelve 'borrado' si la persona borró sus datos.
+/// Devuelve 'borrado' si la persona borró sus datos y 'salir' si cerró sesión.
 class AjustesScreen extends StatefulWidget {
   const AjustesScreen({super.key, required this.onPreferencias, this.onQuiz});
 
@@ -59,6 +59,21 @@ class _AjustesScreenState extends State<AjustesScreen> {
   Future<String> _terminar(String clave) async {
     final r = await Sesion.actual.api.adminFinalizar(clave);
     return 'Jornada del ${r['finalizada']} terminada. Ya se puede responder la encuesta.';
+  }
+
+  Future<void> _cerrarSesion() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Cerrar sesión?'),
+        content: const Text('Para volver a entrar te enviaremos un código a tu correo.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Cerrar sesión')),
+        ],
+      ),
+    );
+    if (ok == true && mounted) Navigator.of(context).pop('salir');
   }
 
   Future<void> _borrar() async {
@@ -204,6 +219,12 @@ class _AjustesScreenState extends State<AjustesScreen> {
           const _Seccion('Tus datos', color: Cv.rojo),
           _Grupo(
             children: [
+              ListTile(
+                leading: const IconoBurbuja(Icons.logout, color: Cv.coralInk, fondo: Cv.coralSoft, tamano: 40),
+                title: const Text('Cerrar sesión'),
+                subtitle: const Text('Tus datos se quedan guardados. Vuelves a entrar con tu correo'),
+                onTap: _cerrarSesion,
+              ),
               ListTile(
                 leading: const IconoBurbuja(Icons.delete_outline, color: Cv.rojoInk, fondo: Cv.rojoSoft, tamano: 40),
                 title: const Text('Borrar mis datos', style: TextStyle(color: Cv.rojoInk)),

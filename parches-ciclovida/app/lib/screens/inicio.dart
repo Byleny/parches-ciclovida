@@ -352,7 +352,7 @@ class _InicioScreenState extends State<InicioScreen> {
     final resultado = await Navigator.of(context).push<String>(
       MaterialPageRoute<String>(builder: (_) => AjustesScreen(onPreferencias: _abrirPreferencias, onQuiz: _abrirQuiz)),
     );
-    if (resultado == 'borrado') {
+    if (resultado == 'borrado' || resultado == 'salir') {
       await _salir();
     } else {
       await _cargar();
