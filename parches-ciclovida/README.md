@@ -30,14 +30,16 @@ parches-ciclovida/
 
 ## Match automático, espera y Telegram
 
-Al entrar sin parche, la app ya no muestra una lista para escoger: llama a `POST /api/yo/match` y el
+Recién registrado, la app no muestra una lista para escoger: llama a `POST /api/yo/match` y el
 sistema une al joven al parche que **ya tiene gente** con sus mismas características (misma actividad
 y, si las declaró, misma estación y hora), eligiendo el más afín con la misma idea de distancia del
 k-means (hora, ritmo mediano del parche, cercanía de comuna, tamaño). Siempre puede tocar
-"Prefiero elegir yo" y escoger a mano.
+"Prefiero elegir yo" y escoger a mano. Ese match automático corre solo al registrarse: en las semanas
+siguientes (por ejemplo, después de terminar el domingo en la demo) la persona lo pide con **Buscar
+match** o elige a mano.
 
-Si no existe ninguno, la app muestra un **popup** con el parche más parecido —aunque esté vacío—
-por si quiere tomar la iniciativa y estrenarlo ("Unirme igual"); si prefiere esperar, queda en
+Si no existe ninguno, la pantalla de espera muestra el parche más parecido —aunque esté vacío— por
+si quiere tomar la iniciativa y estrenarlo; si no, queda en
 **lista de espera**: el scheduler la revisa cada 5 minutos y, apenas alguien compatible se inscribe,
 lo une y le avisa dentro de la app y por Telegram. Pasados
 `ESPERA_MINUTOS` (10 por defecto), la app le muestra además parches parecidos o disponibles para que
@@ -203,7 +205,10 @@ enlace discreto para entrar después. El código está en `backend/app/chat.py` 
 - **Racha** (`racha_para` en `backend/app/services.py`): los domingos seguidos que la persona ha ido,
   contando hacia atrás desde el último que ya terminó. Un domingo cuenta si en la encuesta dijo que
   fue; si no la respondió, cuenta si había confirmado. Faltar el último domingo la deja en cero,
-  pero la app recuerda la mejor racha. Sale en el inicio de la app y, desde 2 domingos, en Telegram.
+  pero la app recuerda la mejor racha. En la app es el chip 🔥 de la barra de arriba (al tocarlo
+  muestra la mejor racha, el total y el acceso a "Mis domingos"); en Telegram sale desde 2 domingos.
+  Al lado va el ícono de Telegram: conectado (punto verde) abre el chat del bot; si no, la hoja para
+  conectarlo.
 - **Clima del domingo** (`backend/app/clima.py`): el pronóstico por horas de Open-Meteo (gratis, sin
   API key) para el centro de Cali, a la hora del parche: temperatura, probabilidad de lluvia y un
   consejo (impermeable, agua, bloqueador). Se pide una vez por hora y se guarda en memoria; si no hay

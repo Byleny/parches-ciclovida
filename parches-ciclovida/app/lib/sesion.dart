@@ -29,6 +29,10 @@ class Sesion {
 
   bool get registrado => api.token != null;
 
+  /// Recién registrado: al llegar al inicio, el match automático lo une a un parche. Solo esa vez
+  /// (en memoria): al terminar un domingo o al volver a abrir la app, la persona decide con los botones.
+  bool matchPendiente = false;
+
   String get apiUrl => api.baseUrl;
 
   String get claveAdmin => _prefs.getString(_kClave) ?? kClaveAdminPorDefecto;

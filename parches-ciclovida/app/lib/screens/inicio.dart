@@ -49,10 +49,6 @@ class _InicioScreenState extends State<InicioScreen> {
   String? _error;
   bool _ocupado = false;
 
-  /// El match automático corre solo una vez al abrir la pantalla sin parche
-  /// (recién registrado). Después, el joven decide con los botones.
-  bool _matchIntentado = false;
-
   /// El parche también cambia fuera de la app (bot de Telegram, lista de espera): la pantalla se
   /// sincroniza al volver a la app, al volver a esta pestaña y cada 30 segundos.
   Timer? _timerSync;
@@ -116,18 +112,13 @@ class _InicioScreenState extends State<InicioScreen> {
       final cat = _cat ?? await _api.catalogo();
       final perfil = await _api.yo();
       var estado = await _api.miParche();
-      // Recién llegado sin parche: el match lo une solo a un parche con gente
-      // y sus mismas características, o lo deja en lista de espera.
-      var ofrecerParecido = false;
+      // Recién registrado y sin parche: el match lo une solo a un parche con gente y sus mismas
+      // características, o lo deja en lista de espera (la pantalla muestra el más parecido).
       ParcheOpcion? celebrarMatch;
-      if (estado.estado == 'sin_parche' && !_matchIntentado) {
-        _matchIntentado = true;
+      if (estado.estado == 'sin_parche' && Sesion.actual.matchPendiente) {
+        Sesion.actual.matchPendiente = false;
         estado = await _api.buscarMatch();
-        if (estado.estado == 'inscrito' && estado.salida != null) {
-          celebrarMatch = estado.salida;
-        } else if (estado.estado == 'en_espera') {
-          ofrecerParecido = true;
-        }
+        if (estado.estado == 'inscrito' && estado.salida != null) celebrarMatch = estado.salida;
       }
       // el chat solo existe con parche; si falla, la pantalla sigue sin él
       ChatEstado? chat;
@@ -149,7 +140,6 @@ class _InicioScreenState extends State<InicioScreen> {
       if (avisarCambios && antes != null) _avisarCambiosDeFuera(antes, estado);
       if (celebrarMatch != null) await _celebrarMatch(celebrarMatch);
       await _revisarNotificaciones();
-      if (ofrecerParecido) await _ofrecerMasParecido();
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.sesionInvalida) {
@@ -225,11 +215,10 @@ class _InicioScreenState extends State<InicioScreen> {
       final estado = await _api.buscarMatch();
       if (!mounted) return;
       setState(() => _estado = estado);
+      // En espera no hay diálogo: la pantalla ya muestra el parche más parecido con su botón.
       if (estado.estado == 'inscrito' && estado.salida != null) {
         await _celebrarMatch(estado.salida!);
         await _cargar(); // trae también la invitación al chat del parche nuevo
-      } else if (estado.estado == 'en_espera') {
-        await _ofrecerMasParecido();
       }
     } on ApiException catch (e) {
       _aviso(e.mensaje);
@@ -249,40 +238,6 @@ class _InicioScreenState extends State<InicioScreen> {
       icono: iconoDe(s.actividad),
       color: coloresDe(s.actividad).tinta,
     );
-  }
-
-  /// Popup del match sin resultados: nadie tiene sus mismos planes todavía,
-  /// pero puede unirse igual al parche más parecido y ser quien lo arma.
-  Future<void> _ofrecerMasParecido() async {
-    final p = _estado?.espera?.masParecido;
-    if (p == null || !mounted) return;
-    final gente = p.inscritos == 0
-        ? 'Todavía no hay nadie inscrito, pero siempre hace falta alguien que tome la iniciativa: '
-            'si te unes, el match irá sumando a quienes encajen contigo.'
-        : 'Ya hay ${p.inscritos} ${p.inscritos == 1 ? 'persona' : 'personas'} y se te parece bastante.';
-    final unirse = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Aún no hay parche con tus planes'),
-        content: Text(
-          'El más parecido es el ${p.nombre}: ${p.actividadNombre.toLowerCase()} a las ${p.horaNombre} '
-          'en ${p.tramoNombre}. $gente\n\n¿Quieres unirte igual?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            style: TextButton.styleFrom(foregroundColor: Cv.inkMuted),
-            child: const Text('Sigo esperando'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
-            child: const Text('Unirme igual'),
-          ),
-        ],
-      ),
-    );
-    if (unirse == true) await _unirme(p);
   }
 
   Future<void> _cancelarEspera() => _accion(_api.cancelarEspera, exito: 'Listo, dejamos de buscar por ti.');
@@ -357,6 +312,15 @@ class _InicioScreenState extends State<InicioScreen> {
     }
   }
 
+  Future<void> _abrirRacha() async {
+    final estado = _estado;
+    if (estado == null) return;
+    final verDomingos = await abrirRacha(context, estado.racha);
+    if (verDomingos != true || !mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const HistorialScreen()));
+    await _cargar();
+  }
+
   Future<void> _abrirPreferencias() async {
     final cat = _cat;
     final perfil = _perfil;
@@ -408,22 +372,22 @@ class _InicioScreenState extends State<InicioScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // En celulares angostos no cabe el logo completo junto a los botones: van solo los anillos.
+    final angosto = MediaQuery.sizeOf(context).width < 400;
+    final estado = _estado;
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: Image.asset('assets/img/parche-logo.png', height: 38, semanticLabel: 'Parche CicloVida'),
+        title: angosto
+            ? Image.asset('assets/img/parche-icono.png', height: 38, semanticLabel: 'Parche CicloVida')
+            : Image.asset('assets/img/parche-logo.png', height: 38, semanticLabel: 'Parche CicloVida'),
         actions: [
-          if (kModoDemo && _estado != null) ...[
+          if (kModoDemo && estado != null) ...[
             BotonDemo(onTap: _abrirDemo),
-            const SizedBox(width: 4),
+            const SizedBox(width: 6),
           ],
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'Mis domingos',
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute<void>(builder: (_) => const HistorialScreen()))
-                .then((_) => _cargar()),
-          ),
+          if (estado != null) BotonRacha(racha: estado.racha, onTap: _abrirRacha),
+          const BotonTelegram(),
           IconButton(icon: const Icon(Icons.settings_outlined), tooltip: 'Ajustes', onPressed: _abrirAjustes),
           const SizedBox(width: 4),
         ],
@@ -490,10 +454,11 @@ class _InicioScreenState extends State<InicioScreen> {
       ],
       _Encabezado(nombre: nombre, estado: estado),
       const SizedBox(height: 12),
-      if (estado.estado != 'suspendido') ...[
-        RachaYClima(racha: estado.racha, clima: estado.clima),
+      if (estado.clima != null && estado.estado != 'suspendido') ...[
+        TarjetaClima(clima: estado.clima!),
         const SizedBox(height: 16),
-      ],
+      ] else
+        const SizedBox(height: 4),
       ..._principal(estado),
       if (_perfil != null && !_perfil!.quizRespondido && _cat?.quiz != null && estado.estado != 'suspendido') ...[
         const SizedBox(height: 20),

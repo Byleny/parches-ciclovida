@@ -9,6 +9,80 @@ import '../sesion.dart';
 import '../theme.dart';
 import 'diseno.dart';
 
+/// El ícono de Telegram de la barra de arriba. Conectado (punto verde), abre el chat del bot; sin
+/// conectar, abre la hoja para vincularlo. Si el backend no tiene bot, no aparece.
+class BotonTelegram extends StatefulWidget {
+  const BotonTelegram({super.key});
+
+  @override
+  State<BotonTelegram> createState() => _BotonTelegramState();
+}
+
+class _BotonTelegramState extends State<BotonTelegram> {
+  TelegramInfo? _info;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  Future<TelegramInfo?> _cargar() async {
+    try {
+      final info = await Sesion.actual.api.telegram();
+      if (mounted) setState(() => _info = info);
+    } on ApiException {
+      // sin conexión: se queda con lo último que supo
+    }
+    return _info;
+  }
+
+  Future<void> _tocar() async {
+    final info = await _cargar(); // fresco: pudo conectarse o desconectarse desde otro lado
+    if (info == null || !mounted) return;
+    final bot = info.bot;
+    if (info.vinculado && bot != null) {
+      final enlace = kIsWeb ? 'https://web.telegram.org/k/#@$bot' : 'https://t.me/$bot';
+      final ok = await launchUrl(
+        Uri.parse(enlace),
+        mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+        webOnlyWindowName: '_blank',
+      );
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No pude abrir Telegram. Búscanos como @$bot.')));
+      }
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => const SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, 24),
+        child: TarjetaTelegram(),
+      ),
+    );
+    await _cargar();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final info = _info;
+    if (info == null || !info.disponible) return const SizedBox.shrink();
+    return IconButton(
+      tooltip: info.vinculado ? 'Abrir el chat de Telegram' : 'Conectar Telegram',
+      onPressed: _tocar,
+      icon: Badge(
+        isLabelVisible: info.vinculado,
+        backgroundColor: Cv.verde,
+        smallSize: 9,
+        child: Icon(Icons.telegram, color: info.vinculado ? Cv.tealInk : null),
+      ),
+    );
+  }
+}
+
 /// Tarjeta para vincular el bot de Telegram: por ahí llegan los avisos y desde el chat
 /// se puede elegir parche, confirmar y publicar en el foro. Si el backend no tiene bot, no se muestra.
 ///

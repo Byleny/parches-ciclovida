@@ -155,6 +155,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         'acudiente_nombre': _esMenor ? _acudiente.text.trim() : null,
       });
       await s.guardarToken(r.token);
+      s.matchPendiente = true;
       await Notificaciones.pedirPermiso();
       await Notificaciones.programarSemana();
       if (!mounted) return;
