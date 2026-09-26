@@ -54,8 +54,9 @@ class ParcheCard extends StatelessWidget {
           children: [
             FondoCarril(
               borde: BorderRadius.zero,
-              colores: [col.tinta, Cv.ink],
-              intensidad: 0.55,
+              colores: [col.brisa, col.suave],
+              intensidad: 0.9,
+              sombra: false,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
                 child: Column(
@@ -63,45 +64,57 @@ class ParcheCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Expanded(child: Rotulo('Tu grupo del domingo', color: col.marca, claro: true)),
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                          child: Icon(iconoDe(grupo.actividad), color: col.tinta, size: 24),
-                        ),
+                        Expanded(child: Rotulo('Tu grupo del domingo', color: col.marca)),
+                        IconoBurbuja(iconoDe(grupo.actividad), color: col.tinta, fondo: Colors.white, tamano: 46),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(grupo.nombre, style: t.displaySmall?.copyWith(color: Colors.white)),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 56),
+                      child: Text(grupo.nombre, style: t.displaySmall),
+                    ),
+                    const SizedBox(height: 16),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
                           hora,
-                          style: const TextStyle(
-                            fontFamily: 'BarlowCondensed', fontSize: 56, fontWeight: FontWeight.w800, height: 0.9, color: Colors.white),
+                          style: TextStyle(
+                            fontFamily: Cv.display,
+                            fontSize: 56,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -2,
+                            height: 0.9,
+                            color: col.tinta,
+                          ),
                         ),
                         const SizedBox(width: 6),
                         Padding(
                           padding: const EdgeInsets.only(bottom: 4),
-                          child: Text(sufijo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white70)),
+                          child: Text(sufijo, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: col.tinta)),
                         ),
-                        const Spacer(),
-                        Flexible(
-                          flex: 3,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(grupo.actividadNombre.toUpperCase(),
-                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 1.4, color: Colors.white70)),
-                              Text(
-                                'Estación ${grupo.tramoNombre}',
-                                textAlign: TextAlign.end,
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
-                              ),
-                            ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(Cv.radioMd),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  grupo.actividadNombre.toUpperCase(),
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 1.3, color: col.tinta),
+                                ),
+                                Text(
+                                  'Estación ${grupo.tramoNombre}',
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Cv.ink, height: 1.25),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -250,7 +263,7 @@ class _FilaMiembro extends StatelessWidget {
           CircleAvatar(
             radius: 19,
             backgroundColor: col.tinta,
-            child: Text(inicial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+            child: Text(inicial, style: const TextStyle(fontFamily: Cv.display, color: Colors.white, fontWeight: FontWeight.w800, fontSize: 17)),
           ),
           const SizedBox(width: 12),
           Expanded(

@@ -4,6 +4,7 @@ import '../api.dart';
 import '../models.dart';
 import '../sesion.dart';
 import '../theme.dart';
+import '../widgets/diseno.dart';
 import '../widgets/comunes.dart';
 import 'principal.dart';
 
@@ -87,13 +88,22 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                padding: rellenoAncho(context, arriba: 16, abajo: 24),
                 children: [
                   if (widget.alInicio) ...[
-                    Text('¡Tu perfil está listo! 🎉', style: t.headlineMedium),
-                    const SizedBox(height: 4),
-                    Text('Antes de buscarte parche, cuéntanos cómo te gusta el domingo.', style: t.bodyLarge),
-                    const SizedBox(height: 10),
+                    BloqueColor(
+                      color: Cv.brisaCoral,
+                      borde: Cv.coralSoft,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('¡Tu perfil está listo! 🎉', style: t.headlineMedium),
+                          const SizedBox(height: 6),
+                          Text('Antes de buscarte parche, cuéntanos cómo te gusta el domingo.', style: t.bodyLarge),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                   ],
                   Text(quiz.detalle, style: t.bodyMedium?.copyWith(color: Cv.inkMuted)),
                   const SizedBox(height: 8),
@@ -116,8 +126,8 @@ class _QuizScreenState extends State<QuizScreen> {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            BarraInferior(
+              relleno: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
@@ -147,6 +157,10 @@ class _QuizScreenState extends State<QuizScreen> {
 class _Pregunta extends StatelessWidget {
   const _Pregunta({required this.numero, required this.pregunta, required this.elegida, required this.onElegir});
 
+  /// Cada pregunta toma un color de la cinta, en su tono Ink (el número blanco encima cumple AA).
+  static const _colores = [Cv.rojoInk, Cv.coralInk, Cv.verdeInk, Cv.tealInk];
+  static const _brisas = [Cv.brisaRojo, Cv.brisaCoral, Cv.brisaVerde, Cv.brisaTeal];
+
   final int numero;
   final QuizPregunta pregunta;
   final String? elegida;
@@ -154,37 +168,44 @@ class _Pregunta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Cv.cinta[(numero - 1) % Cv.cinta.length];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    final i = (numero - 1) % _colores.length;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 30,
-              height: 30,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              child: Text(
-                '$numero',
-                style: const TextStyle(fontFamily: 'BarlowCondensed', fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
-              ),
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: _colores[i], shape: BoxShape.circle, boxShadow: Cv.brillo(_colores[i])),
+                  child: Text(
+                    '$numero',
+                    style: const TextStyle(fontFamily: Cv.display, fontSize: 19, fontWeight: FontWeight.w800, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text(pregunta.texto, style: Theme.of(context).textTheme.headlineSmall)),
+              ],
             ),
-            const SizedBox(width: 10),
-            Expanded(child: Text(pregunta.texto, style: Theme.of(context).textTheme.titleMedium)),
+            const SizedBox(height: 12),
+            for (final o in pregunta.opciones)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Seleccionable(
+                  titulo: o.texto,
+                  seleccionado: elegida == o.id,
+                  onTap: () => onElegir(o.id),
+                  colorSeleccion: _colores[i],
+                  fondoSeleccion: _brisas[i],
+                ),
+              ),
           ],
         ),
-        const SizedBox(height: 8),
-        for (final o in pregunta.opciones)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Seleccionable(
-              titulo: o.texto,
-              seleccionado: elegida == o.id,
-              onTap: () => onElegir(o.id),
-            ),
-          ),
-      ],
+      ),
     );
   }
 }

@@ -8,6 +8,7 @@ import '../notificaciones.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
+import '../widgets/diseno.dart';
 import '../widgets/selectores.dart';
 import 'aviso.dart';
 import 'ingreso.dart';
@@ -25,6 +26,11 @@ class RegistroScreen extends StatefulWidget {
 
 class _RegistroScreenState extends State<RegistroScreen> {
   static const _titulos = ['Verifica que estudias en Cali', '¿Quién eres?', '¿Cómo te mueves?', 'Antes de terminar'];
+
+  /// Un ícono y un color de la cinta por paso: el registro avanza por el carril.
+  static const _iconos = [Icons.school_outlined, Icons.waving_hand_outlined, Icons.directions_bike, Icons.verified_user_outlined];
+  static const _colores = [Cv.rojoInk, Cv.coralInk, Cv.verdeInk, Cv.tealInk];
+  static const _suaves = [Cv.rojoSoft, Cv.coralSoft, Cv.verdeSoft, Cv.tealSoft];
 
   Catalogo? _cat;
   String? _error;
@@ -191,19 +197,24 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   ),
                   Expanded(
                     child: ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                      padding: rellenoAncho(context, arriba: 20, abajo: 24),
                       children: [
-                        Text(_titulos[_paso], style: Theme.of(context).textTheme.headlineMedium),
+                        Row(
+                          children: [
+                            IconoBurbuja(_iconos[_paso], color: _colores[_paso], fondo: _suaves[_paso], tamano: 52),
+                            const SizedBox(width: 14),
+                            Expanded(child: Text(_titulos[_paso], style: Theme.of(context).textTheme.headlineMedium)),
+                          ],
+                        ),
                         ..._contenido(cat),
                       ],
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  BarraInferior(
                     child: FilledButton(
                       onPressed: _pasoValido && !_enviando ? _siguiente : null,
                       child: _enviando
-                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Cv.tealInk))
                           : Text(_paso < 3 ? 'Siguiente' : 'Crear mi perfil'),
                     ),
                   ),
@@ -214,9 +225,22 @@ class _RegistroScreenState extends State<RegistroScreen> {
   }
 
   Widget _cargando() {
-    if (_error == null) return const Center(child: CircularProgressIndicator());
+    if (_error == null) {
+      return ListView(
+        padding: rellenoAncho(context, arriba: 20, abajo: 20),
+        children: const [
+          Esqueleto(alto: 52, ancho: 260, radio: Cv.radioMd),
+          SizedBox(height: 24),
+          Esqueleto(alto: 56, radio: Cv.radioMd),
+          SizedBox(height: 12),
+          Esqueleto(alto: 56, radio: Cv.radioMd),
+          SizedBox(height: 12),
+          Esqueleto(alto: 120),
+        ],
+      );
+    }
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: rellenoAncho(context, arriba: 20, abajo: 20),
       children: [
         TarjetaError(
           mensaje: _error!,
@@ -338,7 +362,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
           controller: _codigo,
           keyboardType: TextInputType.number,
           maxLength: 6,
-          style: const TextStyle(fontFamily: 'BarlowCondensed', fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: 8),
+          style: const TextStyle(fontFamily: Cv.display, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: 8),
           decoration: const InputDecoration(hintText: '000000', counterText: ''),
           onChanged: (_) => setState(() {}),
         ),
@@ -374,7 +398,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
             children: [
               Row(
                 children: [
-                  Text(_nombre.text.trim(), style: t.titleLarge),
+                  Flexible(child: Text(_nombre.text.trim(), overflow: TextOverflow.ellipsis, style: t.headlineSmall)),
                   const SizedBox(width: 6),
                   const Icon(Icons.verified, size: 20, color: Cv.verdeInk),
                 ],

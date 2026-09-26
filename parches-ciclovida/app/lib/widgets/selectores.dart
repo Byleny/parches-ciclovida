@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../theme.dart';
 import 'comunes.dart';
+import 'diseno.dart';
 
 class TituloSeccion extends StatelessWidget {
   const TituloSeccion(this.texto, {super.key, this.ayuda});
@@ -166,8 +167,10 @@ class SelectorActividad extends StatelessWidget {
               seleccionado: valor == o.id,
               onTap: () => onChanged(o.id),
               icono: iconoDe(o.id),
-              colorIcono: Colors.white,
-              fondoIcono: coloresDe(o.id).tinta,
+              colorIcono: coloresDe(o.id).tinta,
+              fondoIcono: coloresDe(o.id).suave,
+              colorSeleccion: coloresDe(o.id).tinta,
+              fondoSeleccion: coloresDe(o.id).brisa,
             ),
           ),
       ],
@@ -240,27 +243,29 @@ class _Pastilla extends StatelessWidget {
     return Semantics(
       selected: seleccionado,
       button: true,
-      child: Material(
-        color: seleccionado ? Cv.ink : Cv.surfaceRaised,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Cv.radioMd),
-          side: BorderSide(color: seleccionado ? Cv.ink : Cv.line),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(Cv.radioMd),
-          onTap: onTap,
-          child: SizedBox(
-            height: 52,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Text(
-                  texto,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: seleccionado ? Colors.white : Cv.ink,
+      child: Rebote(
+        child: Material(
+          color: seleccionado ? Cv.tealSoft : Cv.surfaceRaised,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Cv.radioMd),
+            side: BorderSide(color: seleccionado ? Cv.tealInk : Cv.line, width: seleccionado ? 2 : 1),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(Cv.radioMd),
+            onTap: onTap,
+            child: SizedBox(
+              height: 52,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    texto,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: seleccionado ? FontWeight.w700 : FontWeight.w600,
+                      color: seleccionado ? Cv.tealInk : Cv.ink,
+                    ),
                   ),
                 ),
               ),

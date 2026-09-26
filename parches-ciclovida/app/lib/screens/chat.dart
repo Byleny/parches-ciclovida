@@ -7,6 +7,7 @@ import '../formato.dart';
 import '../models.dart';
 import '../sesion.dart';
 import '../theme.dart';
+import '../widgets/diseno.dart';
 
 /// Chat del parche: opcional, solo entre quienes se unieron. Se actualiza solo cada pocos segundos.
 /// Los estudiantes simulados de la demo van marcados con ✨ IA: conversan con Gemini según su
@@ -181,7 +182,7 @@ class _ChatScreenState extends State<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Chat del ${e.parcheNombre}',
-                style: const TextStyle(fontFamily: 'BarlowCondensed', fontSize: 22, fontWeight: FontWeight.w800, color: Cv.ink)),
+                style: const TextStyle(fontFamily: Cv.display, fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.3, color: Cv.ink)),
             Text('${e.estacion} · ${e.hora} · ${_miembros.length} en el chat', style: t.bodySmall),
           ],
         ),
@@ -199,7 +200,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: ListView.builder(
               controller: _scroll,
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              padding: rellenoAncho(context, maximo: 720, arriba: 8, abajo: 12),
               itemCount: _mensajes.length + 1 + (conEscribiendo ? 1 : 0),
               itemBuilder: (ctx, i) {
                 if (i == 0) {
@@ -252,7 +253,7 @@ class _Avatar extends StatelessWidget {
       backgroundColor: color,
       child: Text(
         nombre.isEmpty ? '?' : nombre[0].toUpperCase(),
-        style: const TextStyle(fontFamily: 'BarlowCondensed', fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
+        style: const TextStyle(fontFamily: Cv.display, fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
       ),
     );
   }
@@ -276,7 +277,7 @@ class _SelloIA extends StatelessWidget {
             children: [
               Icon(Icons.auto_awesome, size: 11, color: Cv.tealInk),
               SizedBox(width: 3),
-              Text('IA', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Cv.tealInk)),
+              Text('IA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Cv.tealInk)),
             ],
           ),
         ),
@@ -339,6 +340,9 @@ class _Aviso extends StatelessWidget {
 class _Burbuja extends StatelessWidget {
   const _Burbuja({required this.mensaje, required this.conEncabezado});
 
+  /// En pantallas anchas un mensaje largo no se vuelve una sola línea de lado a lado.
+  static const _anchoBurbuja = 520.0;
+
   final ChatMensaje mensaje;
   final bool conEncabezado;
 
@@ -351,25 +355,28 @@ class _Burbuja extends StatelessWidget {
         padding: EdgeInsets.only(top: arriba, left: 56),
         child: Align(
           alignment: Alignment.centerRight,
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(14, 9, 14, 7),
-            decoration: const BoxDecoration(
-              color: Cv.ink,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(18),
-                topRight: Radius.circular(18),
-                bottomLeft: Radius.circular(18),
-                bottomRight: Radius.circular(6),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _anchoBurbuja),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(14, 9, 14, 7),
+              decoration: const BoxDecoration(
+                color: Cv.coralSoft,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(6),
+                ),
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(m.texto, style: const TextStyle(fontSize: 15.5, height: 1.35, color: Colors.white)),
-                const SizedBox(height: 2),
-                Text(_hora(m.creadoEn), style: const TextStyle(fontSize: 11, color: Colors.white70)),
-              ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(m.texto, style: const TextStyle(fontSize: 15.5, height: 1.35, color: Cv.ink)),
+                  const SizedBox(height: 2),
+                  Text(_hora(m.creadoEn), style: const TextStyle(fontSize: 11, color: Cv.inkMuted)),
+                ],
+              ),
             ),
           ),
         ),
@@ -400,15 +407,17 @@ class _Burbuja extends StatelessWidget {
                     ),
                   ),
                 Container(
+                  constraints: const BoxConstraints(maxWidth: _anchoBurbuja),
                   padding: const EdgeInsets.fromLTRB(14, 9, 14, 7),
                   decoration: BoxDecoration(
                     color: Cv.surfaceRaised,
                     border: Border.all(color: Cv.line),
+                    boxShadow: Cv.sombra,
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(6),
-                      topRight: Radius.circular(18),
-                      bottomLeft: Radius.circular(18),
-                      bottomRight: Radius.circular(18),
+                      topRight: Radius.circular(20),
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
                     ),
                   ),
                   child: Column(
@@ -506,43 +515,40 @@ class _Redactor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Cv.surfaceRaised,
-      elevation: 8,
-      shadowColor: Colors.black26,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  minLines: 1,
-                  maxLines: 4,
-                  maxLength: 500,
-                  textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => onEnviar(),
-                  decoration: const InputDecoration(
-                    hintText: 'Escribe a tu parche…',
-                    counterText: '',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  ),
-                ),
+    return BarraInferior(
+      maximo: 720,
+      relleno: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              minLines: 1,
+              maxLines: 4,
+              maxLength: 500,
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => onEnviar(),
+              decoration: const InputDecoration(
+                hintText: 'Escribe a tu parche…',
+                counterText: '',
+                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: enviando ? null : onEnviar,
-                style: IconButton.styleFrom(backgroundColor: Cv.ink, minimumSize: const Size(48, 48)),
-                icon: const Icon(Icons.send, size: 20, color: Colors.white),
-                tooltip: 'Enviar',
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          IconButton.filled(
+            onPressed: enviando ? null : onEnviar,
+            style: IconButton.styleFrom(
+              backgroundColor: Cv.coralInk,
+              disabledBackgroundColor: Cv.line,
+              minimumSize: const Size(48, 48),
+            ),
+            icon: const Icon(Icons.send, size: 20, color: Colors.white),
+            tooltip: 'Enviar',
+          ),
+        ],
       ),
     );
   }

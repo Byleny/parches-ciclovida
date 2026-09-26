@@ -194,32 +194,71 @@ enlace discreto para entrar después. El código está en `backend/app/chat.py` 
 
 ## Diseño: la CicloVida como una vía
 
-Los colores no cambian: los cuatro de las letras V, I, D, A del logo (rojo, coral, verde, teal) y el
-gris tinta de "CICLO", con sus tonos `Ink` para texto blanco encima (contraste AA) y `Soft` para
-fondos tenues (`app/lib/theme.dart`). Lo nuevo es cómo se usan. Las piezas están en
-`app/lib/widgets/diseno.dart`:
+**Regla de oro: la interfaz es siempre clara.** No hay modo oscuro ni fondos oscuros; los tonos oscuros
+solo van en texto y detalles pequeños.
 
-- **La cinta es un carril.** `FondoCarril` es el fondo oscuro de los encabezados: la cinta de cuatro
-  colores entra por una esquina y se curva como una vía, con una línea de carril punteada. Lo usan la
-  bienvenida, el cartel del domingo, "Todavía no tienes parche" y la cabecera del parche.
-- **El parche es un pase de abordar.** La tarjeta del grupo tiene una cabecera oscura en el color de su
-  actividad, con la hora en grande y la estación. Debajo va un corte perforado (`Perforacion`) y, más
-  abajo, el punto de encuentro y las caras del grupo apiladas (`AvatarPila`). Las boletas de la lista
-  también llevan su corte con muescas.
+**Los colores no cambian.** Son los cuatro de las letras V, I, D, A del logo (rojo, coral, verde, teal)
+y el gris tinta de "CICLO". Todos salen de tokens en `app/lib/theme.dart` (clase `Cv`), cada uno en
+cuatro tonos:
+
+| Tono | Para qué | Ejemplo (teal) |
+|---|---|---|
+| `marca` | Solo decoración: la cinta, el confeti, los íconos grandes. Nunca texto (da 3:1 sobre blanco). | `#0B9BC4` |
+| `Ink` | Texto e íconos con significado, y fondos con texto blanco (AA). | `#06708F` |
+| `Soft` | Chips, sellos, tu burbuja del chat. | `#DBF2FA` |
+| `brisa` | Bloques de color grandes (5-7 % del color). | `#F0F9FB` |
+
+- **Fondos y bordes.** El fondo de las pantallas es crema: `#FFFAF7`, el coral al 3,5 %. Las tarjetas son
+  blancas con sombra suave. Los bordes de los controles son `#85878E`, que da 3,6:1 sobre blanco.
+- **Botón principal.** Una píldora con el degradado rojo → coral en tonos `Ink`. Si un botón necesita
+  otro color, se usa `botonDeColor()`.
+
+**Tipografía.** Los títulos van en Bricolage Grotesque, en tamaño óptico 96 pt y pesos 700 y 800. El
+cuerpo va en Barlow, hasta 700. Los números grandes (horas, días, cifras) también van en Bricolage.
+
+**Medidas.**
+- Radios: 12, 16, 24 y 32, y píldora para botones y chips.
+- Espaciado: de 4 en 4.
+- Sombras: `sombra` (suave), `sombraAlta` y `brillo(color)` para lo protagonista.
+
+**Diseño adaptable.** La app está pensada primero para 375 px:
+- En tablet y escritorio, el contenido de lectura se centra con un ancho máximo de 640 px
+  (`rellenoAncho`, `MarcoAncho`), y el scroll sigue funcionando en todo el ancho.
+- El mapa ocupa toda la pantalla.
+- La barra de navegación se centra (máximo 460 px).
+
+**Piezas en `app/lib/widgets/diseno.dart`:**
+
+- **La cinta es un carril.** `FondoCarril` es un fondo claro con la cinta de cuatro colores entrando por
+  la derecha y curvándose como una vía, más una línea de carril punteada. Lo usan la bienvenida, el
+  cartel del domingo, "Todavía no tienes parche" y la cabecera del parche.
+- **El parche es un pase de abordar.**
+  - La tarjeta del grupo tiene una cabecera clara en el color de su actividad, con la hora en grande.
+  - Debajo va un corte perforado (`Perforacion`), y luego el punto de encuentro y las caras del grupo
+    apiladas (`AvatarPila`, solo con el grupo ya armado).
+  - Las boletas de la lista llevan su corte con muescas.
 - **Cuenta regresiva.** `AnilloCuenta` muestra los días que faltan para el domingo en un anillo con los
   cuatro colores, que se va llenando durante la semana.
-- **Momentos que se celebran.** Cuando el match te encuentra parche aparece "¡Match!" con un estallido
-  en los colores de la cinta (`celebrar`), en vez de un aviso abajo. La lista de espera muestra un
-  radar que busca (`Radar`).
-- **Rutas de pasos.** "Así funciona" en la bienvenida y "Lo que sigue" antes del sábado son paradas
-  unidas por una línea punteada (`RutaPasos`).
-- **Movimiento suave.** Las tarjetas entran escalonadas (`Aparecer`) y, mientras carga, se ve la forma
-  de lo que viene (`Esqueleto`) en lugar de un círculo girando. Si el teléfono tiene activado "reducir
-  movimiento", no hay animaciones.
-- **Barra flotante.** La navegación es una píldora oscura. La pestaña activa se vuelve blanca, con el
-  color de su sección: coral para Mi parche, teal para Mapa y verde para Foro.
-- **Rótulos.** Las secciones llevan un `Rotulo` pequeño en mayúsculas con un trazo de color, como la
-  señalización de la vía.
+- **Momentos que se celebran.** Cuando el match te encuentra parche aparece "¡Match!" con un estallido y
+  confeti en los colores de la cinta (`celebrar`). La lista de espera muestra un radar que busca
+  (`Radar`).
+- **Estados con personalidad.**
+  - Al cargar se ve la forma de lo que viene (`Esqueleto`).
+  - Los vacíos y los errores llevan un emoji en un círculo suave y un mensaje claro (`EstadoVacio`,
+    `TarjetaError`).
+- **Toques y movimiento.**
+  - Las tarjetas y opciones rebotan un poco al tocarlas (`Rebote`).
+  - Los bloques entran escalonados (`Aparecer`).
+  - Si el teléfono tiene "reducir movimiento" activado, no hay animaciones.
+- **Piezas pequeñas.**
+  - `Rotulo`: rótulo en mayúsculas con un trazo de color, como la señalización de la vía.
+  - `Sello`: pastillas como "Para ti" o "Va".
+  - `IconoBurbuja`: ícono en un círculo suave.
+  - `BloqueColor`: bloque de color claro.
+  - `BarraInferior`: barra fija abajo (botón de un formulario, redactor del chat o del foro).
+  - `RutaPasos`: paradas unidas por una línea punteada.
+- **Barra flotante.** La navegación es una píldora blanca. La pestaña activa se tiñe del color de su
+  sección: coral para Mi parche, teal para Mapa y verde para Foro.
 
 ## Ajustes por la evaluación del mentor
 
@@ -352,4 +391,4 @@ Las 12 estaciones de la CicloVida 2026 (Panamericana, El Prado, Torres de Comfan
 - Postgres en lugar de SQLite, autenticación real para el tablero y la moderación.
 - Revisión legal del aviso de privacidad y definición del responsable del tratamiento.
 
-Fuentes Barlow y Barlow Condensed bajo licencia SIL Open Font License. Chart.js y Leaflet bajo licencia MIT.
+Fuentes Barlow, Barlow Condensed y Bricolage Grotesque bajo licencia SIL Open Font License. Chart.js y Leaflet bajo licencia MIT.

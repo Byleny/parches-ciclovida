@@ -11,6 +11,7 @@ import '../ruta.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
+import '../widgets/diseno.dart';
 import 'elegir_parche.dart';
 
 /// OpenStreetMap en gris claro con un toque frío, como el fondo de la app: las calles se siguen
@@ -33,7 +34,7 @@ const _contorno = <Shadow>[
   Shadow(color: Colors.white, offset: Offset(-1, -1)),
   Shadow(color: Colors.white, offset: Offset(1, -1)),
   Shadow(color: Colors.white, offset: Offset(-1, 1)),
-  Shadow(color: Color(0x33000000), offset: Offset(0, 2), blurRadius: 4),
+  Shadow(color: Cv.velo, offset: Offset(0, 2), blurRadius: 4),
 ];
 
 /// A partir de este zoom se ven los nombres de las estaciones.
@@ -283,18 +284,20 @@ class _MapaScreenState extends State<MapaScreen> {
   Widget build(BuildContext context) {
     final cat = _cat;
     final tramoMio = _tramoDeMiParche;
-    final colorRuta = _miParche == null ? Cv.ink : coloresDe(_miParche!.actividad).tinta;
+    final colorRuta = _miParche == null ? Cv.tealInk : coloresDe(_miParche!.actividad).tinta;
     final mostrarTarjetaRuta = _verRuta && _elegido == null && _miParche != null && tramoMio != null;
     return Scaffold(
       appBar: AppBar(title: const Text('Zonas de la CicloVida')),
       body: cat == null
-          ? Center(
-              child: _error == null
-                  ? const CircularProgressIndicator()
-                  : Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: TarjetaError(mensaje: _error!, reintentar: _cargar),
-                    ),
+          ? ListView(
+              padding: rellenoAncho(context, arriba: 12, abajo: 24),
+              children: _error == null
+                  ? const [
+                      Esqueleto(alto: 96),
+                      SizedBox(height: 16),
+                      Esqueleto(alto: 380, radio: Cv.radioXl),
+                    ]
+                  : [TarjetaError(mensaje: _error!, reintentar: _cargar)],
             )
           : Stack(
               children: [
@@ -363,10 +366,13 @@ class _MapaScreenState extends State<MapaScreen> {
                   alignment: Alignment.topCenter,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                    child: _BarraFiltros(
-                      actividades: cat.actividades,
-                      filtro: _filtro,
-                      onFiltro: (a) => setState(() => _filtro = a),
+                    child: MarcoAncho(
+                      maximo: 560,
+                      child: _BarraFiltros(
+                        actividades: cat.actividades,
+                        filtro: _filtro,
+                        onFiltro: (a) => setState(() => _filtro = a),
+                      ),
                     ),
                   ),
                 ),
@@ -379,7 +385,7 @@ class _MapaScreenState extends State<MapaScreen> {
                       heroTag: 'mi-ubicacion',
                       onPressed: _centrarEnMi,
                       backgroundColor: Cv.surfaceRaised,
-                      foregroundColor: Cv.ink,
+                      foregroundColor: Cv.tealInk,
                       tooltip: 'Mi ubicación',
                       child: const Icon(Icons.my_location),
                     ),
@@ -390,13 +396,16 @@ class _MapaScreenState extends State<MapaScreen> {
                     alignment: Alignment.bottomCenter,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: _TarjetaEstacion(
+                      child: MarcoAncho(
+                        maximo: 560,
+                        child: _TarjetaEstacion(
                         tramo: _elegido!,
                         comuna: cat.comuna(_elegido!.comuna),
                         resumen: _resumen[_elegido!.id],
                         actividades: cat.actividades,
                         onVerParches: () => _verParches(_elegido!),
                         onComoLlego: _elegido!.id == _miParche?.tramoId ? _trazarRuta : null,
+                        ),
                       ),
                     ),
                   )
@@ -405,7 +414,9 @@ class _MapaScreenState extends State<MapaScreen> {
                     alignment: Alignment.bottomCenter,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: _TarjetaRuta(
+                      child: MarcoAncho(
+                        maximo: 560,
+                        child: _TarjetaRuta(
                         parche: _miParche!,
                         tramo: tramoMio!,
                         ruta: _ruta,
@@ -415,6 +426,7 @@ class _MapaScreenState extends State<MapaScreen> {
                         onNavegar: _navegar,
                         onActualizar: _trazarRuta,
                         onCerrar: _cerrarRuta,
+                        ),
                       ),
                     ),
                   )
@@ -426,7 +438,7 @@ class _MapaScreenState extends State<MapaScreen> {
                       child: FloatingActionButton.extended(
                         heroTag: 'como-llego',
                         onPressed: _buscandoRuta ? null : _trazarRuta,
-                        backgroundColor: Cv.ink,
+                        backgroundColor: coloresDe(_miParche!.actividad).tinta,
                         foregroundColor: Colors.white,
                         icon: _buscandoRuta
                             ? const SizedBox(
@@ -499,9 +511,9 @@ class _BarraFiltros extends StatelessWidget {
       if (a.id == filtro) nombre = a.nombre.toLowerCase();
     }
     return Material(
-      color: Colors.white.withValues(alpha: 0.96),
-      elevation: 3,
-      shadowColor: Colors.black26,
+      color: Colors.white.withValues(alpha: 0.97),
+      elevation: 6,
+      shadowColor: Cv.velo,
       borderRadius: BorderRadius.circular(Cv.radioLg),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -537,8 +549,8 @@ class _BarraFiltros extends StatelessWidget {
   Widget _chip(String? actividad, String texto) {
     final sel = filtro == actividad;
     final col = actividad == null ? null : coloresDe(actividad);
-    final fondo = sel ? (col?.tinta ?? Cv.ink) : Cv.surfaceRaised;
-    final tinta = sel ? Colors.white : (col?.tinta ?? Cv.ink);
+    final fondo = sel ? (col?.suave ?? Cv.tealSoft) : Cv.surfaceRaised;
+    final tinta = col?.tinta ?? (sel ? Cv.tealInk : Cv.ink);
     return ChoiceChip(
       selected: sel,
       onSelected: (_) => onFiltro(actividad),
@@ -546,7 +558,7 @@ class _BarraFiltros extends StatelessWidget {
       label: Text(texto),
       labelStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: tinta),
       color: WidgetStatePropertyAll(fondo),
-      side: BorderSide(color: sel ? fondo : Cv.line),
+      side: BorderSide(color: sel ? tinta : Cv.line, width: sel ? 1.5 : 1),
       visualDensity: VisualDensity.compact,
     );
   }
@@ -627,12 +639,12 @@ class _MarcadorEstacion extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!vacio)
-                  Positioned(
-                    left: _ancho / 2 + tam * 0.22,
-                    top: _alto / 2 - tam / 2 - 9,
-                    child: IgnorePointer(child: _Insignia(gente: gente, color: tinta)),
-                  ),
+                // el número siempre se ve: sin gente, un 0 en gris (no solo la figura más clara)
+                Positioned(
+                  left: _ancho / 2 + tam * 0.22,
+                  top: _alto / 2 - tam / 2 - 9,
+                  child: IgnorePointer(child: _Insignia(gente: gente, color: tinta)),
+                ),
                 if (esMia || mostrarNombre)
                   Positioned(
                     top: _alto / 2 + tam / 2 + 2,
@@ -647,7 +659,7 @@ class _MarcadorEstacion extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Cv.ink,
+                                color: Cv.coralInk,
                                 borderRadius: BorderRadius.circular(999),
                                 border: Border.all(color: Colors.white, width: 1.5),
                               ),
@@ -695,24 +707,25 @@ class _Insignia extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final vacio = gente == 0;
     return Container(
       constraints: const BoxConstraints(minWidth: 18),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: color,
+        color: vacio ? Colors.white : color,
         borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: Colors.white, width: 1.5),
+        border: Border.all(color: vacio ? Cv.lineStrong : Colors.white, width: 1.5),
       ),
       child: Text(
         gente > 99 ? '99+' : '$gente',
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white, height: 1.25),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: vacio ? Cv.inkMuted : Colors.white, height: 1.25),
       ),
     );
   }
 }
 
-/// Tu ubicación: punto de tinta con borde blanco y halo suave.
+/// Tu ubicación: punto teal con borde blanco y halo suave.
 class _PuntoYo extends StatelessWidget {
   const _PuntoYo();
 
@@ -721,16 +734,16 @@ class _PuntoYo extends StatelessWidget {
     return Semantics(
       label: 'Tu ubicación',
       child: Container(
-        decoration: BoxDecoration(color: Cv.ink.withValues(alpha: 0.14), shape: BoxShape.circle),
+        decoration: BoxDecoration(color: Cv.tealInk.withValues(alpha: 0.16), shape: BoxShape.circle),
         alignment: Alignment.center,
         child: Container(
           width: 14,
           height: 14,
           decoration: BoxDecoration(
-            color: Cv.ink,
+            color: Cv.tealInk,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 3),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+            boxShadow: Cv.sombra,
           ),
         ),
       ),
@@ -769,6 +782,7 @@ class _TarjetaRuta extends StatelessWidget {
     final r = ruta;
     return Card(
       clipBehavior: Clip.antiAlias,
+      elevation: 8,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -812,7 +826,7 @@ class _TarjetaRuta extends StatelessWidget {
                                 const SizedBox(width: 8),
                                 Text(r.duracionTexto,
                                     style: TextStyle(
-                                        fontFamily: 'BarlowCondensed', fontSize: 26, fontWeight: FontWeight.w800, color: col.tinta)),
+                                        fontFamily: Cv.display, fontSize: 26, fontWeight: FontWeight.w800, color: col.tinta)),
                                 const SizedBox(width: 8),
                                 Flexible(
                                   child: Text(
@@ -837,7 +851,7 @@ class _TarjetaRuta extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 10),
                   child: FilledButton.icon(
                     onPressed: onNavegar,
-                    style: FilledButton.styleFrom(backgroundColor: col.tinta),
+                    style: botonDeColor(col.tinta),
                     icon: const Icon(Icons.navigation_outlined, size: 20),
                     label: const Text('Navegar paso a paso'),
                   ),
@@ -889,6 +903,7 @@ class _TarjetaEstacion extends StatelessWidget {
             '${pico == null ? '' : ' · más gente a las $pico'}';
     return Card(
       clipBehavior: Clip.antiAlias,
+      elevation: 8,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -902,12 +917,7 @@ class _TarjetaEstacion extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(child: Text('Estación ${tramo.nombre}', style: t.headlineSmall)),
-                    if (esMia)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(color: Cv.ink, borderRadius: BorderRadius.circular(999)),
-                        child: const Text('Tu parche', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
-                      ),
+                    if (esMia) const Sello('Tu parche', fondo: Cv.coralSoft, color: Cv.coralInk, icono: Icons.groups),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -969,13 +979,14 @@ class _CeldaActividad extends StatelessWidget {
           decoration: BoxDecoration(
             color: hay ? col.suave : Cv.surface,
             borderRadius: BorderRadius.circular(Cv.radioMd),
+            border: Border.all(color: hay ? col.suave : Cv.line),
           ),
           child: Column(
             children: [
               Icon(iconoDe(actividad.id), size: 22, color: hay ? col.tinta : Cv.lineStrong),
               Text(
                 '$gente',
-                style: TextStyle(fontFamily: 'BarlowCondensed', fontSize: 20, fontWeight: FontWeight.w800, color: tinta, height: 1.1),
+                style: TextStyle(fontFamily: Cv.display, fontSize: 20, fontWeight: FontWeight.w800, color: tinta, height: 1.1),
               ),
               Text(actividad.nombre, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: tinta)),
             ],

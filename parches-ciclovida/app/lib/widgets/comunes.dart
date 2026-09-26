@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
+import 'diseno.dart';
 
-/// Opción que se toca para elegir. Borde teal de 2 px cuando está elegida.
+/// Opción que se toca para elegir. Elegida, se tiñe del color de la sección y marca el chulito.
 class Seleccionable extends StatelessWidget {
   const Seleccionable({
     super.key,
@@ -13,6 +14,8 @@ class Seleccionable extends StatelessWidget {
     this.icono,
     this.colorIcono,
     this.fondoIcono,
+    this.colorSeleccion = Cv.tealInk,
+    this.fondoSeleccion = Cv.brisaTeal,
   });
 
   final String titulo;
@@ -23,53 +26,61 @@ class Seleccionable extends StatelessWidget {
   final Color? colorIcono;
   final Color? fondoIcono;
 
+  /// Borde y chulito cuando está elegida (un tono Ink).
+  final Color colorSeleccion;
+
+  /// Fondo cuando está elegida (un tono brisa o Soft).
+  final Color fondoSeleccion;
+
   @override
   Widget build(BuildContext context) {
-    final borde = seleccionado ? Cv.ink : Cv.line;
     return Semantics(
       selected: seleccionado,
       button: true,
-      child: Material(
-        color: Cv.surfaceRaised,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Cv.radioMd),
-          side: BorderSide(color: borde, width: seleccionado ? 2 : 1),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(Cv.radioMd),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                if (icono != null) ...[
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(color: fondoIcono ?? Cv.surface, shape: BoxShape.circle),
-                    child: Icon(icono, color: colorIcono ?? Cv.ink, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(titulo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Cv.ink)),
-                      if (subtitulo != null) ...[
-                        const SizedBox(height: 2),
-                        Text(subtitulo!, style: const TextStyle(fontSize: 13, color: Cv.inkMuted, height: 1.3)),
-                      ],
+      child: Rebote(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            color: seleccionado ? fondoSeleccion : Cv.surfaceRaised,
+            borderRadius: BorderRadius.circular(Cv.radioMd),
+            border: Border.all(color: seleccionado ? colorSeleccion : Cv.line, width: seleccionado ? 2 : 1),
+            boxShadow: seleccionado ? null : Cv.sombra,
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(Cv.radioMd),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    if (icono != null) ...[
+                      IconoBurbuja(icono!, color: colorIcono ?? Cv.ink, fondo: fondoIcono ?? Cv.surface, tamano: 42),
+                      const SizedBox(width: 12),
                     ],
-                  ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(titulo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Cv.ink)),
+                          if (subtitulo != null) ...[
+                            const SizedBox(height: 2),
+                            Text(subtitulo!, style: const TextStyle(fontSize: 13, color: Cv.inkMuted, height: 1.3)),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      seleccionado ? Icons.check_circle : Icons.radio_button_unchecked,
+                      color: seleccionado ? colorSeleccion : Cv.lineStrong,
+                      size: 24,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Icon(
-                  seleccionado ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: seleccionado ? Cv.ink : Cv.lineStrong,
-                  size: 24,
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -91,15 +102,31 @@ class SiNo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Seleccionable(titulo: si, seleccionado: valor == true, onTap: () => onChanged(true))),
+        Expanded(
+          child: Seleccionable(
+            titulo: si,
+            seleccionado: valor == true,
+            onTap: () => onChanged(true),
+            colorSeleccion: Cv.verdeInk,
+            fondoSeleccion: Cv.brisaVerde,
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: Seleccionable(titulo: no, seleccionado: valor == false, onTap: () => onChanged(false))),
+        Expanded(
+          child: Seleccionable(
+            titulo: no,
+            seleccionado: valor == false,
+            onTap: () => onChanged(false),
+            colorSeleccion: Cv.coralInk,
+            fondoSeleccion: Cv.brisaCoral,
+          ),
+        ),
       ],
     );
   }
 }
 
-/// Tarjeta para los estados sin parche asignado.
+/// Tarjeta para los estados sin parche asignado (en pausa, en revisión…).
 class TarjetaEstado extends StatelessWidget {
   const TarjetaEstado({
     super.key,
@@ -114,32 +141,39 @@ class TarjetaEstado extends StatelessWidget {
   final String titulo;
   final String texto;
   final Widget? accion;
+
+  /// Un tono Ink: colorea el ícono, y su tinte suave el fondo del ícono y de la tarjeta.
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                child: Icon(icono, color: Colors.white, size: 26),
+      clipBehavior: Clip.antiAlias,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [color.withValues(alpha: 0.07), Cv.surfaceRaised],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconoBurbuja(icono, color: color, fondo: color.withValues(alpha: 0.12), tamano: 56),
               ),
-            ),
-            const SizedBox(height: 14),
-            Text(titulo, style: t.headlineSmall),
-            const SizedBox(height: 6),
-            Text(texto, style: t.bodyMedium?.copyWith(color: Cv.inkMuted)),
-            if (accion != null) ...[const SizedBox(height: 18), accion!],
-          ],
+              const SizedBox(height: 14),
+              Text(titulo, style: t.headlineSmall),
+              const SizedBox(height: 6),
+              Text(texto, style: t.bodyMedium?.copyWith(color: Cv.inkMuted)),
+              if (accion != null) ...[const SizedBox(height: 18), accion!],
+            ],
+          ),
         ),
       ),
     );
@@ -154,31 +188,18 @@ class EtiquetaEstado extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    late final String texto;
-    late final Color fondo;
-    late final Color tinta;
     switch (estado) {
       case 'confirmado':
-        texto = 'Va';
-        fondo = Cv.verdeSoft;
-        tinta = Cv.verdeInk;
+        return const Sello('Va', fondo: Cv.verdeSoft, color: Cv.verdeInk, icono: Icons.check);
       case 'declinado':
-        texto = 'No va';
-        fondo = Cv.rojoSoft;
-        tinta = Cv.rojoInk;
+        return const Sello('No va', fondo: Cv.rojoSoft, color: Cv.rojoInk, icono: Icons.close);
       default:
-        texto = 'Por confirmar';
-        fondo = Cv.surface;
-        tinta = Cv.inkMuted;
+        return const Sello('Por confirmar', fondo: Cv.line, color: Cv.inkMuted, icono: Icons.schedule);
     }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(color: fondo, borderRadius: BorderRadius.circular(999)),
-      child: Text(texto, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: tinta)),
-    );
   }
 }
 
+/// Error de conexión con personalidad y salida: reintentar o cambiar el servidor.
 class TarjetaError extends StatelessWidget {
   const TarjetaError({super.key, required this.mensaje, required this.reintentar, this.cambiarServidor});
 
@@ -188,18 +209,27 @@ class TarjetaError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TarjetaEstado(
-      icono: Icons.wifi_off,
-      color: Cv.rojoInk,
-      titulo: 'No pudimos conectarnos',
-      texto: mensaje,
-      accion: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          FilledButton(onPressed: reintentar, child: const Text('Reintentar')),
-          if (cambiarServidor != null)
-            TextButton(onPressed: cambiarServidor, child: const Text('Cambiar dirección del servidor')),
-        ],
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+        child: EstadoVacio(
+          emoji: '📡',
+          fondo: Cv.brisaRojo,
+          titulo: 'No pudimos conectarnos',
+          texto: mensaje,
+          accion: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              FilledButton.icon(
+                onPressed: reintentar,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+              ),
+              if (cambiarServidor != null)
+                TextButton(onPressed: cambiarServidor, child: const Text('Cambiar dirección del servidor')),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -236,7 +266,7 @@ Future<void> dialogoServidor(BuildContext context, {required String actual, requ
             controller: ctrl,
             keyboardType: TextInputType.url,
             autocorrect: false,
-            decoration: const InputDecoration(hintText: 'http://192.168.1.20:8000'),
+            decoration: const InputDecoration(hintText: 'http://192.168.1.20:8000', prefixIcon: Icon(Icons.dns_outlined)),
           ),
         ],
       ),

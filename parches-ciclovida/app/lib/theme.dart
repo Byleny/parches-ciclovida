@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 
 /// Tokens del design system "Parches CicloVida".
 /// Los cuatro colores salen de las letras V, I, D, A del logo; la tinta, del gris de "CICLO".
-/// Cada color tiene tres tonos: `marca` para acentos, `Ink` para fondos con texto blanco
-/// y para texto sobre blanco (contraste AA), y `Soft` para fondos tenues.
+/// Cada color tiene cuatro tonos: `marca` para decorar (cinta, confeti, íconos grandes), `Ink` para
+/// texto e íconos con significado y para fondos con texto blanco (contraste AA), `Soft` para chips
+/// y sellos, y `brisa` para bloques grandes. La interfaz es siempre clara: los tonos oscuros solo
+/// van en texto y detalles pequeños. No hay modo oscuro.
 class Cv {
-  static const surface = Color(0xFFF3F4F6);
+  /// Fondo de las pantallas: crema, el coral al 3,5 % sobre blanco.
+  static const surface = Color(0xFFFFFAF7);
   static const surfaceRaised = Color(0xFFFFFFFF);
   static const line = Color(0xFFE3E4E8);
-  static const lineStrong = Color(0xFF9A9CA3);
+
+  /// Borde de controles (inputs, casillas): 3,6:1 sobre blanco.
+  static const lineStrong = Color(0xFF85878E);
   static const ink = Color(0xFF1D1E22);
   static const inkMuted = Color(0xFF5E6068);
 
@@ -27,48 +32,84 @@ class Cv {
   static const verdeSoft = Color(0xFFDDF5E7);
   static const tealSoft = Color(0xFFDBF2FA);
 
+  /// Tintes muy suaves (5-7 %) para bloques de color grandes.
+  static const brisaRojo = Color(0xFFFEF4F5);
+  static const brisaCoral = Color(0xFFFEF5EF);
+  static const brisaVerde = Color(0xFFF1FAF5);
+  static const brisaTeal = Color(0xFFF0F9FB);
+
   static const cinta = [rojo, coral, verde, teal];
 
-  /// Un tono más claro que la tinta, para degradados oscuros (encabezados, boletos).
-  static const fondoOscuro = Color(0xFF2B2D34);
+  /// La tinta al 20 %: sombras de íconos y texto sobre el mapa.
+  static const velo = Color(0x331D1E22);
 
-  static const radioMd = 14.0;
-  static const radioLg = 22.0;
-  static const radioXl = 28.0;
+  /// Degradado de las acciones principales, en los tonos Ink (texto blanco AA en todo el recorrido).
+  static const accion = [rojoInk, coralInk];
 
-  /// Sombra suave para lo que flota sobre la página (boletos, barra de navegación).
+  /// Tipografía de títulos (Bricolage Grotesque, OFL). El cuerpo es Barlow.
+  static const display = 'Bricolage';
+
+  static const radioSm = 12.0;
+  static const radioMd = 16.0;
+  static const radioLg = 24.0;
+  static const radioXl = 32.0;
+
+  /// Ancho máximo del contenido de lectura (formularios, listas, tarjetas) y de pantallas amplias.
+  static const anchoLectura = 640.0;
+  static const anchoAmplio = 1040.0;
+
+  /// Sombra suave para lo que flota sobre la página (tarjetas, barra de navegación).
   static const sombra = [
-    BoxShadow(color: Color(0x1F1D1E22), blurRadius: 24, offset: Offset(0, 10)),
+    BoxShadow(color: Color(0x141D1E22), blurRadius: 20, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x0A1D1E22), blurRadius: 3, offset: Offset(0, 1)),
+  ];
+
+  /// Sombra más marcada para lo que está por encima de todo (diálogos, la celebración).
+  static const sombraAlta = [
+    BoxShadow(color: Color(0x1F1D1E22), blurRadius: 32, offset: Offset(0, 14)),
     BoxShadow(color: Color(0x0F1D1E22), blurRadius: 4, offset: Offset(0, 1)),
   ];
+
+  /// Sombra de las barras fijas de abajo (botón principal de un formulario, redactor del chat).
+  static const sombraArriba = [
+    BoxShadow(color: Color(0x141D1E22), blurRadius: 16, offset: Offset(0, -4)),
+  ];
+
+  /// Resplandor del color de una acción (botón central, ícono protagonista).
+  static List<BoxShadow> brillo(Color color) => [
+        BoxShadow(color: color.withValues(alpha: 0.28), blurRadius: 18, offset: const Offset(0, 8)),
+      ];
 }
 
 /// Cada actividad lleva uno de los cuatro colores del logo.
 class ColoresActividad {
-  const ColoresActividad(this.marca, this.tinta, this.suave);
+  const ColoresActividad(this.marca, this.tinta, this.suave, [this.brisa = Cv.surface]);
 
-  /// Acento: puntos, bordes, la cinta.
+  /// Acento decorativo: puntos, bordes gruesos, la cinta. Nunca para texto.
   final Color marca;
 
-  /// Fondo para texto blanco, o texto sobre blanco o sobre [suave].
+  /// Texto o ícono sobre blanco o sobre [suave]; fondo para texto blanco.
   final Color tinta;
 
-  /// Fondo tenue.
+  /// Fondo de chips y sellos.
   final Color suave;
+
+  /// Fondo de bloques grandes.
+  final Color brisa;
 }
 
 ColoresActividad coloresDe(String actividad) {
   switch (actividad) {
     case 'bici':
-      return const ColoresActividad(Cv.teal, Cv.tealInk, Cv.tealSoft);
+      return const ColoresActividad(Cv.teal, Cv.tealInk, Cv.tealSoft, Cv.brisaTeal);
     case 'trotar':
-      return const ColoresActividad(Cv.coral, Cv.coralInk, Cv.coralSoft);
+      return const ColoresActividad(Cv.coral, Cv.coralInk, Cv.coralSoft, Cv.brisaCoral);
     case 'caminar':
-      return const ColoresActividad(Cv.verde, Cv.verdeInk, Cv.verdeSoft);
+      return const ColoresActividad(Cv.verde, Cv.verdeInk, Cv.verdeSoft, Cv.brisaVerde);
     case 'patines':
-      return const ColoresActividad(Cv.rojo, Cv.rojoInk, Cv.rojoSoft);
+      return const ColoresActividad(Cv.rojo, Cv.rojoInk, Cv.rojoSoft, Cv.brisaRojo);
     default:
-      return const ColoresActividad(Cv.inkMuted, Cv.ink, Cv.surface);
+      return const ColoresActividad(Cv.lineStrong, Cv.ink, Cv.line, Cv.surface);
   }
 }
 
@@ -105,7 +146,13 @@ class Cinta extends StatelessWidget {
         child: Row(
           children: [
             for (var i = 0; i < 4; i++)
-              Expanded(child: ColoredBox(color: i < llenos ? Cv.cinta[i] : Cv.line)),
+              Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  color: i < llenos ? Cv.cinta[i] : Cv.line,
+                ),
+              ),
           ],
         ),
       ),
@@ -113,25 +160,68 @@ class Cinta extends StatelessWidget {
   }
 }
 
+/// Fondo del botón principal: el degradado de acción. Deshabilitado, queda el gris del tema.
+Widget _fondoAccion(BuildContext context, Set<WidgetState> estados, Widget? child) {
+  if (estados.contains(WidgetState.disabled)) return child ?? const SizedBox.shrink();
+  return Ink(
+    decoration: const ShapeDecoration(shape: StadiumBorder(), gradient: LinearGradient(colors: Cv.accion)),
+    child: child,
+  );
+}
+
+Widget _sinDegradado(BuildContext context, Set<WidgetState> estados, Widget? child) => child ?? const SizedBox.shrink();
+
+/// Botón lleno de un solo color, sin el degradado de acción: para acciones propias de una
+/// sección o actividad (por ejemplo, "Unirme" en el color de la actividad). [fondo] debe ser un
+/// tono Ink (o blanco con [texto] oscuro) para que el texto cumpla AA.
+ButtonStyle botonDeColor(
+  Color fondo, {
+  Color texto = Colors.white,
+  Size? minimo,
+  EdgeInsetsGeometry? relleno,
+}) {
+  return FilledButton.styleFrom(
+    backgroundColor: fondo,
+    foregroundColor: texto,
+    minimumSize: minimo,
+    padding: relleno,
+    backgroundBuilder: _sinDegradado,
+  );
+}
+
 ThemeData temaParches() {
   const scheme = ColorScheme(
     brightness: Brightness.light,
-    primary: Cv.ink,
+    primary: Cv.tealInk,
     onPrimary: Colors.white,
     primaryContainer: Cv.tealSoft,
     onPrimaryContainer: Cv.tealInk,
-    secondary: Cv.tealInk,
+    secondary: Cv.coralInk,
     onSecondary: Colors.white,
-    secondaryContainer: Cv.tealSoft,
-    onSecondaryContainer: Cv.tealInk,
+    secondaryContainer: Cv.coralSoft,
+    onSecondaryContainer: Cv.coralInk,
+    tertiary: Cv.verdeInk,
+    onTertiary: Colors.white,
+    tertiaryContainer: Cv.verdeSoft,
+    onTertiaryContainer: Cv.verdeInk,
     error: Cv.rojoInk,
     onError: Colors.white,
+    errorContainer: Cv.rojoSoft,
+    onErrorContainer: Cv.rojoInk,
     surface: Cv.surfaceRaised,
     onSurface: Cv.ink,
     onSurfaceVariant: Cv.inkMuted,
+    surfaceContainerLowest: Cv.surfaceRaised,
+    surfaceContainerLow: Cv.surface,
+    surfaceContainer: Cv.surface,
+    surfaceContainerHigh: Cv.surface,
+    surfaceContainerHighest: Cv.surface,
     outline: Cv.lineStrong,
     outlineVariant: Cv.line,
-    surfaceContainerHighest: Cv.surface,
+    inverseSurface: Cv.ink,
+    onInverseSurface: Colors.white,
+    shadow: Cv.ink,
+    scrim: Cv.ink,
   );
 
   final base = ThemeData(
@@ -148,26 +238,34 @@ ThemeData temaParches() {
     textTheme: base.textTheme
         .apply(bodyColor: Cv.ink, displayColor: Cv.ink)
         .merge(const TextTheme(
-          displaySmall: TextStyle(fontFamily: 'BarlowCondensed', fontWeight: FontWeight.w800, fontSize: 46, height: 0.95),
-          headlineLarge: TextStyle(fontFamily: 'BarlowCondensed', fontWeight: FontWeight.w800, fontSize: 38, height: 1.0),
-          headlineMedium: TextStyle(fontFamily: 'BarlowCondensed', fontWeight: FontWeight.w800, fontSize: 32, height: 1.0),
-          headlineSmall: TextStyle(fontFamily: 'BarlowCondensed', fontWeight: FontWeight.w700, fontSize: 25, height: 1.05),
+          displayLarge: TextStyle(fontFamily: Cv.display, fontWeight: FontWeight.w800, fontSize: 64, height: 0.95, letterSpacing: -1.6),
+          displayMedium: TextStyle(fontFamily: Cv.display, fontWeight: FontWeight.w800, fontSize: 52, height: 0.95, letterSpacing: -1.2),
+          displaySmall: TextStyle(fontFamily: Cv.display, fontWeight: FontWeight.w800, fontSize: 42, height: 0.98, letterSpacing: -1),
+          headlineLarge: TextStyle(fontFamily: Cv.display, fontWeight: FontWeight.w800, fontSize: 34, height: 1.02, letterSpacing: -0.8),
+          headlineMedium: TextStyle(fontFamily: Cv.display, fontWeight: FontWeight.w800, fontSize: 28, height: 1.05, letterSpacing: -0.5),
+          headlineSmall: TextStyle(fontFamily: Cv.display, fontWeight: FontWeight.w700, fontSize: 22, height: 1.12, letterSpacing: -0.3),
           titleLarge: TextStyle(fontWeight: FontWeight.w700, fontSize: 20, height: 1.25),
           titleMedium: TextStyle(fontWeight: FontWeight.w700, fontSize: 17, height: 1.3),
-          bodyLarge: TextStyle(fontSize: 17, height: 1.4),
-          bodyMedium: TextStyle(fontSize: 15, height: 1.4),
-          bodySmall: TextStyle(fontSize: 13, height: 1.35, color: Cv.inkMuted),
+          titleSmall: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, height: 1.3),
+          bodyLarge: TextStyle(fontSize: 17, height: 1.45),
+          bodyMedium: TextStyle(fontSize: 15, height: 1.45),
+          bodySmall: TextStyle(fontSize: 13, height: 1.4, color: Cv.inkMuted),
           labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          labelMedium: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          labelSmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4),
         )),
+    // Botón principal: píldora con el degradado de acción. Para un solo color, usar botonDeColor().
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(54),
         shape: pastilla,
         textStyle: boton,
-        backgroundColor: Cv.ink,
+        backgroundColor: Cv.rojoInk,
         foregroundColor: Colors.white,
         disabledBackgroundColor: Cv.line,
-        disabledForegroundColor: Cv.lineStrong,
+        disabledForegroundColor: Cv.inkMuted,
+        elevation: 0,
+        backgroundBuilder: _fondoAccion,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -175,21 +273,32 @@ ThemeData temaParches() {
         minimumSize: const Size.fromHeight(54),
         shape: pastilla,
         textStyle: boton,
+        backgroundColor: Cv.surfaceRaised,
         foregroundColor: Cv.ink,
-        side: const BorderSide(color: Cv.ink, width: 2),
+        side: const BorderSide(color: Cv.lineStrong, width: 1.5),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: Cv.tealInk,
+        shape: pastilla,
         textStyle: const TextStyle(fontFamily: 'Barlow', fontSize: 16, fontWeight: FontWeight.w700),
       ),
     ),
-    // Tarjetas con una sombra suave: se despegan de la página en vez de verse planas.
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(foregroundColor: Cv.ink),
+    ),
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      backgroundColor: Cv.tealInk,
+      foregroundColor: Colors.white,
+      shape: StadiumBorder(),
+      extendedTextStyle: TextStyle(fontFamily: 'Barlow', fontSize: 16, fontWeight: FontWeight.w700),
+    ),
+    // Tarjetas blancas con sombra suave: se despegan del fondo crema.
     cardTheme: const CardThemeData(
       color: Cv.surfaceRaised,
       elevation: 2,
-      shadowColor: Color(0x331D1E22),
+      shadowColor: Color(0x2E1D1E22),
       surfaceTintColor: Colors.transparent,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Cv.radioLg))),
@@ -197,14 +306,16 @@ ThemeData temaParches() {
     appBarTheme: const AppBarTheme(
       backgroundColor: Cv.surface,
       foregroundColor: Cv.ink,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
-      titleTextStyle: TextStyle(fontFamily: 'BarlowCondensed', fontSize: 26, fontWeight: FontWeight.w800, color: Cv.ink),
+      titleTextStyle: TextStyle(fontFamily: Cv.display, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: Cv.ink),
     ),
     chipTheme: ChipThemeData(
       shape: const StadiumBorder(side: BorderSide(color: Cv.line)),
       backgroundColor: Cv.surfaceRaised,
+      selectedColor: Cv.tealSoft,
       labelStyle: const TextStyle(fontFamily: 'Barlow', fontSize: 15, fontWeight: FontWeight.w600, color: Cv.ink),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       showCheckmark: false,
@@ -212,6 +323,7 @@ ThemeData temaParches() {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Cv.surfaceRaised,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(Cv.radioMd),
         borderSide: const BorderSide(color: Cv.lineStrong),
@@ -225,32 +337,40 @@ ThemeData temaParches() {
         borderSide: const BorderSide(color: Cv.tealInk, width: 2),
       ),
     ),
-    progressIndicatorTheme: const ProgressIndicatorThemeData(color: Cv.tealInk),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(color: Cv.tealInk, linearTrackColor: Cv.line),
     checkboxTheme: CheckboxThemeData(
       fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Cv.verdeInk : null),
+      side: const BorderSide(color: Cv.lineStrong, width: 2),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Colors.white : Cv.lineStrong),
+      trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Cv.verdeInk : Cv.line),
+      trackOutlineColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Cv.verdeInk : Cv.lineStrong),
     ),
     dividerTheme: const DividerThemeData(color: Cv.line, thickness: 1, space: 24),
-    navigationBarTheme: NavigationBarThemeData(
+    listTileTheme: const ListTileThemeData(iconColor: Cv.inkMuted),
+    dialogTheme: const DialogThemeData(
       backgroundColor: Cv.surfaceRaised,
-      indicatorColor: Cv.tealSoft,
-      height: 68,
-      iconTheme: WidgetStateProperty.resolveWith(
-        (s) => IconThemeData(color: s.contains(WidgetState.selected) ? Cv.tealInk : Cv.inkMuted),
-      ),
-      labelTextStyle: WidgetStateProperty.resolveWith(
-        (s) => TextStyle(
-          fontFamily: 'Barlow',
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: s.contains(WidgetState.selected) ? Cv.tealInk : Cv.inkMuted,
-        ),
-      ),
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Cv.radioXl))),
+      titleTextStyle: TextStyle(fontFamily: Cv.display, fontSize: 24, fontWeight: FontWeight.w800, height: 1.1, color: Cv.ink),
+      contentTextStyle: TextStyle(fontFamily: 'Barlow', fontSize: 16, height: 1.45, color: Cv.ink),
     ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Cv.surfaceRaised,
+      surfaceTintColor: Colors.transparent,
+      modalBackgroundColor: Cv.surfaceRaised,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Cv.radioXl))),
+    ),
+    // Avisos claros y flotantes, con sombra: nada de barras negras.
     snackBarTheme: const SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: Cv.ink,
-      shape: StadiumBorder(),
-      contentTextStyle: TextStyle(fontFamily: 'Barlow', fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
+      backgroundColor: Cv.surfaceRaised,
+      elevation: 8,
+      actionTextColor: Cv.tealInk,
+      shape: StadiumBorder(side: BorderSide(color: Cv.line)),
+      contentTextStyle: TextStyle(fontFamily: 'Barlow', fontSize: 15, fontWeight: FontWeight.w600, color: Cv.ink),
     ),
   );
 }

@@ -4,6 +4,7 @@ import '../api.dart';
 import '../notificaciones.dart';
 import '../sesion.dart';
 import '../theme.dart';
+import '../widgets/diseno.dart';
 import 'principal.dart';
 
 /// Volver a entrar: el mismo correo institucional del registro y un código nuevo.
@@ -84,9 +85,15 @@ class _IngresoScreenState extends State<IngresoScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Ya tengo cuenta')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: rellenoAncho(context, arriba: 8, abajo: 32),
         children: [
-          Text('Entra con tu correo', style: t.headlineMedium),
+          Row(
+            children: [
+              const IconoBurbuja(Icons.mail_outline, color: Cv.tealInk, fondo: Cv.tealSoft, tamano: 52),
+              const SizedBox(width: 14),
+              Expanded(child: Text('Entra con tu correo', style: t.headlineMedium)),
+            ],
+          ),
           const SizedBox(height: 6),
           Text(
             'Escribe el correo institucional con el que te registraste y te enviamos un código nuevo. '
@@ -99,7 +106,11 @@ class _IngresoScreenState extends State<IngresoScreen> {
             keyboardType: TextInputType.emailAddress,
             autocorrect: false,
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(labelText: 'Correo institucional', hintText: 'tu@usbcali.edu.co'),
+            decoration: const InputDecoration(
+              labelText: 'Correo institucional',
+              hintText: 'tu@usbcali.edu.co',
+              prefixIcon: Icon(Icons.alternate_email),
+            ),
           ),
           const SizedBox(height: 12),
           OutlinedButton(
@@ -109,23 +120,32 @@ class _IngresoScreenState extends State<IngresoScreen> {
           if (enviado) ...[
             const SizedBox(height: 18),
             if (_universidad != null)
-              Row(
-                children: [
-                  const Icon(Icons.verified, size: 18, color: Cv.verdeInk),
-                  const SizedBox(width: 6),
-                  Expanded(child: Text(_universidad!, style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
-                ],
+              BloqueColor(
+                color: Cv.verdeSoft,
+                relleno: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                radio: Cv.radioMd,
+                child: Row(
+                  children: [
+                    const Icon(Icons.verified, size: 20, color: Cv.verdeInk),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _universidad!,
+                        style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: Cv.verdeInk),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             if (_codigoDemo != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Card(
+                child: BloqueColor(
                   color: Cv.coralSoft,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text('Modo demo, sin servidor de correo: tu código es $_codigoDemo',
-                        style: t.bodyMedium?.copyWith(color: Cv.coralInk, fontWeight: FontWeight.w600)),
-                  ),
+                  relleno: const EdgeInsets.all(14),
+                  radio: Cv.radioMd,
+                  child: Text('Modo demo, sin servidor de correo: tu código es $_codigoDemo',
+                      style: t.bodyMedium?.copyWith(color: Cv.coralInk, fontWeight: FontWeight.w700)),
                 ),
               ),
             const SizedBox(height: 12),
@@ -134,6 +154,7 @@ class _IngresoScreenState extends State<IngresoScreen> {
               keyboardType: TextInputType.number,
               maxLength: 6,
               onChanged: (_) => setState(() {}),
+              style: const TextStyle(fontFamily: Cv.display, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: 6),
               decoration: const InputDecoration(labelText: 'Código de 6 dígitos', counterText: ''),
             ),
             const SizedBox(height: 16),

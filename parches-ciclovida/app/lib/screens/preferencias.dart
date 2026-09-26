@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
 import '../sesion.dart';
+import '../theme.dart';
+import '../widgets/diseno.dart';
 import '../widgets/selectores.dart';
 
 /// Lo que usamos para recomendar parches y armar grupos. Cambiarlo no te saca del parche que elegiste.
@@ -62,12 +64,26 @@ class _PreferenciasScreenState extends State<PreferenciasScreen> {
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                padding: rellenoAncho(context, arriba: 4, abajo: 24),
                 children: [
-                  Text(
-                    'Las usamos para recomendarte parches y, con tu ritmo, para armar tu grupo. '
-                    'Cambiarlas no te saca del parche que ya elegiste.',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  BloqueColor(
+                    color: Cv.brisaTeal,
+                    relleno: const EdgeInsets.all(14),
+                    radio: Cv.radioMd,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.tune, size: 20, color: Cv.tealInk),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Las usamos para recomendarte parches y, con tu ritmo, para armar tu grupo. '
+                            'Cambiarlas no te saca del parche que ya elegiste.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const TituloSeccion('¿Qué te gusta hacer?'),
                   SelectorActividad(opciones: cat.actividades, valor: _actividad, onChanged: (v) => setState(() => _actividad = v)),
@@ -89,8 +105,7 @@ class _PreferenciasScreenState extends State<PreferenciasScreen> {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            BarraInferior(
               child: FilledButton(
                 onPressed: _cambio && !_guardando ? _guardar : null,
                 child: const Text('Guardar cambios'),

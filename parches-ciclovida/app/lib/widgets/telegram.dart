@@ -7,6 +7,7 @@ import '../api.dart';
 import '../models.dart';
 import '../sesion.dart';
 import '../theme.dart';
+import 'diseno.dart';
 
 /// Tarjeta para vincular el bot de Telegram: por ahí llegan los avisos y desde el chat
 /// se puede elegir parche, confirmar y publicar en el foro. Si el backend no tiene bot, no se muestra.
@@ -92,7 +93,11 @@ class _TarjetaTelegramState extends State<TarjetaTelegram> {
     // en el navegador, Telegram Web; en el celular, la app de Telegram
     final principal = kIsWeb ? (info.enlaceWeb ?? info.enlace) : info.enlace;
     return Card(
-      color: Cv.tealSoft,
+      color: Cv.brisaTeal,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Cv.radioLg),
+        side: const BorderSide(color: Cv.tealSoft, width: 1.5),
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Column(
@@ -100,11 +105,7 @@ class _TarjetaTelegramState extends State<TarjetaTelegram> {
           children: [
             Row(
               children: [
-                const CircleAvatar(
-                  radius: 22,
-                  backgroundColor: Cv.tealInk,
-                  child: Icon(Icons.telegram, color: Colors.white, size: 28),
-                ),
+                const IconoBurbuja(Icons.telegram, color: Cv.tealInk, fondo: Colors.white, tamano: 48),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -142,7 +143,7 @@ class _TarjetaTelegramState extends State<TarjetaTelegram> {
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: principal == null ? null : () => _abrir(principal),
-                style: FilledButton.styleFrom(backgroundColor: Cv.tealInk, minimumSize: const Size.fromHeight(46)),
+                style: botonDeColor(Cv.tealInk, minimo: const Size.fromHeight(46)),
                 icon: const Icon(Icons.open_in_new, size: 18),
                 label: Text(kIsWeb ? 'Abrir en Telegram Web' : 'Conectar'),
               ),
@@ -161,7 +162,10 @@ class _TarjetaTelegramState extends State<TarjetaTelegram> {
                 const SizedBox(height: 6),
                 Material(
                   color: Cv.surfaceRaised,
-                  borderRadius: BorderRadius.circular(Cv.radioMd),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(Cv.radioMd),
+                    side: const BorderSide(color: Cv.line),
+                  ),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(Cv.radioMd),
                     onTap: _copiarCodigo,

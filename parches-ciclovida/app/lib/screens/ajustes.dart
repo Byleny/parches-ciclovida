@@ -5,6 +5,7 @@ import '../notificaciones.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
+import '../widgets/diseno.dart';
 import '../widgets/telegram.dart';
 import 'aviso.dart';
 import 'como_armamos.dart';
@@ -92,31 +93,32 @@ class _AjustesScreenState extends State<AjustesScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Ajustes')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+        padding: rellenoAncho(context, arriba: 4, abajo: 32),
         children: [
+          const _Seccion('Tu parche y tus avisos', color: Cv.coral),
           _Grupo(
             children: [
               ListTile(
-                leading: const Icon(Icons.tune),
+                leading: const IconoBurbuja(Icons.tune, color: Cv.tealInk, fondo: Cv.tealSoft, tamano: 40),
                 title: const Text('Cambiar mis preferencias'),
                 subtitle: const Text('Actividad, ritmo y estación cercana'),
                 onTap: widget.onPreferencias,
               ),
               if (widget.onQuiz != null)
                 ListTile(
-                  leading: const Icon(Icons.local_drink_outlined),
+                  leading: const IconoBurbuja(Icons.local_drink_outlined, color: Cv.coralInk, fondo: Cv.coralSoft, tamano: 40),
                   title: const Text('Tu estilo de parche'),
                   subtitle: const Text('El quiz de 5 preguntas. Puedes cambiarlo cuando quieras'),
                   onTap: widget.onQuiz,
                 ),
               ListTile(
-                leading: const Icon(Icons.history),
+                leading: const IconoBurbuja(Icons.history, color: Cv.verdeInk, fondo: Cv.verdeSoft, tamano: 40),
                 title: const Text('Mis domingos'),
                 subtitle: const Text('A qué parches has ido y con quién'),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const HistorialScreen())),
               ),
               ListTile(
-                leading: const Icon(Icons.notifications_active_outlined),
+                leading: const IconoBurbuja(Icons.notifications_active_outlined, color: Cv.rojoInk, fondo: Cv.rojoSoft, tamano: 40),
                 title: const Text('Volver a activar los avisos'),
                 subtitle: const Text('Sábado 7:00 p. m. y domingo 1:30 p. m.'),
                 onTap: () async {
@@ -131,28 +133,30 @@ class _AjustesScreenState extends State<AjustesScreen> {
           ),
           const SizedBox(height: 20),
           const TarjetaTelegram(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
+          const _Seccion('Cómo funciona', color: Cv.teal),
           _Grupo(
             children: [
               ListTile(
-                leading: const Icon(Icons.account_tree_outlined),
+                leading: const IconoBurbuja(Icons.account_tree_outlined, color: Cv.tealInk, fondo: Cv.tealSoft, tamano: 40),
                 title: const Text('Cómo armamos los grupos'),
                 subtitle: const Text('K-means y sus tres variables'),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ComoArmamosScreen())),
               ),
               ListTile(
-                leading: const Icon(Icons.privacy_tip_outlined),
+                leading: const IconoBurbuja(Icons.privacy_tip_outlined, color: Cv.verdeInk, fondo: Cv.verdeSoft, tamano: 40),
                 title: const Text('Aviso de privacidad'),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AvisoPrivacidadScreen())),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          Text('Herramientas de demo', style: t.titleMedium),
-          const SizedBox(height: 4),
-          Text('Para mostrar el ciclo completo sin esperar al fin de semana.', style: t.bodySmall),
-          const SizedBox(height: 10),
+          const _Seccion('Herramientas de demo', color: Cv.verde),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 10),
+            child: Text('Para mostrar el ciclo completo sin esperar al fin de semana.', style: t.bodySmall),
+          ),
           _Grupo(
+            color: Cv.brisaVerde,
             children: [
               ListTile(
                 leading: const Icon(Icons.notifications_outlined),
@@ -197,11 +201,11 @@ class _AjustesScreenState extends State<AjustesScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const _Seccion('Tus datos', color: Cv.rojo),
           _Grupo(
             children: [
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: Cv.rojoInk),
+                leading: const IconoBurbuja(Icons.delete_outline, color: Cv.rojoInk, fondo: Cv.rojoSoft, tamano: 40),
                 title: const Text('Borrar mis datos', style: TextStyle(color: Cv.rojoInk)),
                 subtitle: const Text('Ley 1581 de 2012: puedes pedirlo cuando quieras'),
                 onTap: _borrar,
@@ -217,15 +221,36 @@ class _AjustesScreenState extends State<AjustesScreen> {
 }
 
 class _Grupo extends StatelessWidget {
-  const _Grupo({required this.children});
+  const _Grupo({required this.children, this.color = Cv.surfaceRaised});
 
   final List<Widget> children;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: color,
       clipBehavior: Clip.antiAlias,
-      child: Column(children: children),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(children: children),
+      ),
+    );
+  }
+}
+
+/// Rótulo de una sección de Ajustes.
+class _Seccion extends StatelessWidget {
+  const _Seccion(this.texto, {required this.color});
+
+  final String texto;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 20, 4, 10),
+      child: Rotulo(texto, color: color),
     );
   }
 }

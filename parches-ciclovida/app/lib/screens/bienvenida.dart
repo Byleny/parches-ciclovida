@@ -18,90 +18,96 @@ class BienvenidaScreen extends StatelessWidget {
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // El cartel: fondo oscuro con la cinta curvándose como el carril y el titular en stickers.
+          // El cartel: fondo claro con la cinta curvándose como el carril y el titular en stickers.
           FondoCarril(
             borde: const BorderRadius.vertical(bottom: Radius.circular(36)),
             child: SafeArea(
               bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 12, 30),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(14, 7, 16, 7),
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999)),
-                          child: Image.asset(
-                            'assets/img/ciclovida-recorte.png',
-                            height: 32,
-                            semanticLabel: 'CicloVida, Cali en movimiento',
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton.icon(
-                          onPressed: () => dialogoServidor(
-                            context,
-                            actual: Sesion.actual.apiUrl,
-                            guardar: Sesion.actual.cambiarUrl,
-                          ),
-                          style: TextButton.styleFrom(foregroundColor: Colors.white70),
-                          icon: const Icon(Icons.dns_outlined, size: 18),
-                          label: const Text('Servidor'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 34),
-                    Aparecer(
-                      child: Semantics(
-                        header: true,
-                        label: 'Este domingo sal en parche a la CicloVida',
-                        child: const ExcludeSemantics(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _Franja(texto: 'Este domingo', color: Cv.rojo, giro: -0.035),
-                              _Franja(texto: 'sal en parche', color: Cv.verde, giro: 0.02, sangria: 22),
-                              _Franja(texto: 'a la CicloVida', color: Cv.teal, giro: -0.02, sangria: 8),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    Aparecer(
-                      orden: 1,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Text(
-                          'Cada semana abrimos parches en las 12 estaciones: a pie o sobre ruedas, a las 8:00, 9:30 '
-                          'u 11:00. Solo para estudiantes de universidades de Cali, verificados con su correo '
-                          'institucional.',
-                          style: t.bodyLarge?.copyWith(color: Colors.white.withValues(alpha: 0.88)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Aparecer(
-                      orden: 2,
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+              child: MarcoAncho(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 12, 30),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          _Cifra(numero: '12', texto: 'estaciones', color: Cv.teal),
-                          _Cifra(numero: '3', texto: 'horarios', color: Cv.coral),
-                          _Cifra(numero: '4', texto: 'actividades', color: Cv.verde),
+                          Container(
+                            padding: const EdgeInsets.fromLTRB(14, 7, 16, 7),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(999),
+                              boxShadow: Cv.sombra,
+                            ),
+                            child: Image.asset(
+                              'assets/img/ciclovida-recorte.png',
+                              height: 32,
+                              semanticLabel: 'CicloVida, Cali en movimiento',
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: () => dialogoServidor(
+                              context,
+                              actual: Sesion.actual.apiUrl,
+                              guardar: Sesion.actual.cambiarUrl,
+                            ),
+                            style: TextButton.styleFrom(foregroundColor: Cv.inkMuted),
+                            icon: const Icon(Icons.dns_outlined, size: 18),
+                            label: const Text('Servidor'),
+                          ),
                         ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 34),
+                      Aparecer(
+                        child: Semantics(
+                          header: true,
+                          label: 'Este domingo sal en parche a la CicloVida',
+                          child: const ExcludeSemantics(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _Franja(texto: 'Este domingo', color: Cv.rojoInk, giro: -0.035),
+                                _Franja(texto: 'sal en parche', color: Cv.verdeInk, giro: 0.02, sangria: 22),
+                                _Franja(texto: 'a la CicloVida', color: Cv.tealInk, giro: -0.02, sangria: 8),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      Aparecer(
+                        orden: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Text(
+                            'Cada semana abrimos parches en las 12 estaciones: a pie o sobre ruedas, a las 8:00, 9:30 '
+                            'u 11:00. Solo para estudiantes de universidades de Cali, verificados con su correo '
+                            'institucional.',
+                            style: t.bodyLarge,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Aparecer(
+                        orden: 2,
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _Cifra(numero: '12', texto: 'estaciones', color: Cv.tealInk),
+                            _Cifra(numero: '3', texto: 'horarios', color: Cv.coralInk),
+                            _Cifra(numero: '4', texto: 'actividades', color: Cv.verdeInk),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+            padding: rellenoAncho(context, arriba: 28, abajo: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -203,23 +209,27 @@ class _Franja extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // En un celular de 375 px el titular queda en 41 px; en pantallas anchas, hasta 56.
+    final tamano = (MediaQuery.sizeOf(context).width * 0.11).clamp(34.0, 56.0);
     return Padding(
-      padding: EdgeInsets.only(left: sangria, bottom: 6),
+      padding: EdgeInsets.only(left: sangria, bottom: 8),
       child: Transform.rotate(
         angle: giro,
         alignment: Alignment.centerLeft,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 4, 16, 6),
+          padding: const EdgeInsets.fromLTRB(14, 4, 16, 8),
           decoration: BoxDecoration(
             color: color,
-            boxShadow: const [BoxShadow(color: Color(0x59000000), blurRadius: 14, offset: Offset(0, 6))],
+            borderRadius: BorderRadius.circular(6),
+            boxShadow: Cv.brillo(color),
           ),
           child: Text(
             texto,
-            style: const TextStyle(
-              fontFamily: 'BarlowCondensed',
+            style: TextStyle(
+              fontFamily: Cv.display,
               fontWeight: FontWeight.w800,
-              fontSize: 50,
+              fontSize: tamano,
+              letterSpacing: -1,
               height: 1,
               color: Colors.white,
             ),
@@ -230,7 +240,7 @@ class _Franja extends StatelessWidget {
   }
 }
 
-/// Una cifra del programa en una pastilla translúcida sobre el cartel.
+/// Una cifra del programa en una pastilla blanca sobre el cartel.
 class _Cifra extends StatelessWidget {
   const _Cifra({required this.numero, required this.texto, required this.color});
 
@@ -243,9 +253,10 @@ class _Cifra extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 6, 14, 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        border: Border.all(color: Colors.white24),
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white,
+        border: Border.all(color: Cv.line),
+        borderRadius: BorderRadius.circular(Cv.radioMd),
+        boxShadow: Cv.sombra,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -253,10 +264,10 @@ class _Cifra extends StatelessWidget {
         children: [
           Text(
             numero,
-            style: TextStyle(fontFamily: 'BarlowCondensed', fontSize: 28, fontWeight: FontWeight.w800, color: color, height: 1),
+            style: TextStyle(fontFamily: Cv.display, fontSize: 28, fontWeight: FontWeight.w800, color: color, height: 1),
           ),
           const SizedBox(width: 6),
-          Text(texto, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white70)),
+          Text(texto, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Cv.inkMuted)),
         ],
       ),
     );

@@ -6,6 +6,7 @@ import '../models.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
+import '../widgets/diseno.dart';
 
 /// Historial: los domingos pasados, a qué parche fue y la gente que lo acompañó.
 class HistorialScreen extends StatefulWidget {
@@ -45,46 +46,65 @@ class _HistorialScreenState extends State<HistorialScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Mis domingos')),
       body: items == null
-          ? Center(
-              child: _error == null
-                  ? const CircularProgressIndicator()
-                  : Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: TarjetaError(mensaje: _error!, reintentar: _cargar),
-                    ),
+          ? ListView(
+              padding: rellenoAncho(context, arriba: 8, abajo: 24),
+              children: _error == null
+                  ? const [
+                      Esqueleto(alto: 120),
+                      SizedBox(height: 12),
+                      Esqueleto(alto: 190),
+                      SizedBox(height: 12),
+                      Esqueleto(alto: 190),
+                    ]
+                  : [TarjetaError(mensaje: _error!, reintentar: _cargar)],
             )
           : RefreshIndicator(
               onRefresh: _cargar,
               child: items.isEmpty
                   ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        const SizedBox(height: 40),
-                        const Icon(Icons.history, size: 56, color: Cv.lineStrong),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Todavía no tienes domingos en tu historia.\nElige un parche y estrénala este fin de semana.',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Cv.inkMuted),
+                      padding: rellenoAncho(context, arriba: 24, abajo: 24),
+                      children: const [
+                        EstadoVacio(
+                          emoji: '🚲',
+                          fondo: Cv.brisaCoral,
+                          titulo: 'Todavía no tienes domingos en tu historia.',
+                          texto: 'Elige un parche y estrénala este fin de semana.',
                         ),
                       ],
                     )
                   : ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                      padding: rellenoAncho(context, arriba: 8, abajo: 32),
                       itemCount: items.length + 1,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (_, i) {
                         if (i == 0) {
                           final idas = items.where((x) => x.asistio == true).length;
+                          // el resumen en grande, como una tarjeta para compartir
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              idas == 0
-                                  ? '${items.length} ${items.length == 1 ? 'domingo' : 'domingos'} con parche'
-                                  : 'Has ido $idas de ${items.length} ${items.length == 1 ? 'domingo' : 'domingos'} con parche',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Cv.inkMuted),
+                            child: BloqueColor(
+                              color: Cv.brisaCoral,
+                              borde: Cv.coralSoft,
+                              relleno: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    idas == 0 ? '${items.length}' : '$idas',
+                                    style: Theme.of(context).textTheme.displayMedium?.copyWith(color: Cv.coralInk),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Text(
+                                      idas == 0
+                                          ? '${items.length} ${items.length == 1 ? 'domingo' : 'domingos'} con parche'
+                                          : 'Has ido $idas de ${items.length} ${items.length == 1 ? 'domingo' : 'domingos'} con parche',
+                                      style: Theme.of(context).textTheme.titleLarge,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         }
@@ -126,18 +146,13 @@ class _TarjetaDomingo extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(color: col.tinta, shape: BoxShape.circle),
-                      child: Icon(iconoDe(g.actividad), color: Colors.white, size: 22),
-                    ),
+                    IconoBurbuja(iconoDe(g.actividad), color: col.tinta, fondo: col.suave, tamano: 44),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(g.nombre, style: t.titleMedium),
+                          Text(g.nombre, style: t.headlineSmall),
                           Text(
                             '${g.actividadNombre} · ${g.horaNombre} · Estación ${g.tramoNombre}',
                             style: t.bodySmall,
@@ -196,7 +211,7 @@ class _SelloAsistencia extends StatelessWidget {
     final (texto, fondo, tinta) = switch (asistio) {
       true => ('Fuiste', Cv.verdeSoft, Cv.verdeInk),
       false => ('No fuiste', Cv.rojoSoft, Cv.rojoInk),
-      null => ('Sin responder', Cv.surface, Cv.inkMuted),
+      null => ('Sin responder', Cv.line, Cv.inkMuted),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),

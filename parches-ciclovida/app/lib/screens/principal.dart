@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
+import '../widgets/diseno.dart';
 import 'foro.dart';
 import 'inicio.dart';
 import 'mapa.dart';
@@ -32,7 +33,10 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-          child: _BarraPildora(actual: _pestana, onCambio: (i) => setState(() => _pestana = i)),
+          child: MarcoAncho(
+            maximo: 460,
+            child: _BarraPildora(actual: _pestana, onCambio: (i) => setState(() => _pestana = i)),
+          ),
         ),
       ),
     );
@@ -40,15 +44,20 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
 }
 
 class _Destino {
-  const _Destino(this.icono, this.iconoActivo, this.texto, this.color);
+  const _Destino(this.icono, this.iconoActivo, this.texto, this.color, this.fondo);
 
   final IconData icono;
   final IconData iconoActivo;
   final String texto;
+
+  /// Tono Ink de la sección (ícono y texto de la pestaña activa).
   final Color color;
+
+  /// Tono Soft de la sección (píldora de la pestaña activa).
+  final Color fondo;
 }
 
-/// Barra flotante oscura: la pestaña activa se vuelve una píldora blanca con el color de su sección.
+/// Barra flotante blanca: la pestaña activa se vuelve una píldora con el color de su sección.
 class _BarraPildora extends StatelessWidget {
   const _BarraPildora({required this.actual, required this.onCambio});
 
@@ -56,20 +65,21 @@ class _BarraPildora extends StatelessWidget {
   final ValueChanged<int> onCambio;
 
   static const _destinos = [
-    _Destino(Icons.groups_outlined, Icons.groups, 'Mi parche', Cv.coralInk),
-    _Destino(Icons.map_outlined, Icons.map, 'Mapa', Cv.tealInk),
-    _Destino(Icons.forum_outlined, Icons.forum, 'Foro', Cv.verdeInk),
+    _Destino(Icons.groups_outlined, Icons.groups, 'Mi parche', Cv.coralInk, Cv.coralSoft),
+    _Destino(Icons.map_outlined, Icons.map, 'Mapa', Cv.tealInk, Cv.tealSoft),
+    _Destino(Icons.forum_outlined, Icons.forum, 'Foro', Cv.verdeInk, Cv.verdeSoft),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.all(6),
+      height: 66,
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: Cv.ink,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: const [BoxShadow(color: Color(0x401D1E22), blurRadius: 22, offset: Offset(0, 10))],
+        color: Cv.surfaceRaised,
+        borderRadius: BorderRadius.circular(33),
+        border: Border.all(color: Cv.line),
+        boxShadow: Cv.sombraAlta,
       ),
       child: Row(
         children: [
@@ -104,14 +114,14 @@ class _Pestana extends StatelessWidget {
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
               decoration: ShapeDecoration(
-                color: activa ? Colors.white : Colors.transparent,
+                color: activa ? destino.fondo : Colors.transparent,
                 shape: const StadiumBorder(),
               ),
               alignment: Alignment.center,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(activa ? destino.iconoActivo : destino.icono, size: 22, color: activa ? destino.color : Colors.white70),
+                  Icon(activa ? destino.iconoActivo : destino.icono, size: 24, color: activa ? destino.color : Cv.inkMuted),
                   Flexible(
                     child: AnimatedSize(
                       duration: const Duration(milliseconds: 220),
@@ -124,7 +134,7 @@ class _Pestana extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.fade,
                                 softWrap: false,
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Cv.ink),
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: destino.color),
                               ),
                             )
                           : const SizedBox.shrink(),

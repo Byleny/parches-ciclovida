@@ -7,6 +7,7 @@ import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/boleta.dart';
 import '../widgets/comunes.dart';
+import '../widgets/diseno.dart';
 
 /// La lista de parches que generó el sistema para el domingo. El joven filtra y se une a uno.
 /// Devuelve el mensaje para mostrar si se unió.
@@ -108,15 +109,17 @@ class _ElegirParcheScreenState extends State<ElegirParcheScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: Text(
-              'Para el ${fechaLarga(_cat.proximaJornada)}. El sistema abre parches en todas las estaciones; '
-              'tú escoges hora, actividad y lugar.',
-              style: t.bodyMedium?.copyWith(color: Cv.inkMuted),
+          MarcoAncho(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Text(
+                'Para el ${fechaLarga(_cat.proximaJornada)}. El sistema abre parches en todas las estaciones; '
+                'tú escoges hora, actividad y lugar.',
+                style: t.bodyMedium?.copyWith(color: Cv.inkMuted),
+              ),
             ),
           ),
-          _filtros(),
+          MarcoAncho(child: _filtros()),
           Expanded(child: _lista()),
         ],
       ),
@@ -132,27 +135,32 @@ class _ElegirParcheScreenState extends State<ElegirParcheScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Material(
-              color: Cv.ink,
-              shape: const StadiumBorder(),
-              child: InkWell(
-                customBorder: const StadiumBorder(),
-                onTap: _elegirEstacion,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.place, color: Colors.white, size: 22),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          tramo == null ? 'Todas las estaciones' : 'Estación ${tramo.nombre}',
-                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white),
+            child: Rebote(
+              child: Material(
+                color: Cv.surfaceRaised,
+                elevation: 2,
+                shadowColor: Cv.velo,
+                shape: const StadiumBorder(side: BorderSide(color: Cv.line)),
+                child: InkWell(
+                  customBorder: const StadiumBorder(),
+                  onTap: _elegirEstacion,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),
+                    child: Row(
+                      children: [
+                        const IconoBurbuja(Icons.place, color: Cv.tealInk, fondo: Cv.tealSoft, tamano: 38),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            tramo == null ? 'Todas las estaciones' : 'Estación ${tramo.nombre}',
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Cv.ink),
+                          ),
                         ),
-                      ),
-                      const Text('Cambiar', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white70)),
-                      const Icon(Icons.expand_more, color: Colors.white70),
-                    ],
+                        const Text('Cambiar', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Cv.tealInk)),
+                        const Icon(Icons.expand_more, color: Cv.tealInk),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -180,8 +188,8 @@ class _ElegirParcheScreenState extends State<ElegirParcheScreen> {
 
   Widget _chip(String texto, bool sel, VoidCallback onTap, {String? actividad}) {
     final col = actividad == null ? null : coloresDe(actividad);
-    final fondo = sel ? (col?.tinta ?? Cv.ink) : Cv.surfaceRaised;
-    final tinta = sel ? Colors.white : (col?.tinta ?? Cv.ink);
+    final fondo = sel ? (col?.suave ?? Cv.tealSoft) : Cv.surfaceRaised;
+    final tinta = col?.tinta ?? (sel ? Cv.tealInk : Cv.ink);
     return ChoiceChip(
       selected: sel,
       onSelected: (_) => onTap(),
@@ -189,31 +197,54 @@ class _ElegirParcheScreenState extends State<ElegirParcheScreen> {
       label: Text(texto),
       labelStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: tinta),
       color: WidgetStatePropertyAll(fondo),
-      side: BorderSide(color: sel ? fondo : Cv.line),
+      side: BorderSide(color: sel ? tinta : Cv.line, width: sel ? 1.5 : 1),
     );
   }
 
   Widget _lista() {
     final parches = _parches;
     if (_error != null) {
-      return ListView(padding: const EdgeInsets.all(16), children: [TarjetaError(mensaje: _error!, reintentar: _cargar)]);
+      return ListView(
+        padding: rellenoAncho(context, arriba: 16, abajo: 16),
+        children: [TarjetaError(mensaje: _error!, reintentar: _cargar)],
+      );
     }
-    if (parches == null) return const Center(child: CircularProgressIndicator());
+    if (parches == null) {
+      // la forma de las boletas mientras llegan
+      return ListView(
+        padding: rellenoAncho(context, arriba: 18, abajo: 32),
+        children: const [
+          Esqueleto(alto: 28, ancho: 200, radio: Cv.radioSm),
+          SizedBox(height: 14),
+          Esqueleto(alto: 180),
+          SizedBox(height: 12),
+          Esqueleto(alto: 180),
+          SizedBox(height: 12),
+          Esqueleto(alto: 180),
+        ],
+      );
+    }
     if (parches.isEmpty) {
       return ListView(
-        padding: const EdgeInsets.all(16),
+        padding: rellenoAncho(context, arriba: 16, abajo: 16),
         children: [
-          TarjetaEstado(
-            icono: Icons.search_off,
-            titulo: 'Sin parches con esos filtros',
-            texto: 'Prueba otra hora, otra actividad o todas las estaciones.',
-            accion: FilledButton(
-              onPressed: () => _filtrar(() {
-                _tramo = null;
-                _franja = null;
-                _actividad = null;
-              }),
-              child: const Text('Quitar filtros'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+              child: EstadoVacio(
+                emoji: '🔎',
+                fondo: Cv.brisaCoral,
+                titulo: 'Sin parches con esos filtros',
+                texto: 'Prueba otra hora, otra actividad o todas las estaciones.',
+                accion: FilledButton(
+                  onPressed: () => _filtrar(() {
+                    _tramo = null;
+                    _franja = null;
+                    _actividad = null;
+                  }),
+                  child: const Text('Quitar filtros'),
+                ),
+              ),
             ),
           ),
         ],
@@ -225,8 +256,14 @@ class _ElegirParcheScreenState extends State<ElegirParcheScreen> {
       if (!p.esMio && p.horaEncuentro != horaActual) {
         horaActual = p.horaEncuentro;
         hijos.add(Padding(
-          padding: const EdgeInsets.fromLTRB(4, 18, 4, 10),
-          child: Text('Salen a las ${p.horaNombre}', style: Theme.of(context).textTheme.headlineSmall),
+          padding: const EdgeInsets.fromLTRB(2, 20, 4, 12),
+          child: Row(
+            children: [
+              const IconoBurbuja(Icons.schedule, color: Cv.coralInk, fondo: Cv.coralSoft, tamano: 36),
+              const SizedBox(width: 10),
+              Expanded(child: Text('Salen a las ${p.horaNombre}', style: Theme.of(context).textTheme.headlineSmall)),
+            ],
+          ),
         ));
       }
       hijos.add(Padding(
@@ -236,7 +273,7 @@ class _ElegirParcheScreenState extends State<ElegirParcheScreen> {
     }
     return RefreshIndicator(
       onRefresh: _cargar,
-      child: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 32), children: hijos),
+      child: ListView(padding: rellenoAncho(context, abajo: 32), children: hijos),
     );
   }
 }

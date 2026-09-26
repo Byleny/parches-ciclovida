@@ -5,6 +5,7 @@ import '../models.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
+import '../widgets/diseno.dart';
 
 /// Foro comunal: comentarios sobre los parches, la app o cómo se sienten.
 /// Cada mensaje muestra solo el primer nombre y la universidad, igual que en el grupo.
@@ -121,31 +122,33 @@ class _ForoScreenState extends State<ForoScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Foro del parche')),
       body: cat == null
-          ? Center(
-              child: _error == null
-                  ? const CircularProgressIndicator()
-                  : Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: TarjetaError(mensaje: _error!, reintentar: _cargar),
-                    ),
+          ? ListView(
+              padding: rellenoAncho(context, arriba: 12, abajo: 24),
+              children: _error == null
+                  ? [
+                      const Esqueleto(alto: 40, ancho: 280, radio: 999),
+                      for (var i = 0; i < 4; i++) ...[const SizedBox(height: 12), const Esqueleto(alto: 104)],
+                    ]
+                  : [TarjetaError(mensaje: _error!, reintentar: _cargar)],
             )
           : Column(
               children: [
                 SizedBox(
-                  height: 48,
+                  height: 52,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: rellenoAncho(context, arriba: 4),
                     children: [
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
                           label: const Text('Todo'),
                           selected: _filtro == null,
-                          selectedColor: Cv.ink,
+                          selectedColor: Cv.verdeSoft,
+                          side: BorderSide(color: _filtro == null ? Cv.verdeInk : Cv.line, width: _filtro == null ? 1.5 : 1),
                           labelStyle: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _filtro == null ? Colors.white : Cv.ink,
+                            fontWeight: FontWeight.w700,
+                            color: _filtro == null ? Cv.verdeInk : Cv.ink,
                           ),
                           onSelected: (_) {
                             setState(() => _filtro = null);
@@ -157,17 +160,17 @@ class _ForoScreenState extends State<ForoScreen> {
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ChoiceChip(
-                            avatar: Icon(
-                              _iconoCategoria(c.id),
-                              size: 18,
-                              color: _filtro == c.id ? Colors.white : _colorCategoria(c.id).tinta,
-                            ),
+                            avatar: Icon(_iconoCategoria(c.id), size: 18, color: _colorCategoria(c.id).tinta),
                             label: Text(c.nombre),
                             selected: _filtro == c.id,
-                            selectedColor: _colorCategoria(c.id).tinta,
+                            selectedColor: _colorCategoria(c.id).suave,
+                            side: BorderSide(
+                              color: _filtro == c.id ? _colorCategoria(c.id).tinta : Cv.line,
+                              width: _filtro == c.id ? 1.5 : 1,
+                            ),
                             labelStyle: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: _filtro == c.id ? Colors.white : Cv.ink,
+                              fontWeight: FontWeight.w700,
+                              color: _filtro == c.id ? _colorCategoria(c.id).tinta : Cv.ink,
                             ),
                             onSelected: (_) {
                               setState(() => _filtro = c.id);
@@ -184,34 +187,19 @@ class _ForoScreenState extends State<ForoScreen> {
                     child: _mensajes.isEmpty
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(24),
-                            children: [
-                              const SizedBox(height: 32),
-                              Center(
-                                child: Container(
-                                  width: 88,
-                                  height: 88,
-                                  decoration: const BoxDecoration(color: Cv.verdeSoft, shape: BoxShape.circle),
-                                  child: const Icon(Icons.forum, size: 42, color: Cv.verdeInk),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Estrena el foro',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.headlineSmall,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Nadie ha escrito todavía. Cuenta cómo te fue en tu parche o qué mejorarías de la app.',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Cv.inkMuted),
+                            padding: rellenoAncho(context, arriba: 24, abajo: 24),
+                            children: const [
+                              EstadoVacio(
+                                emoji: '💬',
+                                fondo: Cv.brisaVerde,
+                                titulo: 'Estrena el foro',
+                                texto: 'Nadie ha escrito todavía. Cuenta cómo te fue en tu parche o qué mejorarías de la app.',
                               ),
                             ],
                           )
                         : ListView.separated(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                            padding: rellenoAncho(context, arriba: 8, abajo: 12),
                             itemCount: _mensajes.length,
                             separatorBuilder: (_, __) => const SizedBox(height: 10),
                             itemBuilder: (_, i) => _Mensaje(
@@ -290,7 +278,7 @@ class _Mensaje extends StatelessWidget {
               backgroundColor: col.tinta,
               child: Text(
                 mensaje.nombre.isEmpty ? '?' : mensaje.nombre[0].toUpperCase(),
-                style: const TextStyle(fontFamily: 'BarlowCondensed', fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white),
+                style: const TextStyle(fontFamily: Cv.display, fontSize: 19, fontWeight: FontWeight.w800, color: Colors.white),
               ),
             ),
             const SizedBox(width: 12),
@@ -357,70 +345,66 @@ class _Redactor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Cv.surfaceRaised,
-      elevation: 8,
-      shadowColor: Colors.black26,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return BarraInferior(
+      relleno: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
             children: [
-              Wrap(
-                spacing: 8,
-                children: [
-                  for (final c in categorias)
-                    ChoiceChip(
-                      avatar: Icon(
-                        _iconoCategoria(c.id),
-                        size: 16,
-                        color: categoria == c.id ? Colors.white : _colorCategoria(c.id).tinta,
-                      ),
-                      label: Text(c.nombre),
-                      selected: categoria == c.id,
-                      selectedColor: _colorCategoria(c.id).tinta,
-                      labelStyle: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: categoria == c.id ? Colors.white : Cv.ink,
-                      ),
-                      onSelected: (_) => onCategoria(c.id),
-                    ),
-                ],
+              for (final c in categorias)
+                ChoiceChip(
+                  avatar: Icon(_iconoCategoria(c.id), size: 16, color: _colorCategoria(c.id).tinta),
+                  label: Text(c.nombre),
+                  selected: categoria == c.id,
+                  selectedColor: _colorCategoria(c.id).suave,
+                  side: BorderSide(
+                    color: categoria == c.id ? _colorCategoria(c.id).tinta : Cv.line,
+                    width: categoria == c.id ? 1.5 : 1,
+                  ),
+                  labelStyle: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: categoria == c.id ? _colorCategoria(c.id).tinta : Cv.ink,
+                  ),
+                  onSelected: (_) => onCategoria(c.id),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  minLines: 1,
+                  maxLines: 4,
+                  maxLength: 500,
+                  textInputAction: TextInputAction.newline,
+                  decoration: const InputDecoration(
+                    hintText: '¿Cómo te fue? ¿Qué mejorarías?',
+                    counterText: '',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  ),
+                ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: controller,
-                      minLines: 1,
-                      maxLines: 4,
-                      maxLength: 500,
-                      textInputAction: TextInputAction.newline,
-                      decoration: const InputDecoration(
-                        hintText: '¿Cómo te fue? ¿Qué mejorarías?',
-                        counterText: '',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    onPressed: ocupado ? null : onEnviar,
-                    style: IconButton.styleFrom(backgroundColor: Cv.ink, minimumSize: const Size(48, 48)),
-                    icon: const Icon(Icons.send, size: 20, color: Colors.white),
-                    tooltip: 'Publicar',
-                  ),
-                ],
+              const SizedBox(width: 8),
+              IconButton.filled(
+                onPressed: ocupado ? null : onEnviar,
+                style: IconButton.styleFrom(
+                  backgroundColor: Cv.verdeInk,
+                  disabledBackgroundColor: Cv.line,
+                  minimumSize: const Size(48, 48),
+                ),
+                icon: const Icon(Icons.send, size: 20, color: Colors.white),
+                tooltip: 'Publicar',
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }

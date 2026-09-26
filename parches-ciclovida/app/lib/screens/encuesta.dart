@@ -6,6 +6,7 @@ import '../models.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
+import '../widgets/diseno.dart';
 import '../widgets/selectores.dart';
 
 /// Después del domingo: ¿fuiste?, ¿cómo te sentiste del 1 al 5?, ¿volverías?
@@ -55,9 +56,26 @@ class _EncuestaScreenState extends State<EncuestaScreen> {
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                padding: rellenoAncho(context, arriba: 8, abajo: 24),
                 children: [
-                  Text('Domingo ${fechaCorta(widget.info.jornadaFecha)} con el $grupo', style: t.bodyMedium?.copyWith(color: Cv.inkMuted)),
+                  BloqueColor(
+                    color: Cv.brisaCoral,
+                    borde: Cv.coralSoft,
+                    relleno: const EdgeInsets.all(14),
+                    radio: Cv.radioMd,
+                    child: Row(
+                      children: [
+                        const IconoBurbuja(Icons.rate_review_outlined, color: Cv.coralInk, fondo: Colors.white, tamano: 44),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Domingo ${fechaCorta(widget.info.jornadaFecha)} con el $grupo',
+                            style: t.titleMedium,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const TituloSeccion('¿Fuiste a la CicloVida con tu parche?'),
                   SiNo(
                     valor: _asistio,
@@ -81,12 +99,11 @@ class _EncuestaScreenState extends State<EncuestaScreen> {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            BarraInferior(
               child: FilledButton(
                 onPressed: _valida && !_enviando ? _enviar : null,
                 child: _enviando
-                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Cv.tealInk))
                     : const Text('Enviar'),
               ),
             ),
@@ -131,13 +148,15 @@ class EscalaBienestar extends StatelessWidget {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: valor == i ? Cv.tealInk : Cv.surfaceRaised,
-                          border: Border.all(color: valor == i ? Cv.tealInk : Cv.line, width: 2),
+                          border: Border.all(color: valor == i ? Cv.tealInk : Cv.lineStrong, width: 2),
+                          boxShadow: valor == i ? Cv.brillo(Cv.tealInk) : null,
                         ),
                         child: Text(
                           '$i',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
+                            fontFamily: Cv.display,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
                             color: valor == i ? Colors.white : Cv.ink,
                           ),
                         ),

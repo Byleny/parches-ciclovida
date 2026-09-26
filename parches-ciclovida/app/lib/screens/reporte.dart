@@ -5,6 +5,7 @@ import '../models.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
+import '../widgets/diseno.dart';
 import '../widgets/selectores.dart';
 
 /// "Reportar un problema": sobre alguien del parche o sobre el grupo.
@@ -15,7 +16,7 @@ Future<String?> abrirReporte(BuildContext context, {required Grupo grupo, requir
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Cv.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Cv.radioLg))),
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Cv.radioXl))),
     builder: (_) => _HojaReporte(grupo: grupo, motivos: motivos),
   );
 }
@@ -72,22 +73,51 @@ class _HojaReporteState extends State<_HojaReporte> {
         shrinkWrap: true,
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         children: [
-          Text('Reportar un problema', style: t.headlineSmall),
-          const SizedBox(height: 6),
-          Text(
-            'Lo lee una persona del equipo, no tu parche. Si es una emergencia, llama al 123.',
-            style: t.bodyMedium?.copyWith(color: Cv.inkMuted),
+          Row(
+            children: [
+              const IconoBurbuja(Icons.flag, color: Cv.rojoInk, fondo: Cv.rojoSoft, tamano: 48),
+              const SizedBox(width: 12),
+              Expanded(child: Text('Reportar un problema', style: t.headlineMedium)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          BloqueColor(
+            color: Cv.brisaRojo,
+            borde: Cv.rojoSoft,
+            relleno: const EdgeInsets.all(14),
+            radio: Cv.radioMd,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.shield_outlined, size: 20, color: Cv.rojoInk),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Lo lee una persona del equipo, no tu parche. Si es una emergencia, llama al 123.',
+                    style: t.bodyMedium?.copyWith(color: Cv.ink),
+                  ),
+                ),
+              ],
+            ),
           ),
           const TituloSeccion('¿Sobre quién?'),
           for (final m in otros)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Seleccionable(titulo: m.nombre, seleccionado: _sobre == m.ref, onTap: () => setState(() => _sobre = m.ref)),
+              child: Seleccionable(
+                titulo: m.nombre,
+                seleccionado: _sobre == m.ref,
+                onTap: () => setState(() => _sobre = m.ref),
+                colorSeleccion: Cv.rojoInk,
+                fondoSeleccion: Cv.brisaRojo,
+              ),
             ),
           Seleccionable(
             titulo: 'El parche en general',
             seleccionado: _sobre == _todoElGrupo,
             onTap: () => setState(() => _sobre = _todoElGrupo),
+            colorSeleccion: Cv.rojoInk,
+            fondoSeleccion: Cv.brisaRojo,
           ),
           const TituloSeccion('¿Qué pasó?'),
           SelectorOpciones(opciones: widget.motivos, valor: _motivo, onChanged: (v) => setState(() => _motivo = v)),
@@ -99,9 +129,11 @@ class _HojaReporteState extends State<_HojaReporte> {
             decoration: const InputDecoration(hintText: 'Si quieres, cuéntanos más (opcional)'),
           ),
           const SizedBox(height: 8),
-          FilledButton(
+          FilledButton.icon(
             onPressed: _sobre != null && _motivo != null && !_enviando ? _enviar : null,
-            child: const Text('Enviar reporte'),
+            style: botonDeColor(Cv.rojoInk),
+            icon: const Icon(Icons.send, size: 20),
+            label: const Text('Enviar reporte'),
           ),
         ],
       ),

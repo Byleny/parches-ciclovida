@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
+import '../widgets/diseno.dart';
 
 /// Transparencia del agrupamiento: qué hace k-means y con qué variables.
 class ComoArmamosScreen extends StatelessWidget {
   const ComoArmamosScreen({super.key});
 
   static const _pasos = [
-    ('Tú eliges el parche', 'Cada semana abrimos un parche por estación, hora y actividad. Tú escoges cuál.', Cv.rojo),
+    ('Tú eliges el parche', 'Cada semana abrimos un parche por estación, hora y actividad. Tú escoges cuál.', Cv.rojoInk),
     (
       'Nadie queda por fuera',
       'El sábado a las 5:00 p. m., si tu parche no llegó a 3 personas, te sumamos al parche compatible más parecido: '
           'misma estación, a pie o sobre ruedas igual que tú y máximo 90 minutos de diferencia. Te lo decimos en la app.',
-      Cv.coral,
+      Cv.coralInk,
     ),
     (
       'K-means arma los grupos',
       'Dentro de cada parche, un algoritmo k-means reparte a la gente en grupos de 3 a 6, idealmente 5, '
           'juntando a quienes se parecen en tres variables.',
-      Cv.verde,
+      Cv.verdeInk,
     ),
-    ('Te avisamos', 'A las 7:00 p. m. te llega tu grupo: primeros nombres, universidad y quién confirmó.', Cv.teal),
+    ('Te avisamos', 'A las 7:00 p. m. te llega tu grupo: primeros nombres, universidad y quién confirmó.', Cv.tealInk),
   ];
 
   static const _variables = [
@@ -42,58 +43,42 @@ class ComoArmamosScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Cómo armamos los grupos')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+          padding: rellenoAncho(context, arriba: 8, abajo: 32),
           children: [
-            for (var i = 0; i < _pasos.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(color: _pasos[i].$3, shape: BoxShape.circle),
-                      child: Text(
-                        '${i + 1}',
-                        style: const TextStyle(fontFamily: 'BarlowCondensed', fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(_pasos[i].$1, style: t.titleMedium),
-                          const SizedBox(height: 2),
-                          Text(_pasos[i].$2, style: t.bodyMedium),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 4),
+            RutaPasos(
+              pasos: [
+                for (var i = 0; i < _pasos.length; i++)
+                  PasoRuta(numero: '${i + 1}', color: _pasos[i].$3, titulo: _pasos[i].$1, texto: _pasos[i].$2),
+              ],
+            ),
+            const SizedBox(height: 24),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const Align(alignment: Alignment.centerLeft, child: Rotulo('Transparencia', color: Cv.teal)),
+                    const SizedBox(height: 8),
                     Text('Las variables de k-means', style: t.headlineSmall),
                     const SizedBox(height: 4),
                     Text('Solo estas, cada una de 0 a 1 multiplicada por su peso:', style: t.bodySmall),
                     const SizedBox(height: 10),
                     for (final v in _variables)
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(v.$1, style: t.titleMedium),
-                            Text(v.$2, style: t.bodyMedium),
-                          ],
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        child: BloqueColor(
+                          color: Cv.brisaTeal,
+                          relleno: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                          radio: Cv.radioMd,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(v.$1, style: t.titleMedium?.copyWith(color: Cv.tealInk)),
+                              const SizedBox(height: 2),
+                              Text(v.$2, style: t.bodyMedium),
+                            ],
+                          ),
                         ),
                       ),
                   ],

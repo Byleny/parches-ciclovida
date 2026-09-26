@@ -397,7 +397,7 @@ class _InicioScreenState extends State<InicioScreen> {
         onRefresh: _cargar,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+          padding: rellenoAncho(context, arriba: 4, abajo: 32),
           children: _animar(_contenido()),
         ),
       ),
@@ -738,7 +738,6 @@ class _Encabezado extends StatelessWidget {
                   Rotulo(
                     dias != null && dias <= 0 ? 'Hoy' : (dias == 1 ? 'Mañana' : 'Este domingo'),
                     color: Cv.coral,
-                    claro: true,
                   ),
                   const SizedBox(height: 8),
                   if (nombre != null)
@@ -746,25 +745,25 @@ class _Encabezado extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text('Hola, $nombre',
-                              overflow: TextOverflow.ellipsis, style: t.titleMedium?.copyWith(color: Colors.white70)),
+                              overflow: TextOverflow.ellipsis, style: t.titleMedium?.copyWith(color: Cv.inkMuted)),
                         ),
                         const SizedBox(width: 6),
-                        const Icon(Icons.verified, size: 18, color: Colors.white, semanticLabel: 'Estudiante verificado'),
+                        const Icon(Icons.verified, size: 18, color: Cv.tealInk, semanticLabel: 'Estudiante verificado'),
                       ],
                     ),
                   Text(
                     capitalizar(fechaLarga(estado.jornadaFecha)),
-                    style: t.headlineLarge?.copyWith(color: Colors.white, height: 0.95),
+                    style: t.headlineLarge,
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.schedule, size: 16, color: Colors.white70),
+                      const Icon(Icons.schedule, size: 16, color: Cv.coralInk),
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(
                           'CicloVida de ${horaBonita(estado.inicio)} a ${horaBonita(estado.fin)}',
-                          style: t.bodySmall?.copyWith(color: Colors.white70),
+                          style: t.bodySmall?.copyWith(color: Cv.ink, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -865,47 +864,41 @@ class _TarjetaElegir extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FondoCarril(
-      intensidad: 0.7,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Rotulo('Tu domingo', color: Cv.verde, claro: true),
-                const SizedBox(height: 8),
-                Text(
-                  'Todavía no tienes parche',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Deja que el match te una al parche con gente de tu hora, tu estación y tu actividad, '
-                  'o escoge uno tú en las 12 estaciones.',
-                  style: TextStyle(fontSize: 16, height: 1.4, color: Colors.white),
-                ),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: ocupado ? null : onBuscarMatch,
-                  style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Cv.ink),
-                  icon: const Icon(Icons.auto_awesome, size: 20),
-                  label: const Text('Buscar mi parche por mí'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: ocupado ? null : onVerTodos,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white70, width: 2),
-                  ),
-                  child: const Text('Elegir yo mismo'),
-                ),
-              ],
+      colores: const [Cv.surfaceRaised, Cv.brisaVerde],
+      intensidad: 0.8,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Rotulo('Tu domingo', color: Cv.verde),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.only(right: 56),
+              child: Text('Todavía no tienes parche', style: Theme.of(context).textTheme.headlineMedium),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            const Padding(
+              padding: EdgeInsets.only(right: 56),
+              child: Text(
+                'Deja que el match te una al parche con gente de tu hora, tu estación y tu actividad, '
+                'o escoge uno tú en las 12 estaciones.',
+                style: TextStyle(fontSize: 16, height: 1.45, color: Cv.inkMuted),
+              ),
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: ocupado ? null : onBuscarMatch,
+              icon: const Icon(Icons.auto_awesome, size: 20),
+              label: const Text('Buscar mi parche por mí'),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton(
+              onPressed: ocupado ? null : onVerTodos,
+              child: const Text('Elegir yo mismo'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -931,7 +924,7 @@ class _InvitacionChat extends StatelessWidget {
           children: [
             Row(
               children: [
-                const CircleAvatar(radius: 20, backgroundColor: Cv.ink, child: Icon(Icons.forum, color: Colors.white, size: 20)),
+                const IconoBurbuja(Icons.forum, color: Cv.coralInk, fondo: Cv.coralSoft, tamano: 44),
                 const SizedBox(width: 12),
                 Expanded(child: Text('¿Deseas unirte al chat de tu parche?', style: t.titleMedium)),
               ],
@@ -982,7 +975,7 @@ class _TarjetaChat extends StatelessWidget {
       child: ListTile(
         onTap: onAbrir,
         contentPadding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
-        leading: const CircleAvatar(radius: 20, backgroundColor: Cv.tealSoft, child: Icon(Icons.forum, color: Cv.tealInk, size: 20)),
+        leading: const IconoBurbuja(Icons.forum, color: Cv.coralInk, fondo: Cv.coralSoft, tamano: 44),
         title: const Text('Chat del parche', style: TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text('$enElChat en el chat · toca para abrir'),
         trailing: const Icon(Icons.chevron_right),
@@ -1010,7 +1003,7 @@ class _TarjetaQuiz extends StatelessWidget {
           children: [
             Row(
               children: [
-                const CircleAvatar(radius: 20, backgroundColor: Cv.coralInk, child: Icon(Icons.local_drink, color: Colors.white, size: 22)),
+                const IconoBurbuja(Icons.local_drink, color: Cv.coralInk, fondo: Colors.white, tamano: 46),
                 const SizedBox(width: 12),
                 Expanded(child: Text('¿Jugo con el parche o directo a casa?', style: t.titleMedium?.copyWith(color: Cv.coralInk))),
               ],
@@ -1026,7 +1019,7 @@ class _TarjetaQuiz extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: FilledButton(
                 onPressed: onResponder,
-                style: FilledButton.styleFrom(backgroundColor: Cv.coralInk, minimumSize: const Size(0, 46), padding: const EdgeInsets.symmetric(horizontal: 20)),
+                style: botonDeColor(Cv.coralInk, minimo: const Size(0, 46), relleno: const EdgeInsets.symmetric(horizontal: 20)),
                 child: Text(titulo),
               ),
             ),
@@ -1060,7 +1053,7 @@ class _TarjetaEncuesta extends StatelessWidget {
             const SizedBox(height: 14),
             FilledButton(
               onPressed: onTap,
-              style: FilledButton.styleFrom(backgroundColor: Cv.coralInk),
+              style: botonDeColor(Cv.coralInk),
               child: const Text('Responder'),
             ),
           ],
@@ -1083,17 +1076,18 @@ class _TarjetaPreferencias extends StatelessWidget {
     final tramo = perfil.tramoId == null ? null : cat.tramo(perfil.tramoId!);
     final comuna = cat.comuna(perfil.comuna);
     final barrios = comuna == null || comuna.barrios.isEmpty ? '' : ' · ${comuna.barrios.take(2).join(', ')}…';
-    final filas = <(String, String)>[
-      if (perfil.universidad.isNotEmpty) ('Estudias en', perfil.universidad),
-      ('Estación', tramo == null ? 'Cualquiera' : '${tramo.nombre} · ${tramo.referencia}'),
-      ('Hora', perfil.franja == null ? 'Cualquiera' : cat.nombreDe(cat.franjas, perfil.franja!)),
-      ('Actividad', cat.nombreDe(cat.actividades, perfil.actividad)),
-      ('Ritmo', cat.nombreDe(cat.ritmos, perfil.ritmo)),
-      ('Vives en', 'Comuna ${perfil.comuna}$barrios'),
+    final col = coloresDe(perfil.actividad);
+    final filas = <(IconData, String, String)>[
+      if (perfil.universidad.isNotEmpty) (Icons.school_outlined, 'Estudias en', perfil.universidad),
+      (Icons.place_outlined, 'Estación', tramo == null ? 'Cualquiera' : '${tramo.nombre} · ${tramo.referencia}'),
+      (Icons.schedule, 'Hora', perfil.franja == null ? 'Cualquiera' : cat.nombreDe(cat.franjas, perfil.franja!)),
+      (iconoDe(perfil.actividad), 'Actividad', cat.nombreDe(cat.actividades, perfil.actividad)),
+      (Icons.speed, 'Ritmo', cat.nombreDe(cat.ritmos, perfil.ritmo)),
+      (Icons.home_outlined, 'Vives en', 'Comuna ${perfil.comuna}$barrios'),
     ];
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 12, 14),
+        padding: const EdgeInsets.fromLTRB(18, 14, 12, 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1103,13 +1097,23 @@ class _TarjetaPreferencias extends StatelessWidget {
                 TextButton(onPressed: onCambiar, child: const Text('Cambiar')),
               ],
             ),
+            const SizedBox(height: 4),
             for (final f in filas)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 5),
                 child: Row(
                   children: [
-                    SizedBox(width: 96, child: Text(f.$1, style: t.bodySmall)),
-                    Expanded(child: Text(f.$2, style: t.bodyMedium)),
+                    IconoBurbuja(f.$1, color: col.tinta, fondo: col.suave, tamano: 34),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(f.$2, style: t.bodySmall),
+                          Text(f.$3, style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),

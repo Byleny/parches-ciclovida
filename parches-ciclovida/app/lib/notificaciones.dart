@@ -8,6 +8,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'config.dart';
 import 'theme.dart';
+import 'widgets/diseno.dart';
 
 /// Qué abrir cuando alguien toca una notificación.
 class Toque {
@@ -206,37 +207,40 @@ class _TarjetaAviso extends StatelessWidget {
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Material(
-            color: Cv.surfaceRaised,
-            elevation: 8,
-            shadowColor: Colors.black26,
-            borderRadius: BorderRadius.circular(Cv.radioLg),
-            child: InkWell(
+          child: MarcoAncho(
+            maximo: 480,
+            child: Material(
+              color: Cv.surfaceRaised,
+              elevation: 8,
+              shadowColor: Cv.velo,
               borderRadius: BorderRadius.circular(Cv.radioLg),
-              onTap: alTocar,
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.asset('assets/img/ciclovida.png', width: 40, height: 40, fit: BoxFit.cover),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Parches CicloVida · ahora', style: TextStyle(fontSize: 12, color: Cv.inkMuted)),
-                          const SizedBox(height: 2),
-                          Text(aviso.titulo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Cv.ink)),
-                          const SizedBox(height: 2),
-                          Text(aviso.cuerpo, style: const TextStyle(fontSize: 14, color: Cv.ink)),
-                        ],
+              child: InkWell(
+                borderRadius: BorderRadius.circular(Cv.radioLg),
+                onTap: alTocar,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset('assets/img/ciclovida.png', width: 40, height: 40, fit: BoxFit.cover),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Parches CicloVida · ahora', style: TextStyle(fontSize: 12, color: Cv.inkMuted)),
+                            const SizedBox(height: 2),
+                            Text(aviso.titulo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Cv.ink)),
+                            const SizedBox(height: 2),
+                            Text(aviso.cuerpo, style: const TextStyle(fontSize: 14, color: Cv.ink)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
