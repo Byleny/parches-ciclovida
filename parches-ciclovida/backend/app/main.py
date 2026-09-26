@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import threading
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
@@ -30,6 +31,13 @@ from .db import engine, get_session, init_db
 from .models import Grupo, Joven, Notificacion, Reporte
 
 log = logging.getLogger("parches")
+if not log.handlers:
+    # uvicorn solo configura sus propios logs: sin esto, los avisos de la app (carga inicial, bot)
+    # no se ven en la consola ni en los logs de Render
+    _salida = logging.StreamHandler()
+    _salida.setFormatter(logging.Formatter("%(levelname)s:     %(message)s"))
+    log.addHandler(_salida)
+    log.setLevel(logging.INFO)
 STATIC = Path(__file__).resolve().parent.parent / "static"
 
 
@@ -46,6 +54,33 @@ def _tick_telegram() -> None:
         telegram.procesar_updates(s)
 
 
+def _sembrar_si_vacia() -> None:
+    """Base recién creada (en Render, cada vez que el servidor reinicia): carga los simulados."""
+    with Session(engine) as s:
+        if s.exec(select(Joven.id)).first():
+            return
+    from . import seed
+
+    log.info("Base vacía: cargando los jóvenes simulados…")
+    try:
+        log.info("Datos simulados listos: %s", seed.sembrar())
+    except Exception:
+        log.exception("No se pudieron cargar los datos simulados")
+
+
+def _arrancar(scheduler) -> None:
+    """Carga inicial (si se pidió) y después el reloj de la semana, para que el tick no corra
+    mientras se siembran los domingos simulados."""
+    if config.SEMBRAR_AL_INICIAR:
+        _sembrar_si_vacia()
+    if scheduler is None:
+        return
+    scheduler.add_job(_tick, "interval", minutes=5, id="tick", next_run_time=services.ahora().replace(tzinfo=config.TZ))
+    if telegram.iniciar():  # valida el token, resuelve el @ del bot y registra su menú
+        scheduler.add_job(_tick_telegram, "interval", seconds=5, id="telegram", max_instances=1, coalesce=True)
+    scheduler.start()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -54,12 +89,14 @@ async def lifespan(app: FastAPI):
         from apscheduler.schedulers.background import BackgroundScheduler
 
         scheduler = BackgroundScheduler(timezone=config.TZ)
-        scheduler.add_job(_tick, "interval", minutes=5, id="tick", next_run_time=services.ahora().replace(tzinfo=config.TZ))
-        if telegram.iniciar():  # valida el token, resuelve el @ del bot y registra su menú
-            scheduler.add_job(_tick_telegram, "interval", seconds=5, id="telegram", max_instances=1, coalesce=True)
-        scheduler.start()
+    if config.SEMBRAR_AL_INICIAR:
+        # la carga tarda: va en otro hilo para que el servidor abra el puerto de una vez (Render
+        # da por caído un servicio que no responde a tiempo)
+        threading.Thread(target=_arrancar, args=(scheduler,), daemon=True, name="arranque").start()
+    else:
+        _arrancar(scheduler)
     yield
-    if scheduler:
+    if scheduler and scheduler.running:
         scheduler.shutdown(wait=False)
 
 
@@ -692,6 +729,12 @@ def tablero_resumen(fecha: date | None = Query(default=None), session: Session =
 @app.get("/")
 def raiz():
     return RedirectResponse("/tablero/")
+
+
+@app.get("/api/salud")
+def salud():
+    """Para el health check de Render: responde apenas el servidor está arriba."""
+    return {"ok": True}
 
 
 app.mount("/tablero", StaticFiles(directory=STATIC / "tablero", html=True), name="tablero")

@@ -27,8 +27,13 @@ _cargar_env()
 TZ = ZoneInfo("America/Bogota")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./parches.db")
-ADMIN_KEY = os.getenv("ADMIN_KEY", "dedsec-demo")
+# `or`: una variable definida pero vacía (p. ej. en Render) no deja la clave en blanco
+ADMIN_KEY = os.getenv("ADMIN_KEY") or "dedsec-demo"
 SCHEDULER_ON = os.getenv("SCHEDULER", "1") == "1"
+
+# Si la base arranca vacía, carga los jóvenes simulados al iniciar. En Render el disco se borra en
+# cada despliegue o reinicio: así la demo nunca sale en blanco.
+SEMBRAR_AL_INICIAR = os.getenv("SEMBRAR_AL_INICIAR", "0") == "1"
 
 GRUPO_MIN = int(os.getenv("GRUPO_MIN", "3"))
 GRUPO_OBJETIVO = int(os.getenv("GRUPO_OBJETIVO", "5"))

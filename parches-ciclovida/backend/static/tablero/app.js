@@ -23,8 +23,12 @@
   const conteo = (c) => (c.suprimido ? `<${datos.anonimato.k_conteo}` : fmt.format(c.valor));
   const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
+  // Servido por el backend, la API está en el mismo sitio; desplegado aparte (Render), config.js
+  // trae la dirección del backend.
+  const API = String(window.PARCHES_API || '').replace(/\/+$/, '');
+
   async function getJSON(url) {
-    const r = await fetch(url);
+    const r = await fetch(API + url);
     if (!r.ok) throw new Error(`${url}: ${r.status}`);
     return r.json();
   }

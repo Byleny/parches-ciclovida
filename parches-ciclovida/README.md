@@ -356,7 +356,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 - Reporte del emparejamiento: `python -m app.reporte` (ver "Datos simulados y reporte del emparejamiento")
 - Pruebas: `pytest` (64 pruebas: k-means, correo institucional, flujo completo, anonimato, reportes, permisos, match, bot de Telegram, datos simulados, reporte y chat del parche)
 
-Variables útiles: `ADMIN_KEY` (por defecto `dedsec-demo`), `SECRETO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `CORREO_DEMO`, `PERMITIR_MENORES`, `REPORTES_PARA_SUSPENDER`, `K_CONTEO`, `GRUPO_MIN`, `GRUPO_MAX`, `PESO_QUIZ`, `DATABASE_URL`, `ESPERA_MINUTOS`, `TELEGRAM_TOKEN`, `TELEGRAM_BOT`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `FORO_MAX`, `CHAT_MAX_SIMULADOS`, `CHAT_PAUSA_SEG`, `CHAT_CHARLA_SEG`, `CHAT_CHARLA_MAX`, `CLIMA`.
+Variables útiles: `ADMIN_KEY` (por defecto `dedsec-demo`), `SECRETO`, `SEMBRAR_AL_INICIAR` (carga los simulados si la base arranca vacía), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `CORREO_DEMO`, `PERMITIR_MENORES`, `REPORTES_PARA_SUSPENDER`, `K_CONTEO`, `GRUPO_MIN`, `GRUPO_MAX`, `PESO_QUIZ`, `DATABASE_URL`, `ESPERA_MINUTOS`, `TELEGRAM_TOKEN`, `TELEGRAM_BOT`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `FORO_MAX`, `CHAT_MAX_SIMULADOS`, `CHAT_PAUSA_SEG`, `CHAT_CHARLA_SEG`, `CHAT_CHARLA_MAX`, `CLIMA`.
 
 ### 2. App Flutter (Flutter 3.38.1 o más)
 
@@ -389,6 +389,49 @@ flutter run -d chrome
 La IP también se puede cambiar dentro de la app: botón "Servidor" en la bienvenida o Ajustes > Dirección del servidor.
 
 Probado con Flutter 3.38.9: `flutter analyze` sin problemas, `flutter test` pasa y la versión web completa el flujo de registro, elección de parche y grupos del sábado contra el backend. Android e iOS no se han probado en un dispositivo.
+
+### 3. Desplegar en Render (backend, app y tablero)
+
+`render.yaml`, en la raíz del repositorio (un nivel arriba de esta carpeta), describe tres servicios
+del plan gratis:
+
+| Servicio | Tipo | Qué es | Dirección por defecto |
+|---|---|---|---|
+| `parches-backend` | Web service (Python) | API, bot de Telegram y el reloj de la semana | `https://parches-backend.onrender.com` |
+| `parches-app` | Sitio estático | La app Flutter compilada para web (sirve en el celular) | `https://parches-app.onrender.com` |
+| `parches-tablero` | Sitio estático | El tablero de la Secretaría | `https://parches-tablero.onrender.com` |
+
+Pasos:
+
+1. Sube los cambios a GitHub. En Render: **New > Blueprint**, elige el repositorio y Render lee
+   `render.yaml`.
+2. Render pide las variables sin valor. Todas se pueden dejar vacías:
+   - `ADMIN_KEY`: vacía queda `dedsec-demo`, la que trae la app para el chip **Demo**. Si pones otra,
+     escríbela en la app en Ajustes > Herramientas de demo.
+   - `TELEGRAM_TOKEN` y `GEMINI_API_KEY`: opcionales. Un token de Telegram solo lo puede usar un
+     backend a la vez, así que si lo pones aquí, quítalo del `.env` de los computadores.
+   - `API_URL` (en la app y en el tablero): la URL pública del backend. Vacía usa
+     `https://parches-backend.onrender.com`.
+3. Cuando termine, revisa la URL real del backend en su página de Render. Si no es
+   `https://parches-backend.onrender.com` (Render le agrega letras si el nombre está ocupado), pon
+   esa URL en `API_URL` de `parches-app` y de `parches-tablero`, y vuelve a desplegarlos
+   (**Manual Deploy > Deploy latest commit**).
+
+Cómo queda cada uno:
+
+- **Backend.** Usa SQLite en el disco del servicio, que Render borra en cada despliegue, en cada
+  reinicio y cuando el plan gratis lo duerme. Al arrancar con la base vacía carga solo los 1.500
+  jóvenes simulados (`SEMBRAR_AL_INICIAR=1`, unos 20 s; en los logs sale "Datos simulados listos").
+  Las cuentas creadas en la demo se pierden cuando el servicio duerme o se redespliega.
+- **Plan gratis.** El backend se duerme tras 15 minutos sin visitas. La primera petición después
+  tarda cerca de un minuto: si la app muestra "No pudimos conectarnos", toca **Reintentar**. Antes
+  de presentar, abre `https://<backend>/api/salud` y espera el `{"ok":true}`. Mientras duerme,
+  tampoco corren el bot ni el reloj de la semana, y un mensaje de Telegram no lo despierta.
+- **App.** Render no trae Flutter: `app/tool/render_build.sh` descarga Flutter 3.38.9 y compila con
+  `--dart-define=API_URL=…`. El primer despliegue tarda varios minutos. Con HTTPS, "Cómo llego" sí
+  puede pedir la ubicación en el celular. Se puede agregar a la pantalla de inicio como una app.
+- **Tablero.** Es la misma carpeta `backend/static/tablero`: al construirse, Render escribe
+  `config.js` con la dirección del backend. En local lo sigue sirviendo el backend en `/tablero/`.
 
 ## Guion de demo (3 minutos)
 
