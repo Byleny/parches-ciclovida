@@ -485,7 +485,8 @@ def test_gemini_reintenta_ante_503_y_cambia_de_modelo(monkeypatch):
         asistente._llamar_gemini({})
 
 
-def test_asistente_no_une_si_ya_tiene_otro_parche():
+def test_asistente_cambia_de_parche_solo_con_confirmacion():
+    """El bot cambia de parche él mismo, pero el servidor exige la confirmación, como el diálogo de la app."""
     from app import asistente
 
     with TestClient(app) as c:
@@ -495,13 +496,49 @@ def test_asistente_no_une_si_ya_tiene_otro_parche():
         unir(c, ana_tok, p1["id"])
         with Session(engine) as s:
             ana = s.exec(select(Joven).where(Joven.nombre == "Ana")).one()
+            # sin confirmar: no la mueve, y le dice a Gemini que pregunte
             r = asistente.ejecutar(s, ana, "unirme_a_parche", {"parche_id": p2["id"]})
-            assert r["ok"] is False and "app" in r["motivo"]
+            assert r["ok"] is False and r["requiere_confirmacion"] and r["parche_actual"]["parche_id"] == p1["id"]
+        assert estado(c, ana_tok)["salida"]["id"] == p1["id"]
+
+        with Session(engine) as s:
+            ana = s.exec(select(Joven).where(Joven.nombre == "Ana")).one()
+            # confirmado: la cambia de verdad
+            r = asistente.ejecutar(s, ana, "unirme_a_parche", {"parche_id": p2["id"], "confirmo_cambio": True})
+            assert r["ok"] is True and r["cambio_de_parche"] is True
             r = asistente.ejecutar(s, ana, "funcion_inventada", {})
             assert r["ok"] is False
             r = asistente.ejecutar(s, ana, "buscar_parches", {"estacion": "Marte"})
             assert "error" in r and "Panamericana" in r["estaciones"]
+        assert estado(c, ana_tok)["salida"]["id"] == p2["id"]
+
+
+def test_bot_cambia_de_parche_con_botones(monkeypatch):
+    from app import telegram
+
+    enviados: list[tuple[str, str, list | None]] = []
+    monkeypatch.setattr(telegram, "enviar", lambda chat, texto, botones=None: enviados.append((chat, texto, botones)))
+    with TestClient(app) as c:
+        ana_tok = nuevo(c, "Ana")
+        p1 = parche(c, ana_tok, franja="08:00")
+        p2 = parche(c, ana_tok, franja="11:00")
+        unir(c, ana_tok, p1["id"])
+        with Session(engine) as s:
+            ana = s.exec(select(Joven).where(Joven.nombre == "Ana")).one()
+            ana.telegram_chat_id = "999"
+            s.add(ana)
+            s.commit()
+            # tocar "unir" a otro parche pide confirmar con dos botones
+            telegram.atender_boton(s, "999", f"unir:{p2['id']}")
+            assert p1["nombre"] in enviados[-1][1]
+            assert enviados[-1][2] == [[("✅ Sí, cámbiame", f"cambiar:{p2['id']}"), ("Me quedo", "quedarme")]]
+            # "Me quedo" no cambia nada
+            telegram.atender_boton(s, "999", "quedarme")
         assert estado(c, ana_tok)["salida"]["id"] == p1["id"]
+        with Session(engine) as s:
+            telegram.atender_boton(s, "999", f"cambiar:{p2['id']}")
+            assert "cambié" in enviados[-1][1]
+        assert estado(c, ana_tok)["salida"]["id"] == p2["id"]
 
 
 def test_enlaces_de_telegram_conservan_el_codigo(monkeypatch):

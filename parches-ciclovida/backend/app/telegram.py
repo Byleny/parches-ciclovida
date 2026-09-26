@@ -52,7 +52,8 @@ AYUDA = (
 )
 AYUDA_CONVERSACION = (
     "También puedes escribirme normal, como a un parcero 🗣️ Por ejemplo: «quiero trotar el domingo "
-    "temprano», «¿quién va conmigo?» o «publica en el foro que me encantó el parche»."
+    "temprano», «¿quién va conmigo?», «cámbiame al parche de las 8» o «publica en el foro que me encantó "
+    "el parche»."
 )
 
 
@@ -262,12 +263,16 @@ def _conversar(session: Session, chat_id: str, joven: Joven, texto: str) -> None
         return
     botones: Botones = []
     # Los parches que el asistente mencionó también quedan como botones, por si es más fácil tocar.
-    if mostrados and services.estado_para(session, joven)["estado"] not in ("inscrito", "asignado"):
+    if mostrados:
+        info = services.estado_para(session, joven)
+        actual = (info.get("salida") or {}).get("id")
+        tiene = info["estado"] in ("inscrito", "asignado")
+        verbo = "Cambiarme a" if tiene else "Unirme a"
         vistos: set[int] = set()
         for p in mostrados:
-            if p["parche_id"] not in vistos and len(vistos) < 3:
+            if p["parche_id"] not in vistos and p["parche_id"] != actual and len(vistos) < 3:
                 vistos.add(p["parche_id"])
-                botones.append([(f"Unirme a {p['nombre']} · {p['hora']}", f"unir:{p['parche_id']}")])
+                botones.append([(f"{verbo} {p['nombre']} · {p['hora']}", f"unir:{p['parche_id']}")])
     enviar(chat_id, asistente.a_html(respuesta), botones or None)
 
 
@@ -285,6 +290,10 @@ def atender_boton(session: Session, chat_id: str, data: str, message_id: int | N
     accion, _, valor = data.partition(":")
     if accion == "unir" and valor.isdigit():
         _unirse(session, chat_id, joven, int(valor))
+    elif accion == "cambiar" and valor.isdigit():
+        _unirse(session, chat_id, joven, int(valor), confirmado=True)
+    elif accion == "quedarme":
+        enviar(chat_id, "Perfecto, sigues en tu parche 👍")
     elif accion == "opciones":
         _enviar_opciones(session, chat_id, joven)
     elif accion == "esperar":
@@ -377,14 +386,18 @@ def _enviar_opciones(session: Session, chat_id: str, joven: Joven) -> None:
     enviar(chat_id, "Otras opciones que te pueden servir:\n\n" + "\n\n".join(lineas), botones)
 
 
-def _unirse(session: Session, chat_id: str, joven: Joven, salida_id: int) -> None:
+def _unirse(session: Session, chat_id: str, joven: Joven, salida_id: int, confirmado: bool = False) -> None:
     from . import services
 
     info = services.estado_para(session, joven)
-    actual = (info.get("salida") or {}).get("id")
-    if info["estado"] in ("inscrito", "asignado") and actual != salida_id:
-        # Cambiarse de parche deja un lugar libre en un grupo: esa decisión se toma en la app.
-        enviar(chat_id, "Ya estás en otro parche. Si quieres cambiarte, hazlo desde la app.")
+    actual = info.get("salida")
+    cambio = info["estado"] in ("inscrito", "asignado") and actual is not None and actual["id"] != salida_id
+    if cambio and not confirmado:
+        # Igual que el diálogo de la app: cambiarse deja un cupo libre, así que se confirma con un toque.
+        grupo = " y de tu grupo" if info["estado"] == "asignado" else ""
+        enviar(chat_id, f"Ahora estás en el <b>{h(actual['nombre'])}</b>. Si te cambias, sales de ese parche{grupo} "
+                        "y tu cupo queda libre para alguien más. ¿Te cambio?",
+               [[("✅ Sí, cámbiame", f"cambiar:{salida_id}"), ("Me quedo", "quedarme")]])
         return
     try:
         services.unirse(session, joven, salida_id)
@@ -392,7 +405,7 @@ def _unirse(session: Session, chat_id: str, joven: Joven, salida_id: int) -> Non
         enviar(chat_id, h(str(e)))
         return
     info = services.estado_para(session, joven)
-    enviar(chat_id, "¡Listo! Te uniste 🙌\n\n" + _resumen_estado(info))
+    enviar(chat_id, ("¡Listo! Te cambié de parche 🔄" if cambio else "¡Listo! Te uniste 🙌") + "\n\n" + _resumen_estado(info))
 
 
 def _responder(session: Session, chat_id: str, joven: Joven, va: bool) -> None:

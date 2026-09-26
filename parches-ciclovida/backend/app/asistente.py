@@ -66,11 +66,18 @@ HERRAMIENTAS = [
     },
     {
         "name": "unirme_a_parche",
-        "description": "Inscribe al joven en un parche. Solo con un parche_id que haya salido de buscar_parches o "
-                       "ver_mi_estado, y solo cuando el joven lo pidió o aceptó explícitamente.",
+        "description": "Inscribe al joven en un parche, o lo CAMBIA de parche si ya tiene uno. Solo con un "
+                       "parche_id que haya salido de buscar_parches o ver_mi_estado, y solo cuando el joven lo "
+                       "pidió o aceptó. Si ya está en otro parche y aún no confirmó el cambio, devuelve "
+                       "requiere_confirmacion: pregúntale si quiere salir de su parche actual y, cuando diga que "
+                       "sí, vuelve a llamarla con confirmo_cambio=true.",
         "parameters": {
             "type": "OBJECT",
-            "properties": {"parche_id": {"type": "INTEGER"}},
+            "properties": {
+                "parche_id": {"type": "INTEGER"},
+                "confirmo_cambio": {"type": "BOOLEAN",
+                                    "description": "true solo si el joven ya confirmó que quiere salir de su parche actual"},
+            },
             "required": ["parche_id"],
         },
     },
@@ -86,8 +93,9 @@ HERRAMIENTAS = [
     },
     {
         "name": "publicar_en_foro",
-        "description": "Publica un mensaje en el foro comunal con el primer nombre del joven. Antes de usarla, "
-                       "muéstrale el texto exacto y el tema, y espera a que diga que sí.",
+        "description": "Publica un mensaje en el foro comunal con el primer nombre del joven. Úsala directamente "
+                       "si él dictó el mensaje y pidió publicarlo; si solo contó una idea, propón el texto y "
+                       "publícalo cuando diga que sí.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
@@ -165,19 +173,26 @@ def _buscar_parches(session: Session, joven: Joven, actividad: str | None = None
     return {"parches": [_parche_corto(p) for p in parches[:5]]}
 
 
-def _unirme(session: Session, joven: Joven, parche_id: int) -> dict:
+def _unirme(session: Session, joven: Joven, parche_id: int, confirmo_cambio: bool = False) -> dict:
     from . import services
 
     info = services.estado_para(session, joven)
-    actual = (info.get("salida") or {}).get("id")
-    if info["estado"] in ("inscrito", "asignado") and actual != parche_id:
-        return {"ok": False, "motivo": "Ya está en otro parche. Cambiarse solo se puede desde la app, "
-                                       "porque deja un cupo libre en un grupo."}
+    actual = info.get("salida")
+    if info["estado"] in ("inscrito", "asignado") and actual and actual["id"] != parche_id and not confirmo_cambio:
+        # Igual que el diálogo de la app: cambiarse deja un cupo libre, así que se confirma primero.
+        return {
+            "ok": False, "requiere_confirmacion": True,
+            "parche_actual": _parche_corto(actual),
+            "con_grupo_armado": info["estado"] == "asignado",
+            "mensaje": "Pregúntale si quiere salir de su parche actual (y de su grupo, si ya se armó) para pasarse "
+                       "al nuevo. Si dice que sí, llama de nuevo con confirmo_cambio=true.",
+        }
     try:
         services.unirse(session, joven, int(parche_id))
     except LookupError as e:
         return {"ok": False, "motivo": str(e)}
-    return {"ok": True, **_ver_mi_estado(session, joven)}
+    cambio = bool(actual and actual["id"] != parche_id)
+    return {"ok": True, "cambio_de_parche": cambio, **_ver_mi_estado(session, joven)}
 
 
 def _confirmar(session: Session, joven: Joven, va: bool) -> dict:
@@ -213,7 +228,7 @@ def ejecutar(session: Session, joven: Joven, nombre: str, args: dict) -> dict:
         if nombre == "buscar_parches":
             return _buscar_parches(session, joven, args.get("actividad"), args.get("hora"), args.get("estacion"))
         if nombre == "unirme_a_parche":
-            return _unirme(session, joven, int(args["parche_id"]))
+            return _unirme(session, joven, int(args["parche_id"]), bool(args.get("confirmo_cambio", False)))
         if nombre == "confirmar_asistencia":
             return _confirmar(session, joven, bool(args["va"]))
         if nombre == "publicar_en_foro":
@@ -243,13 +258,20 @@ arma grupos de 3 a 6 dentro de cada parche según ritmo, edad y experiencia, y d
 Hablas con {joven.nombre}.
 
 Reglas:
+- Tú mismo haces las cosas desde el chat: unirse a un parche, cambiarse de parche, confirmar si va y publicar
+  en el foro. Nunca le digas que tiene que ir a la app para eso. La app solo hace falta para leer el foro,
+  ver el mapa o borrar sus datos.
 - Nunca inventes parches, horarios, estaciones ni personas. Para cualquier dato usa las funciones.
 - Antes de unir a alguien a un parche, asegúrate de que lo pidió o lo aceptó. Si está en espera y no sabe qué
   hacer, propónle el parche que más se ajusta y pregúntale si lo quiere.
-- Cambiarse de un parche a otro es solo desde la app; explícalo si lo pide.
-- Para publicar en el foro, muestra el texto exacto y el tema, y publica solo cuando diga que sí. Leer el foro
-  es en la app. Los temas se llaman «Mis parches», «La app» y «Cómo me siento»: di siempre esos nombres,
-  nunca los identificadores internos (parches, app, animo).
+- Cambio de parche: si ya tiene uno y elige otro, confírmale en una frase que sale de su parche actual (y de
+  su grupo, si ya se armó) y pregúntale si sigue. Cuando diga que sí, usa unirme_a_parche con
+  confirmo_cambio=true. Si en el mismo mensaje ya pidió claramente el cambio («cámbiame al Ceiba»), hazlo
+  de una con confirmo_cambio=true.
+- Foro: si te dicta el mensaje y te pide publicarlo («publica en el foro que…»), publícalo de una eligiendo
+  el tema. Si solo te cuenta una idea, propón el texto y el tema y publícalo cuando diga que sí. Los temas
+  se llaman «Mis parches», «La app» y «Cómo me siento»: di siempre esos nombres, nunca los identificadores
+  internos (parches, app, animo).
 - Si alguien menciona acoso, riesgo o que se sintió inseguro: toma en serio lo que cuenta, dile que use
   «Reportar un problema» dentro de su parche en la app y que en una emergencia llame al 123.
 - Si alguien cuenta que se siente mal emocionalmente, responde con empatía y sin diagnosticar; sugiérele hablar
