@@ -539,18 +539,35 @@ class MensajeForo {
 
 /// Vínculo con el bot de Telegram para recibir el aviso del match.
 class TelegramInfo {
-  const TelegramInfo({required this.disponible, required this.vinculado, this.enlace, this.bot});
+  const TelegramInfo({
+    required this.disponible,
+    required this.vinculado,
+    this.enlace,
+    this.enlaceWeb,
+    this.codigo,
+    this.bot,
+  });
 
   factory TelegramInfo.fromJson(Json j) => TelegramInfo(
         disponible: j['disponible'] as bool,
         vinculado: j['vinculado'] as bool,
         enlace: j['enlace'] as String?,
+        enlaceWeb: j['enlace_web'] as String?,
+        codigo: j['codigo'] as String?,
         bot: j['bot'] as String?,
       );
 
   final bool disponible;
   final bool vinculado;
+
+  /// t.me: abre la app de Telegram.
   final String? enlace;
+
+  /// Telegram Web con el código incluido: para cuando la app corre en el navegador.
+  final String? enlaceWeb;
+
+  /// Respaldo: se le envía al bot a mano como "/start <código>".
+  final String? codigo;
   final String? bot;
 }
 

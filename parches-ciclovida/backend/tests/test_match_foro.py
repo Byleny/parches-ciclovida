@@ -504,6 +504,20 @@ def test_asistente_no_une_si_ya_tiene_otro_parche():
         assert estado(c, ana_tok)["salida"]["id"] == p1["id"]
 
 
+def test_enlaces_de_telegram_conservan_el_codigo(monkeypatch):
+    """El enlace web va directo a Telegram Web con el código dentro (t.me lo pierde al pasar a la web)."""
+    from urllib.parse import unquote
+
+    from app import config, telegram
+
+    monkeypatch.setattr(config, "TELEGRAM_TOKEN", "123:abc")
+    monkeypatch.setattr(config, "TELEGRAM_BOT", "Parcherito_bot")
+    assert telegram.enlace_para("c0d1g0") == "https://t.me/Parcherito_bot?start=c0d1g0"
+    web = telegram.enlace_web_para("c0d1g0")
+    assert web.startswith("https://web.telegram.org/k/#?tgaddr=")
+    assert unquote(web.split("tgaddr=")[1]) == "tg://resolve?domain=Parcherito_bot&start=c0d1g0"
+
+
 def test_foro_publicar_listar_borrar():
     with TestClient(app) as c:
         ana = nuevo(c, "ana maría")

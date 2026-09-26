@@ -461,8 +461,12 @@ def telegram_estado(joven: Joven = Depends(joven_actual), session: Session = Dep
         joven.telegram_codigo = token_hex(6)
         session.add(joven)
         session.commit()
-    return {"disponible": True, "vinculado": False, "enlace": telegram.enlace_para(joven.telegram_codigo),
-            "bot": config.TELEGRAM_BOT}
+    return {
+        "disponible": True, "vinculado": False, "bot": config.TELEGRAM_BOT,
+        "enlace": telegram.enlace_para(joven.telegram_codigo),  # app de Telegram (celular/escritorio)
+        "enlace_web": telegram.enlace_web_para(joven.telegram_codigo),  # Telegram Web, conserva el código
+        "codigo": joven.telegram_codigo,  # respaldo: enviarlo a mano como "/start <código>"
+    }
 
 
 # ---------------------------------------------------------------- foro comunal

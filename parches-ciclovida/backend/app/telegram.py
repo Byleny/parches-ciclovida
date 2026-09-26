@@ -65,9 +65,25 @@ def disponible() -> bool:
 
 
 def enlace_para(codigo: str) -> str | None:
+    """Enlace para la app de Telegram (celular o escritorio)."""
     if not disponible() or not config.TELEGRAM_BOT:
         return None
     return f"https://t.me/{config.TELEGRAM_BOT}?start={codigo}"
+
+
+def enlace_web_para(codigo: str) -> str | None:
+    """Enlace directo a Telegram Web con el código incluido.
+
+    Si se abre t.me desde el navegador, Telegram intenta abrir la app instalada, y al pasar por
+    «abrir en web» suele perder el ?start=: el botón Start manda /start sin código y no vincula.
+    Con tgaddr, Telegram Web abre el chat del bot conservando el código.
+    """
+    if not disponible() or not config.TELEGRAM_BOT:
+        return None
+    from urllib.parse import quote
+
+    return "https://web.telegram.org/k/#?tgaddr=" + quote(
+        f"tg://resolve?domain={config.TELEGRAM_BOT}&start={codigo}", safe="")
 
 
 def _api(metodo: str, **params):
@@ -188,7 +204,8 @@ def atender(session: Session, chat_id: str, texto: str) -> None:
         elif joven:
             enviar(chat_id, f"Tu cuenta ya está vinculada, {h(joven.nombre)}.\n\n{_ayuda()}")
         else:
-            enviar(chat_id, "Para vincular tu cuenta, abre Parches CicloVida y toca «Conectar Telegram».")
+            enviar(chat_id, "¡Hola! 👋 Para vincular tu cuenta, abre Parches CicloVida, toca «Conectar Telegram» "
+                            "y envíame aquí el código que aparece, así: /start <código>")
         return
 
     if joven is None:
