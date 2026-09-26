@@ -38,6 +38,14 @@ def aviso() -> dict:
                      "nunca aparecen nombres. No vendemos ni compartimos tus datos con nadie más.",
         },
         {
+            "titulo": "Si usas el bot de Telegram",
+            "texto": "Conectar Telegram es opcional. Si le escribes al bot con tus palabras, el texto de esos mensajes, "
+                     "tu primer nombre y tus preferencias de parche se procesan con Gemini, un servicio de Google, "
+                     "solo para entenderte y responderte. No le enviamos tu correo, tu universidad ni datos de otras "
+                     "personas de tu grupo. Si prefieres que no pase por ese servicio, usa los comandos y botones del "
+                     "bot o la app.",
+        },
+        {
             "titulo": "Dato sensible y opcional",
             "texto": "La pregunta de cómo te sentiste puede considerarse un dato sensible. Responderla es opcional: "
                      "puedes enviar la encuesta sin contestarla.",

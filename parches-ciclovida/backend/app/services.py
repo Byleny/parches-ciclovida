@@ -293,11 +293,14 @@ def _afinidad(joven: Joven, s: Salida, gente: list[Joven]) -> tuple:
     )
 
 
-def emparejar_automatico(session: Session, joven: Joven, momento: datetime | None = None) -> dict:
+def emparejar_automatico(
+    session: Session, joven: Joven, momento: datetime | None = None, avisar_telegram: bool = True,
+) -> dict:
     """Une al joven al parche que ya tiene gente con sus mismas características.
 
     Si no existe ninguno, lo deja en lista de espera: el tick lo reintenta cada pocos
-    minutos y le avisa (app y Telegram) apenas aparezca uno.
+    minutos y le avisa (app y Telegram) apenas aparezca uno. Al entrar en espera, si
+    vinculó Telegram, le llega por el chat la propuesta del parche que más se ajusta.
     """
     momento = momento or ahora()
     j = jornada_abierta(session, momento)
@@ -313,6 +316,12 @@ def emparejar_automatico(session: Session, joven: Joven, momento: datetime | Non
     if not session.exec(select(Espera).where(Espera.joven_id == joven.id, Espera.jornada_fecha == j.fecha)).first():
         session.add(Espera(joven_id=joven.id, jornada_fecha=j.fecha))
         session.commit()
+        if avisar_telegram and joven.telegram_chat_id:
+            from . import telegram
+
+            propuesta = telegram.propuesta_para(session, joven)
+            if propuesta:
+                telegram.enviar(joven.telegram_chat_id, *propuesta)
     return {"resultado": "en_espera"}
 
 
@@ -329,14 +338,16 @@ def sugerencias_para(session: Session, joven: Joven, limite: int = 5) -> list[di
     return [salida_json(session, s, joven, gente) for s, gente in pares[:limite]]
 
 
-def notificar(session: Session, joven: Joven, titulo: str, cuerpo: str) -> None:
-    """Aviso dentro de la app y, si el joven vinculó su cuenta, también por Telegram."""
+def notificar(session: Session, joven: Joven, titulo: str, cuerpo: str, botones: list | None = None) -> None:
+    """Aviso dentro de la app y, si el joven vinculó su cuenta, también por Telegram (con botones)."""
     session.add(Notificacion(joven_id=joven.id, titulo=titulo, cuerpo=cuerpo))
     session.commit()
     if joven.telegram_chat_id:
+        from html import escape
+
         from . import telegram
 
-        telegram.enviar(joven.telegram_chat_id, f"<b>{titulo}</b>\n{cuerpo}")
+        telegram.enviar(joven.telegram_chat_id, f"<b>{escape(titulo)}</b>\n{escape(cuerpo)}", botones)
 
 
 def revisar_esperas(session: Session, momento: datetime | None = None) -> int:
@@ -360,6 +371,7 @@ def revisar_esperas(session: Session, momento: datetime | None = None) -> int:
                 session, joven, "¡Encontramos parche para ti!",
                 f"Te unimos al {s.nombre} en {TRAMOS_POR_ID[s.tramo_id]['nombre']} a las {FRANJA_NOMBRE[s.franja]}: "
                 "hay gente con tus mismos planes. Abre la app para conocer a tu grupo.",
+                botones=[[("Ver mi parche", "parche")]],
             )
             unidos += 1
     return unidos
@@ -511,7 +523,8 @@ def armar_grupos(session: Session, fecha: date) -> dict:
         notificar(
             session, joven, "¡Tu grupo del domingo está listo!",
             f"Quedaste en el {grupo.nombre} en {TRAMOS_POR_ID[grupo.tramo_id]['nombre']} a las "
-            f"{FRANJA_NOMBRE[grupo.franja]}. Confirma en la app o respondiendo /confirmo en Telegram.",
+            f"{FRANJA_NOMBRE[grupo.franja]}. ¿Vas?",
+            botones=[[("✅ Confirmo, voy", "confirmo"), ("❌ No voy", "novoy")], [("Ver mi grupo", "parche")]],
         )
     return {**resumen_jornada(session, fecha), "movidos": len(ajustes)}
 

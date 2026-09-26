@@ -545,10 +545,14 @@ def admin_finalizar(session: Session = Depends(get_session)):
 def admin_telegram(session: Session = Depends(get_session)):
     """Para verificar el anclaje: si el bot está vivo y cuántas cuentas ya se vincularon."""
     vinculados = len(session.exec(select(Joven.id).where(Joven.telegram_chat_id != None)).all())  # noqa: E711
+    from . import asistente
+
+    conversacional = {"activo": asistente.disponible(), "modelo": config.GEMINI_MODEL if asistente.disponible() else None}
     if not telegram.disponible():
-        return {"configurado": False, "bot": None, "vinculados": vinculados,
+        return {"configurado": False, "bot": None, "vinculados": vinculados, "conversacional": conversacional,
                 "falta": "Pon TELEGRAM_TOKEN en backend/.env (ver .env.example) y reinicia el servidor"}
     return {"configurado": True, "bot": config.TELEGRAM_BOT or None, "vinculados": vinculados,
+            "conversacional": conversacional,
             "falta": None if config.TELEGRAM_BOT else "El token no respondió a getMe: revisa que sea el de @BotFather"}
 def admin_jornada(session: Session = Depends(get_session)):
     j = services.jornada_abierta(session)

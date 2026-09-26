@@ -61,11 +61,17 @@ ESPERA_MINUTOS = int(os.getenv("ESPERA_MINUTOS", "10"))
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
 TELEGRAM_BOT = os.getenv("TELEGRAM_BOT", "")  # nombre de usuario del bot, sin @
 
+# Bot conversacional (opcional): con la API key de Gemini, el bot entiende texto libre
+# ("quiero trotar el domingo temprano") y usa las mismas funciones del backend.
+# Sin key, el bot sigue funcionando con comandos y botones.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
 # Foro comunal: largo máximo de cada mensaje.
 FORO_MAX = int(os.getenv("FORO_MAX", "500"))
 
 # Versión del aviso de privacidad que se guarda con cada autorización (Ley 1581 de 2012).
-AVISO_VERSION = "2026-09-25.2"
+AVISO_VERSION = "2026-09-25.3"  # .3: se agregó el bot conversacional (Gemini)
 
 # Verificación con correo institucional. El correo no se guarda: solo su huella HMAC con SECRETO.
 SECRETO = os.getenv("SECRETO", "dedsec-demo-cambiar")

@@ -73,8 +73,8 @@ class _TarjetaTelegramState extends State<TarjetaTelegram> {
                   ),
                   Text(
                     info.vinculado
-                        ? 'Te avisaremos por ahí apenas encontremos tu parche.'
-                        : 'Y te avisamos por ahí apenas encontremos tu parche.',
+                        ? 'Desde el chat puedes elegir parche, confirmar y publicar en el foro.'
+                        : 'Te avisamos por ahí, y desde el chat eliges parche, confirmas y publicas en el foro.',
                     style: t.bodySmall?.copyWith(color: Cv.ink),
                   ),
                 ],

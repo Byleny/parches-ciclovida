@@ -62,11 +62,39 @@ El bot empata las funciones de la app en el chat (`backend/app/telegram.py`):
 
 | En el chat | Qué hace |
 |---|---|
-| `/parche` | Tu estado del domingo: parche, grupo, punto de encuentro y quiénes confirmaron |
-| `/confirmo` / `/novoy` | Lo mismo que el botón de confirmar de la app |
+| `/parche` | Tu estado del domingo. Si aún no tienes parche, corre el match; si quedas en espera, te propone el que más se ajusta con botones **Unirme**, **Ver otras opciones** y **Prefiero esperar** |
+| `/confirmo` / `/novoy` | Lo mismo que el botón de confirmar de la app (también son botones en el aviso del sábado) |
+| `/foro` | Publicar en el foro: escribes el mensaje y eliges el tema con un botón. Leer el foro es en la app |
 | `/ayuda` | La lista de comandos |
+| Propuesta de parche | Al entrar en lista de espera: "Hola X, todavía no tenemos parche confirmado… este es el que más se ajusta a tus preferencias" |
 | Aviso de match | Cuando tu lista de espera encuentra parche |
-| Aviso del sábado | Cuando k-means arma tu grupo: te llega en la app y en el chat |
+| Aviso del sábado | Cuando k-means arma tu grupo, con botones ✅ Confirmo / ❌ No voy |
+
+Cambiarse de un parche a otro sigue siendo solo desde la app, porque deja un cupo libre en un
+grupo y la app pide confirmarlo.
+
+### Bot conversacional (Gemini)
+
+Con `GEMINI_API_KEY` en `backend/.env` (se saca en https://aistudio.google.com/apikey), el bot
+entiende texto libre: «quiero trotar el domingo temprano por Panamericana», «¿quién va conmigo?»,
+«sí, úneme», «publica en el foro que me encantó el parche». Está en `backend/app/asistente.py`:
+
+- **Function calling.** Gemini no responde de memoria: llama a las mismas funciones de la app
+  (`ver_mi_estado`, `buscar_parches`, `unirme_a_parche`, `confirmar_asistencia`, `publicar_en_foro`),
+  así que nunca inventa parches, horas ni personas. Los parches que menciona también salen como
+  botones "Unirme".
+- **Reglas en el prompt.** Une o publica solo si el joven lo pidió o aceptó; cambiarse de parche
+  solo en la app; ante acoso o riesgo remite a "Reportar un problema" y al 123; ante malestar
+  emocional responde con empatía y sin diagnosticar.
+- **Memoria corta.** Recuerda los últimos 12 turnos por chat (en memoria); `/cancelar` la borra.
+- **Privacidad.** A Gemini van los mensajes que el joven le escribe al bot, su primer nombre y sus
+  preferencias; nunca el correo ni la universidad. Quedó declarado en el aviso de privacidad
+  (versión `2026-09-25.3`).
+- **Sin key**, el texto libre responde con la lista de comandos, y todo lo demás sigue igual.
+  Si Gemini falla o no hay red, el bot responde con una salida amable y no se cae.
+
+El modelo es `gemini-2.5-flash` por defecto; se cambia con `GEMINI_MODEL`. `GET /api/admin/telegram`
+muestra si el modo conversacional está activo.
 
 ## Quiz "Tu estilo de parche" (afinidad, sin etiquetas)
 

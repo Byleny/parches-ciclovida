@@ -260,8 +260,8 @@ def test_bot_telegram_empata_las_funciones(monkeypatch):
     y el aviso del sábado también llega por el chat."""
     from app import telegram
 
-    enviados: list[tuple[str, str]] = []
-    monkeypatch.setattr(telegram, "enviar", lambda chat, texto: enviados.append((chat, texto)))
+    enviados: list[tuple[str, str, list | None]] = []
+    monkeypatch.setattr(telegram, "enviar", lambda chat, texto, botones=None: enviados.append((chat, texto, botones)))
 
     with TestClient(app) as c:
         tokens = [nuevo(c, n) for n in ["Ana", "Luis", "Sara"]]
@@ -278,9 +278,10 @@ def test_bot_telegram_empata_las_funciones(monkeypatch):
             # chat sin vincular: lo manda a la app
             telegram.atender(s, "555", "/parche")
             assert "Conectar Telegram" in enviados[-1][1]
-            # /start con el código: vincula y saluda con la ayuda
+            # /start con el código: vincula, saluda con la ayuda y cuenta su estado
             telegram.atender(s, "555", "/start abc123")
-            assert "Ana" in enviados[-1][1] and "/parche" in enviados[-1][1]
+            assert "Ana" in enviados[-2][1] and "/parche" in enviados[-2][1]
+            assert p["nombre"] in enviados[-1][1]
             # /parche antes del sábado: inscrito, el grupo se arma después
             telegram.atender(s, "555", "/parche")
             assert p["nombre"] in enviados[-1][1] and "sábado" in enviados[-1][1]
@@ -293,17 +294,183 @@ def test_bot_telegram_empata_las_funciones(monkeypatch):
 
         armar(c)
         # el aviso del sábado llegó al chat vinculado (y solo a ese: Luis y Sara no vincularon)
-        avisos = [t for chat, t in enviados if chat == "555" and "grupo del domingo" in t]
-        assert len(avisos) == 1 and "/confirmo" in avisos[0]
+        avisos = [(t, b) for chat, t, b in enviados if chat == "555" and "grupo del domingo" in t]
+        assert len(avisos) == 1
+        assert ("✅ Confirmo, voy", "confirmo") in avisos[0][1][0]  # el aviso trae los botones
 
         with Session(engine) as s:
-            telegram.atender(s, "555", "/confirmo")
+            # tocar el botón del aviso confirma, igual que el botón de la app
+            telegram.atender_boton(s, "555", "confirmo")
             assert "vas" in enviados[-1][1]
-            # /parche ya asignado: punto de encuentro y compañeros
+            # /parche ya asignado: punto de encuentro, compañeros y botones para responder
             telegram.atender(s, "555", "/parche")
-            assert "Luis" in enviados[-1][1] and "📍" in enviados[-1][1]
+            assert "Luis" in enviados[-1][1] and "📍" in enviados[-1][1] and enviados[-1][2]
 
         assert estado(c, tokens[0])["mi_respuesta"] == "confirmado"
+
+
+def test_bot_telegram_propone_parche_y_publica_en_el_foro(monkeypatch):
+    """Sin parche: el bot propone el que más se ajusta y se puede elegir con un botón.
+    Y desde el chat se publica en el foro (solo publicar)."""
+    from app import telegram
+
+    enviados: list[tuple[str, str, list | None]] = []
+    monkeypatch.setattr(telegram, "enviar", lambda chat, texto, botones=None: enviados.append((chat, texto, botones)))
+
+    with TestClient(app) as c:
+        ana_tok = nuevo(c, "Ana")  # bici en Panamericana; nadie más inscrito
+        with Session(engine) as s:
+            ana = s.exec(select(Joven).where(Joven.nombre == "Ana")).one()
+            ana.telegram_chat_id = "777"
+            s.add(ana)
+            s.commit()
+
+        # entrar en espera desde la app: la propuesta le llega sola al chat
+        assert c.post("/api/yo/match", headers=auth(ana_tok)).json()["estado"] == "en_espera"
+        texto, botones = enviados[-1][1], enviados[-1][2]
+        assert "Hola Ana, todavía no tenemos parche confirmado" in texto
+        assert "el que más se ajusta a tus preferencias" in texto
+        unir_data = botones[0][0][1]
+        assert unir_data.startswith("unir:")
+
+        with Session(engine) as s:
+            # /parche en espera repite la propuesta, sin duplicar avisos
+            telegram.atender(s, "777", "/parche")
+            assert "todavía no tenemos parche" in enviados[-1][1]
+            # "Ver otras opciones" y "Prefiero esperar" responden
+            telegram.atender_boton(s, "777", "opciones")
+            assert enviados[-1][2]
+            telegram.atender_boton(s, "777", "esperar")
+            assert "sigo buscando" in enviados[-1][1].lower()
+            # tocar "Unirme a este parche" la inscribe
+            telegram.atender_boton(s, "777", unir_data)
+            assert "Te uniste" in enviados[-1][1]
+        e = estado(c, ana_tok)
+        assert e["estado"] == "inscrito" and e["salida"]["id"] == int(unir_data.split(":")[1])
+
+        with Session(engine) as s:
+            # foro en dos pasos: /foro, el texto, y la categoría con botón
+            telegram.atender(s, "777", "/foro")
+            telegram.atender(s, "777", "¡Primer domingo en parche y fue <genial>!")
+            assert "¿En qué tema" in enviados[-1][1]
+            telegram.atender_boton(s, "777", "foro:parches")
+            assert "Publicado" in enviados[-1][1]
+            # foro en un paso, y cancelar a la mitad no publica nada
+            telegram.atender(s, "777", "/foro La app podría mostrar el clima")
+            telegram.atender_boton(s, "777", "foro:cancelar")
+
+        foro = c.get("/api/foro", headers=auth(ana_tok)).json()
+        assert len(foro) == 1 and foro[0]["texto"] == "¡Primer domingo en parche y fue <genial>!"
+        assert foro[0]["categoria"] == "parches" and foro[0]["es_mio"]
+
+
+def _gemini_guionado(pasos):
+    """Simula a Gemini: cada llamada devuelve el siguiente paso del guion y guarda lo que recibió."""
+    recibidos = []
+
+    def llamar(cuerpo):
+        import copy
+
+        recibidos.append(copy.deepcopy(cuerpo))  # copia: la lista de la conversación sigue creciendo
+        paso = pasos[len(recibidos) - 1]
+        partes = [{"functionCall": {"name": n, "args": a}} for n, a in paso] if isinstance(paso, list) else [{"text": paso}]
+        return {"candidates": [{"content": {"role": "model", "parts": partes}}]}
+
+    return llamar, recibidos
+
+
+def test_bot_conversacional_con_gemini(monkeypatch):
+    """Texto libre: Gemini decide qué función usar y el bot actúa de verdad sobre la base."""
+    from app import asistente, config, telegram
+
+    enviados: list[tuple[str, str, list | None]] = []
+    monkeypatch.setattr(telegram, "enviar", lambda chat, texto, botones=None: enviados.append((chat, texto, botones)))
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "clave-de-prueba")
+
+    with TestClient(app) as c:
+        luis = nuevo(c, "Luis", actividad="trotar")
+        p = parche(c, luis, franja="08:00", actividad="trotar")
+        unir(c, luis, p["id"])
+        ana_tok = nuevo(c, "Ana")
+        with Session(engine) as s:
+            ana = s.exec(select(Joven).where(Joven.nombre == "Ana")).one()
+            ana.telegram_chat_id = "888"
+            s.add(ana)
+            s.commit()
+
+        # 1) "quiero trotar temprano": busca parches y responde con botones de los que encontró
+        llamar, recibidos = _gemini_guionado([
+            [("buscar_parches", {"actividad": "trotar", "hora": "08:00", "estacion": "panamericana"})],
+            "Encontré el parche de trotar a las 8:00 en Panamericana, ya va 1 persona. ¿Te uno?",
+        ])
+        monkeypatch.setattr(asistente, "_llamar_gemini", llamar)
+        with Session(engine) as s:
+            telegram.atender(s, "888", "quiero trotar el domingo temprano por panamericana")
+        assert "Te uno" in enviados[-1][1]
+        assert enviados[-1][2] and enviados[-1][2][0][0][1] == f"unir:{p['id']}"
+        # lo que devolvió la función le llegó a Gemini: datos reales, no inventados
+        respuesta_fn = recibidos[1]["contents"][-1]["parts"][0]["functionResponse"]["response"]
+        assert respuesta_fn["parches"][0]["parche_id"] == p["id"] and respuesta_fn["parches"][0]["inscritos"] == 1
+        # a Gemini no le llega el correo ni la universidad
+        assert "usbcali" not in str(recibidos[0]).lower() and "San Buenaventura" not in str(recibidos[0])
+
+        # 2) "sí, úneme": recuerda la conversación y la une de verdad
+        llamar, recibidos = _gemini_guionado([
+            [("unirme_a_parche", {"parche_id": p["id"]})],
+            "¡Listo! Quedaste en el parche. El sábado a las 5 armamos tu grupo 🏃",
+        ])
+        monkeypatch.setattr(asistente, "_llamar_gemini", llamar)
+        with Session(engine) as s:
+            telegram.atender(s, "888", "sí, úneme")
+        assert len(recibidos[0]["contents"]) == 3  # los dos turnos anteriores + este mensaje
+        assert estado(c, ana_tok)["salida"]["id"] == p["id"]
+        assert enviados[-1][2] is None  # ya tiene parche: sin botones de unirse
+
+        # 3) publicar en el foro conversando
+        llamar, _ = _gemini_guionado([
+            [("publicar_en_foro", {"categoria": "animo", "texto": "Feliz de salir en parche <3"})],
+            "Publicado en «Cómo me siento» ✅",
+        ])
+        monkeypatch.setattr(asistente, "_llamar_gemini", llamar)
+        with Session(engine) as s:
+            telegram.atender(s, "888", "sí, publícalo")
+        foro = c.get("/api/foro", headers=auth(ana_tok)).json()
+        assert foro[0]["texto"] == "Feliz de salir en parche <3" and foro[0]["categoria"] == "animo"
+        assert "&lt;" not in foro[0]["texto"]  # se guarda tal cual; solo se escapa al mostrar en Telegram
+
+        # 4) si Gemini falla, el bot responde con una salida amable y no se cae
+        def falla(_):
+            raise RuntimeError("sin red")
+
+        monkeypatch.setattr(asistente, "_llamar_gemini", falla)
+        with Session(engine) as s:
+            telegram.atender(s, "888", "hola")
+        assert "/parche" in enviados[-1][1]
+
+        # 5) sin key, el texto libre guía hacia los comandos
+        monkeypatch.setattr(config, "GEMINI_API_KEY", "")
+        with Session(engine) as s:
+            telegram.atender(s, "888", "hola")
+        assert "entiendo comandos" in enviados[-1][1]
+
+
+def test_asistente_no_une_si_ya_tiene_otro_parche():
+    from app import asistente
+
+    with TestClient(app) as c:
+        ana_tok = nuevo(c, "Ana")
+        p1 = parche(c, ana_tok, franja="08:00")
+        p2 = parche(c, ana_tok, franja="09:30")
+        unir(c, ana_tok, p1["id"])
+        with Session(engine) as s:
+            ana = s.exec(select(Joven).where(Joven.nombre == "Ana")).one()
+            r = asistente.ejecutar(s, ana, "unirme_a_parche", {"parche_id": p2["id"]})
+            assert r["ok"] is False and "app" in r["motivo"]
+            r = asistente.ejecutar(s, ana, "funcion_inventada", {})
+            assert r["ok"] is False
+            r = asistente.ejecutar(s, ana, "buscar_parches", {"estacion": "Marte"})
+            assert "error" in r and "Panamericana" in r["estaciones"]
+        assert estado(c, ana_tok)["salida"]["id"] == p1["id"]
 
 
 def test_foro_publicar_listar_borrar():
