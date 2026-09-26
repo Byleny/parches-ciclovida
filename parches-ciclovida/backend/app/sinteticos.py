@@ -69,8 +69,8 @@ PERFILES = {
 }
 
 PESO_TRAMO = {
-    "panamericana": 16, "ingenio": 14, "brisas": 9, "siloe": 8, "torres-comfandi": 7, "petecuy": 7,
-    "corredor-verde": 8, "americas": 7, "prado": 7, "fortaleza": 5, "morichal": 7, "sol-de-oriente": 8,
+    "panamericana": 16, "ingenio": 14, "dorada": 9, "la-luna": 9, "metropolitana": 9,
+    "ciudad-de-cali": 7, "sol-de-oriente": 9, "san-carlos": 7, "americas": 8, "torres-comfandi": 9, "brisas": 10,
 }
 PESO_UNIVERSIDAD = {"univalle": 26, "uao": 14, "usb": 10, "javeriana": 12, "icesi": 10, "usc": 12,
                     "unilibre": 6, "unicatolica": 5, "uniajc": 5}

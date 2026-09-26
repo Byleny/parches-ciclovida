@@ -19,7 +19,7 @@ def _domingos(session: Session, joven: Joven, fue: list[bool | None], confirmado
     for i, asistio in enumerate(fue):
         fecha = D0 + timedelta(days=7 * i)
         session.add(Jornada(fecha=fecha, estado="finalizada"))
-        g = Grupo(jornada_fecha=fecha, nombre=f"Parche {i}", tramo_id="siloe", segmento="mayor",
+        g = Grupo(jornada_fecha=fecha, nombre=f"Parche {i}", tramo_id="metropolitana", segmento="mayor",
                   franja="08:00", actividad="bici")
         session.add(g)
         session.flush()

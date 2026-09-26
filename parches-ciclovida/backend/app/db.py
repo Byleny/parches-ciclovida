@@ -11,6 +11,19 @@ def init_db() -> None:
 
     SQLModel.metadata.create_all(engine)
     _migrar()
+    _mover_estaciones_retiradas()
+
+
+def _mover_estaciones_retiradas() -> None:
+    """La preferencia de estación de cada joven siempre es una estación activa (la app no sabe
+    mostrar una que ya no existe)."""
+    from sqlalchemy import text
+
+    from .catalog import REEMPLAZO_TRAMO
+
+    with engine.begin() as con:
+        for viejo, nuevo in REEMPLAZO_TRAMO.items():
+            con.execute(text("UPDATE joven SET tramo_id = :nuevo WHERE tramo_id = :viejo"), {"nuevo": nuevo, "viejo": viejo})
 
 
 def _migrar() -> None:

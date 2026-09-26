@@ -34,7 +34,7 @@ import time
 from sqlmodel import Session, select
 
 from . import asistente, config, services, sinteticos
-from .catalog import ACTIVIDADES_POR_ID, FRANJA_NOMBRE, QUIZ_PREGUNTAS, TRAMOS_POR_ID, UNIVERSIDADES_POR_ID
+from .catalog import ACTIVIDADES_POR_ID, FRANJA_NOMBRE, QUIZ_PREGUNTAS, tramo_info, UNIVERSIDADES_POR_ID
 from .db import engine
 from .models import ChatMensaje, Joven, Salida
 
@@ -203,7 +203,7 @@ def _saludo_fijo(salida: Salida, simulados: list[Joven], recien_llegado: str | N
     perfiles = sinteticos.perfiles_por_id()
     j = simulados[0]
     plantilla = SALUDOS.get(perfiles.get(j.id, ""), SALUDOS["parchadito"])
-    texto = plantilla.format(nombre=recien_llegado, punto=TRAMOS_POR_ID[salida.tramo_id]["referencia"])
+    texto = plantilla.format(nombre=recien_llegado, punto=tramo_info(salida.tramo_id)["referencia"])
     return [(j.id, texto, recien_llegado)]
 
 
@@ -229,7 +229,7 @@ def ficha(j: Joven, perfil_id: str | None) -> str:
 
 def _instrucciones(salida: Salida, simulados: list[Joven]) -> str:
     perfiles = sinteticos.perfiles_por_id()
-    t = TRAMOS_POR_ID[salida.tramo_id]
+    t = tramo_info(salida.tramo_id)
     fichas = "\n".join(ficha(j, perfiles.get(j.id)) for j in simulados)
     return f"""Simulas a varios estudiantes universitarios de Cali que están en el chat de su parche para ir juntos
 a la CicloVida. Cada uno tiene su personalidad (abajo): habla como esa persona, no como un asistente.

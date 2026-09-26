@@ -24,7 +24,7 @@ from sqlmodel import Session, select
 from . import chat, chat_simulado, config, services, stats, telegram, verificacion
 from .catalog import (
     ACTIVIDADES_POR_ID, FORO_IDS, FRANJA_ORDEN, MOTIVOS_IDS, QUIZ_POR_ID, RITMO_ORDEN, SEGMENTO_EDAD,
-    TRAMOS_POR_ID, UNIVERSIDADES_POR_ID, catalogo,
+    TRAMOS_POR_ID, tramo_info, UNIVERSIDADES_POR_ID, catalogo,
 )
 from .privacidad import aviso
 from .db import engine, get_session, init_db
@@ -700,7 +700,7 @@ def admin_reportes(pendientes: bool = True, session: Session = Depends(get_sessi
         salida.append({
             "id": r.id, "fecha": str(r.jornada_fecha), "motivo": r.motivo, "detalle": r.detalle,
             "parche": grupo.nombre if grupo else None,
-            "tramo": TRAMOS_POR_ID[grupo.tramo_id]["nombre"] if grupo else None,
+            "tramo": tramo_info(grupo.tramo_id)["nombre"] if grupo else None,
             "reportado": {"id": reportado.id, "nombre": reportado.nombre, "suspendido": reportado.suspendido} if reportado else None,
             "creado_en": r.creado_en.isoformat(),
         })

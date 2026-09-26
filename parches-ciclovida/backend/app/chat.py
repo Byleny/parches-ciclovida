@@ -15,7 +15,7 @@ import hashlib
 from sqlmodel import Session, delete, select
 
 from . import config, services
-from .catalog import ACTIVIDADES_POR_ID, FRANJA_NOMBRE, TRAMOS_POR_ID, UNIVERSIDADES_POR_ID
+from .catalog import ACTIVIDADES_POR_ID, FRANJA_NOMBRE, tramo_info, UNIVERSIDADES_POR_ID
 from .models import Asignacion, ChatMensaje, ChatMiembro, Inscripcion, Joven, Salida
 
 MAX_MENSAJES = 80  # los últimos que se devuelven al abrir el chat
@@ -129,7 +129,7 @@ def estado(session: Session, joven: Joven, despues_de: int | None = None) -> dic
         "disponible": True,
         "unido": any(j.id == joven.id for j in gente),
         "parche": {
-            "id": salida.id, "nombre": salida.nombre, "estacion": TRAMOS_POR_ID[salida.tramo_id]["nombre"],
+            "id": salida.id, "nombre": salida.nombre, "estacion": tramo_info(salida.tramo_id)["nombre"],
             "hora": FRANJA_NOMBRE[salida.franja], "actividad": salida.actividad,
             "actividad_nombre": ACTIVIDADES_POR_ID[salida.actividad]["nombre"],
         },

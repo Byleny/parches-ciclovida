@@ -11,7 +11,7 @@ from sqlmodel import Session, delete, select
 from . import config
 from .catalog import (
     ACTIVIDADES, ACTIVIDADES_POR_ID, FRANJA_NOMBRE, FRANJA_ORDEN, FRANJAS, JORNADA_FIN, JORNADA_INICIO,
-    NOMBRES_PARCHE, RITMO_ORDEN, RITMOS, SEGMENTO_EDAD, TRAMOS, TRAMOS_POR_ID, UNIVERSIDADES_POR_ID, puntuar_quiz,
+    NOMBRES_PARCHE, RITMO_ORDEN, RITMOS, SEGMENTO_EDAD, TRAMOS, tramo_info, UNIVERSIDADES_POR_ID, puntuar_quiz,
 )
 from .matching import EXPERIENCIA_MAX, GrupoPropuesto, Participante, agrupar, grupo_mas_cercano, mejor_grupo_para
 from .models import (
@@ -125,24 +125,45 @@ def _nombre_libre(session: Session, fecha: date, tramo_id: str) -> str:
 
 
 def asegurar_parches(session: Session, fecha: date) -> None:
-    """Un parche por estación, hora y actividad para cada grupo de edad abierto. Idempotente."""
-    creados = False
+    """Un parche por estación, hora y actividad para cada grupo de edad abierto. Idempotente.
+
+    Si el catálogo de estaciones cambió (la base viene de antes), completa los parches de las
+    estaciones nuevas y quita los de las retiradas que nadie usa todavía.
+    """
+    activos = {t["id"] for t in TRAMOS}
+    esperados = len(TRAMOS) * len(FRANJAS) * len(ACTIVIDADES)
+    cambios = False
     for seg in segmentos_abiertos():
-        if session.exec(select(Salida.id).where(Salida.jornada_fecha == fecha, Salida.segmento == seg)).first() is not None:
+        salidas = session.exec(select(Salida).where(Salida.jornada_fecha == fecha, Salida.segmento == seg)).all()
+        vigentes = {(s.tramo_id, s.franja, s.actividad) for s in salidas if s.tramo_id in activos}
+        if len(salidas) == len(vigentes) == esperados:
             continue
         for t in TRAMOS:
             for f in FRANJAS:
                 for a in ACTIVIDADES:
+                    if (t["id"], f["id"], a["id"]) in vigentes:
+                        continue
                     session.add(Salida(jornada_fecha=fecha, nombre=_nombre_libre(session, fecha, t["id"]),
                                        tramo_id=t["id"], segmento=seg, franja=f["id"], actividad=a["id"]))
                     session.flush()
-        creados = True
-    if creados:
+                    cambios = True
+        for s in salidas:
+            if s.tramo_id not in activos and not _salida_en_uso(session, s.id):
+                session.delete(s)
+                cambios = True
+    if cambios:
         session.commit()
 
 
+def _salida_en_uso(session: Session, salida_id: int) -> bool:
+    return any(
+        session.exec(select(m.id).where(m.salida_id == salida_id)).first() is not None
+        for m in (Inscripcion, Grupo, ChatMiembro, ChatMensaje)
+    )
+
+
 def _base_parche(s: Salida | Grupo) -> dict:
-    t = TRAMOS_POR_ID[s.tramo_id]
+    t = tramo_info(s.tramo_id)
     return {
         "id": s.id,
         "nombre": s.nombre,
@@ -293,7 +314,7 @@ def _afinidad(joven: Joven, s: Salida, gente: list[Joven]) -> tuple:
         s.actividad != joven.actividad,
         abs(FRANJA_ORDEN[s.franja] - FRANJA_ORDEN[joven.franja]) if joven.franja else 0,
         abs(RITMO_ORDEN[ritmo] - RITMO_ORDEN[joven.ritmo]) if ritmo else 0,
-        0 if joven.tramo_id == s.tramo_id else abs(TRAMOS_POR_ID[s.tramo_id]["comuna"] - joven.comuna),
+        0 if joven.tramo_id == s.tramo_id else abs(tramo_info(s.tramo_id)["comuna"] - joven.comuna),
         _distancia_quiz(joven, gente),
         -len(gente),
         s.id or 0,
@@ -376,7 +397,7 @@ def revisar_esperas(session: Session, momento: datetime | None = None) -> int:
             s = session.get(Salida, r["salida_id"])
             notificar(
                 session, joven, "¡Encontramos parche para ti!",
-                f"Te unimos al {s.nombre} en {TRAMOS_POR_ID[s.tramo_id]['nombre']} a las {FRANJA_NOMBRE[s.franja]}: "
+                f"Te unimos al {s.nombre} en {tramo_info(s.tramo_id)['nombre']} a las {FRANJA_NOMBRE[s.franja]}: "
                 "hay gente con tus mismos planes. Abre la app para conocer a tu grupo.",
                 botones=[[("Ver mi parche", "parche")]],
             )
@@ -556,7 +577,7 @@ def armar_grupos(session: Session, fecha: date) -> dict:
         tiempo = clima.resumen(fecha, grupo.franja)
         notificar(
             session, joven, "¡Tu grupo del domingo está listo!",
-            f"Quedaste en el {grupo.nombre} en {TRAMOS_POR_ID[grupo.tramo_id]['nombre']} a las "
+            f"Quedaste en el {grupo.nombre} en {tramo_info(grupo.tramo_id)['nombre']} a las "
             f"{FRANJA_NOMBRE[grupo.franja]}. ¿Vas?" + (f"\n{tiempo}" if tiempo else ""),
             botones=[[("✅ Confirmo, voy", "confirmo"), ("❌ No voy", "novoy")], [("Ver mi grupo", "parche")]],
         )

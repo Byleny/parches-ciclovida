@@ -61,7 +61,7 @@ def setup_function():
 def test_flujo_completo_domingo():
     with TestClient(app) as c:
         cat = c.get("/api/catalogo").json()
-        assert len(cat["tramos"]) == 12 and len(cat["comunas"]) == 22 and len(cat["universidades"]) >= 5
+        assert len(cat["tramos"]) == 11 and len(cat["comunas"]) == 22 and len(cat["universidades"]) >= 5
 
         tokens = [nuevo(c, n) for n in ["ana maría", "Luis", "Sara", "Kevin", "Paula"]]
         yo = c.get("/api/yo", headers=auth(tokens[0])).json()
@@ -190,8 +190,8 @@ def test_parche_pequeno_se_junta_con_uno_compatible():
         destino = parche(c, otros[0], franja="09:30", actividad="patines")
         for t in otros:
             unir(c, t, destino["id"])
-        lejos = nuevo(c, "Eva", tramo_id="siloe")
-        unir(c, lejos, parche(c, lejos, tramo="siloe", actividad="caminar")["id"])
+        lejos = nuevo(c, "Eva", tramo_id="metropolitana")
+        unir(c, lejos, parche(c, lejos, tramo="metropolitana", actividad="caminar")["id"])
 
         r = armar(c)
         assert r["movidos"] == 1 and r["solos"] == 1 and r["grupos"] == 2
@@ -199,7 +199,7 @@ def test_parche_pequeno_se_junta_con_uno_compatible():
         e = estado(c, solo)
         assert e["grupo"]["hora_encuentro"] == "09:30" and len(e["grupo"]["miembros"]) == 4
         assert sorted(e["ajustes"]) == ["actividad", "franja"]
-        # en Siloé no había nadie compatible: va con su parche, así sea sola
+        # en Metropolitana no había nadie compatible: va con su parche, así sea sola
         assert estado(c, lejos)["estado"] == "asignado"
 
 
@@ -258,7 +258,7 @@ def test_pausa_y_borrado():
         assert unir(c, t, parche(c, t)["id"]).json()["estado"] == "inscrito"
 
         # cambiar preferencias no la saca del parche que eligió
-        c.patch("/api/yo", json={"tramo_id": "siloe"}, headers=auth(t))
+        c.patch("/api/yo", json={"tramo_id": "metropolitana"}, headers=auth(t))
         assert estado(c, t)["estado"] == "inscrito"
 
         assert c.delete("/api/yo", headers=auth(t)).status_code == 204

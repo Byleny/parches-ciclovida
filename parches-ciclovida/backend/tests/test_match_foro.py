@@ -238,18 +238,18 @@ def test_match_usa_el_quiz_solo_como_desempate():
     """Dos parches iguales en lo estructural (misma comuna, hora y actividad):
     el quiz inclina la balanza hacia la gente con gustos parecidos."""
     with TestClient(app) as c:
-        luis = nuevo(c, "Luis", tramo_id="prado", comuna=11)
+        luis = nuevo(c, "Luis", tramo_id="torres-comfandi", comuna=5)
         c.post("/api/yo/quiz", json={"respuestas": SOCIAL}, headers=auth(luis))
-        p_luis = parche(c, luis, tramo="prado")
+        p_luis = parche(c, luis, tramo="torres-comfandi")
         unir(c, luis, p_luis["id"])
 
-        sara = nuevo(c, "Sara", tramo_id="fortaleza", comuna=11)
+        sara = nuevo(c, "Sara", tramo_id="metropolitana", comuna=5)
         c.post("/api/yo/quiz", json={"respuestas": CASERO}, headers=auth(sara))
-        p_sara = parche(c, sara, tramo="fortaleza")
+        p_sara = parche(c, sara, tramo="metropolitana")
         unir(c, sara, p_sara["id"])
 
         # Ana no fija estación: los dos parches le sirven igual, pero comparte estilo con Luis
-        ana = nuevo(c, "Ana", tramo_id=None, comuna=11)
+        ana = nuevo(c, "Ana", tramo_id=None, comuna=5)
         c.post("/api/yo/quiz", json={"respuestas": SOCIAL}, headers=auth(ana))
         e = c.post("/api/yo/match", headers=auth(ana)).json()
         assert e["estado"] == "inscrito" and e["salida"]["id"] == p_luis["id"]

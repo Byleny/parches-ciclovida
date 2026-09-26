@@ -81,7 +81,7 @@ class BienvenidaScreen extends StatelessWidget {
                         child: Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: Text(
-                            'Cada semana abrimos parches en las 12 estaciones: a pie o sobre ruedas, a las 8:00, 9:30 '
+                            'Cada semana abrimos parches en las 11 estaciones: a pie o sobre ruedas, a las 8:00, 9:30 '
                             'u 11:00. Solo para estudiantes de universidades de Cali, verificados con su correo '
                             'institucional.',
                             style: t.bodyLarge,
@@ -95,7 +95,7 @@ class BienvenidaScreen extends StatelessWidget {
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            _Cifra(numero: '12', texto: 'estaciones', color: Cv.tealInk),
+                            _Cifra(numero: '11', texto: 'estaciones', color: Cv.tealInk),
                             _Cifra(numero: '3', texto: 'horarios', color: Cv.coralInk),
                             _Cifra(numero: '4', texto: 'actividades', color: Cv.verdeInk),
                           ],

@@ -31,7 +31,7 @@ from pathlib import Path
 from sqlmodel import Session, select
 
 from . import config, services, sinteticos
-from .catalog import ACTIVIDADES_POR_ID, FRANJA_NOMBRE, QUIZ_PREGUNTAS, RITMOS, TRAMOS_POR_ID
+from .catalog import ACTIVIDADES_POR_ID, FRANJA_NOMBRE, QUIZ_PREGUNTAS, RITMOS, tramo_info
 from .matching import PESOS, Participante, agrupar, centroide, distancia2, tamanos_balanceados, vector
 from .models import Asignacion, Grupo, Joven
 
@@ -68,7 +68,7 @@ def _cuantos(n: int, total: int) -> str:
 def por_que(g: Grupo, filas: list[tuple[Joven, Asignacion, Participante]]) -> list[str]:
     """Frases cortas, sacadas de los datos, que explican por qué este grupo quedó junto."""
     total = len(filas)
-    razones = [f"Mismo parche: estación {TRAMOS_POR_ID[g.tramo_id]['nombre']}, "
+    razones = [f"Mismo parche: estación {tramo_info(g.tramo_id)['nombre']}, "
                f"{FRANJA_NOMBRE[g.franja]}, {ACTIVIDADES_POR_ID[g.actividad]['nombre'].lower()}."]
     movidos = [a for _, a, _ in filas if a.ajustes]
     if movidos:
@@ -230,7 +230,7 @@ def generar(session: Session, fecha: date | None = None) -> dict | None:
         salida_grupos.append({
             "id": g.id,
             "nombre": g.nombre,
-            "estacion": TRAMOS_POR_ID[g.tramo_id]["nombre"],
+            "estacion": tramo_info(g.tramo_id)["nombre"],
             "hora": FRANJA_NOMBRE[g.franja],
             "actividad": ACTIVIDADES_POR_ID[g.actividad]["nombre"],
             "nivel": g.nivel,

@@ -40,7 +40,7 @@ const _contorno = <Shadow>[
 /// A partir de este zoom se ven los nombres de las estaciones.
 const _zoomNombres = 13.4;
 
-/// Mapa de las 12 estaciones de la CicloVida: qué actividad se mueve en cada una este domingo,
+/// Mapa de las 11 estaciones de la CicloVida: qué actividad se mueve en cada una este domingo,
 /// tu ubicación y la ruta hasta la estación de tu parche.
 class MapaScreen extends StatefulWidget {
   const MapaScreen({super.key, this.activo = true});
@@ -244,7 +244,7 @@ class _MapaScreenState extends State<MapaScreen> {
     return horaBonita('${salir.hour}:${salir.minute.toString().padLeft(2, '0')}');
   }
 
-  /// Estaciones cercanas (El Prado y La Fortaleza) se pisan con poco zoom. Como en los mapas de
+  /// Estaciones cercanas (San Carlos y Ciudad de Cali, El Ingenio y Dorada) se pisan con poco zoom. Como en los mapas de
   /// siempre, las del sur van encima para que no tapen el número de la vecina; la elegida y la de
   /// tu parche, siempre al frente.
   List<Tramo> _enOrdenDeDibujo(List<Tramo> tramos) {

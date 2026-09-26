@@ -80,7 +80,7 @@ def test_chat_es_opcional_privado_y_entre_personas_reales():
         assert not any(m["nombre"] == "Beto" for m in _chat(c, ana)["miembros"])
 
         # cambiarse de parche también saca del chat del parche anterior
-        otro = next(x for x in c.get("/api/parches", params={"tramo": "siloe"}, headers=auth(ana)).json()["parches"])
+        otro = next(x for x in c.get("/api/parches", params={"tramo": "metropolitana"}, headers=auth(ana)).json()["parches"])
         unir(c, ana, otro["id"])
         assert not _chat(c, ana)["unido"]
         c.post("/api/yo/chat/unirme", headers=auth(beto))

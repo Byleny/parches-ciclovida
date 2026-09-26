@@ -103,7 +103,7 @@ def test_tarde_entra_al_grupo_mas_parecido_con_cupo():
 def test_reglas_que_nunca_se_relajan_al_juntar_parches():
     destino = G([P(1), P(2), P(3)])
     assert mejor_grupo_para(P(9, actividad="patines", franja="09:30"), [destino]) is destino
-    assert mejor_grupo_para(P(9, tramo="siloe"), [destino]) is None
+    assert mejor_grupo_para(P(9, tramo="metropolitana"), [destino]) is None
     assert mejor_grupo_para(P(9, actividad="caminar"), [destino]) is None  # a pie no va con ruedas
     assert mejor_grupo_para(P(9, franja="11:00"), [destino]) is None  # más de 90 minutos
     assert mejor_grupo_para(P(9, edad="14-17"), [destino]) is None  # menores nunca con mayores

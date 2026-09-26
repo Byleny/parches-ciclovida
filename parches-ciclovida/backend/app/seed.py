@@ -27,7 +27,7 @@ from datetime import datetime, time, timedelta
 from sqlmodel import Session, SQLModel, select
 
 from . import config, services, sinteticos
-from .catalog import SEGMENTO_EDAD, TRAMOS_POR_ID, UNIVERSIDADES_POR_ID
+from .catalog import SEGMENTO_EDAD, tramo_info, UNIVERSIDADES_POR_ID
 from .db import engine, init_db
 from .models import Asignacion, Encuesta, Grupo, Inscripcion, Jornada, Joven, Salida
 from .verificacion import huella
@@ -111,7 +111,7 @@ def asegurar_demo(s: Session) -> str | None:
         correo_hash=h,
         universidad="usb",
         rango_edad="18-22",
-        comuna=TRAMOS_POR_ID[salida.tramo_id]["comuna"],
+        comuna=tramo_info(salida.tramo_id)["comuna"],
         tramo_id=salida.tramo_id,
         actividad=salida.actividad,
         ritmo="moderado",

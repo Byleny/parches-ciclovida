@@ -928,7 +928,7 @@ class _TarjetaElegir extends StatelessWidget {
               padding: EdgeInsets.only(right: 56),
               child: Text(
                 'Deja que el match te una al parche con gente de tu hora, tu estación y tu actividad, '
-                'o escoge uno tú en las 12 estaciones.',
+                'o escoge uno tú en las 11 estaciones.',
                 style: TextStyle(fontSize: 16, height: 1.45, color: Cv.inkMuted),
               ),
             ),

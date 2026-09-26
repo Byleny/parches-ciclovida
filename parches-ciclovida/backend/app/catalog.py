@@ -1,9 +1,12 @@
 """Catálogo fijo de la CicloVida de Cali.
 
-Estaciones 2026 según los boletines de la Alcaldía (cali.gov.co) y las
-direcciones publicadas por El País para cada estación. Las coordenadas son
-aproximadas: sirven para el mapa del tablero, no para navegar. Validarlas con
-la Secretaría del Deporte y la Recreación antes de un piloto.
+Estaciones 2026: la CicloVida central (Panamericana, Ingenio, Dorada, La Luna y Metropolitana) y
+las seis comunitarias (Ciudad de Cali, Sol de Oriente, San Carlos, Las Américas, Torres de Comfandi
+y Brisas de los Álamos), según El Tiempo y los boletines de la Alcaldía (cali.gov.co). Los puntos de
+Dorada (Calle 9 con Carrera 66), La Luna (Calle 13 con Autopista Suroriental), Metropolitana
+(Cementerio Metropolitano del Norte) y Ciudad de Cali (avenida Ciudad de Cali, Carrera 29 con
+Calle 55) salen de publicaciones de la Alcaldía; los demás, de las direcciones de El País. Las coordenadas son aproximadas (OpenStreetMap): sirven para el mapa, no para navegar.
+Validarlas con la Secretaría del Deporte y la Recreación antes de un piloto.
 """
 
 JORNADA_INICIO = "08:00"
@@ -39,44 +42,75 @@ BARRIOS_COMUNA = {
 COMUNAS = [{"id": n, "nombre": f"Comuna {n}", "barrios": BARRIOS_COMUNA[n]} for n in range(1, 23)]
 
 TRAMOS = [
+    # CicloVida central: cinco estaciones
     {"id": "panamericana", "nombre": "Panamericana", "comuna": 19,
      "punto": "Calle 9 con Carrera 37A", "referencia": "Canchas Panamericanas",
      "lat": 3.4283, "lng": -76.5388},
-    {"id": "siloe", "nombre": "Siloé", "comuna": 20,
-     "punto": "Diagonal 53 con Calle 9 Oeste", "referencia": "Parque Urbanización Venezuela",
-     "lat": 3.4248, "lng": -76.5575},
     {"id": "ingenio", "nombre": "El Ingenio", "comuna": 17,
      "punto": "Calle 16 con Carrera 83", "referencia": "Parque de El Ingenio",
      "lat": 3.3850, "lng": -76.5282},
-    {"id": "brisas", "nombre": "Brisas de los Álamos", "comuna": 2,
-     "punto": "Avenida 2 Norte con Calle 72N", "referencia": "Brisas y Guaduales",
-     "lat": 3.4930, "lng": -76.5100},
-    {"id": "torres-comfandi", "nombre": "Torres de Comfandi", "comuna": 5,
-     "punto": "Carrera 1D con Calle 56", "referencia": "Torres de Comfandi",
-     "lat": 3.4686, "lng": -76.5058},
-    {"id": "petecuy", "nombre": "Petecuy", "comuna": 6,
-     "punto": "Carrera 1D con Calle 73A", "referencia": "Petecuy",
-     "lat": 3.4800, "lng": -76.4990},
-    {"id": "corredor-verde", "nombre": "Corredor Verde", "comuna": 7,
-     "punto": "Carrera 8 con Calle 62", "referencia": "Corredor Verde",
-     "lat": 3.4655, "lng": -76.4960},
-    {"id": "americas", "nombre": "Las Américas", "comuna": 8,
-     "punto": "Calle 39 con Carrera 11D", "referencia": "Las Américas",
-     "lat": 3.4478, "lng": -76.5085},
-    {"id": "prado", "nombre": "El Prado", "comuna": 11,
-     "punto": "Autopista Suroriental con Transversal 29", "referencia": "El Prado",
-     "lat": 3.4195, "lng": -76.5140},
-    {"id": "fortaleza", "nombre": "La Fortaleza", "comuna": 11,
-     "punto": "Calle 32 con Carrera 31", "referencia": "San Carlos y La Fortaleza",
-     "lat": 3.4250, "lng": -76.5090},
-    {"id": "morichal", "nombre": "Morichal", "comuna": 15,
-     "punto": "Calle 54 entre Carreras 25 y 46", "referencia": "Morichal de Comfandi",
-     "lat": 3.4040, "lng": -76.4960},
+    {"id": "dorada", "nombre": "Dorada", "comuna": 17,
+     "punto": "Calle 9 con Carrera 66", "referencia": "Zona Dorada, El Gran Limonar",
+     "lat": 3.3981, "lng": -76.5446},
+    {"id": "la-luna", "nombre": "La Luna", "comuna": 9,
+     "punto": "Calle 13 con Autopista Suroriental", "referencia": "Hotel La Luna y puente de La Luna",
+     "lat": 3.4322, "lng": -76.5273},
+    {"id": "metropolitana", "nombre": "Metropolitana", "comuna": 5,
+     "punto": "Cementerio Metropolitano del Norte", "referencia": "Barrio Metropolitano del Norte, Calle 69",
+     "lat": 3.4836, "lng": -76.4919},
+    # CicloVida comunitaria: seis estaciones
+    {"id": "ciudad-de-cali", "nombre": "Ciudad de Cali", "comuna": 12,
+     "punto": "Carrera 29 con Calle 55", "referencia": "Avenida Ciudad de Cali, estación Colonia Nariñense",
+     "lat": 3.4251, "lng": -76.5031},
     {"id": "sol-de-oriente", "nombre": "Sol de Oriente", "comuna": 21,
      "punto": "Carrera 25A # 89-16", "referencia": "Colegio Compartir",
      "lat": 3.4175, "lng": -76.4745},
+    {"id": "san-carlos", "nombre": "San Carlos", "comuna": 11,
+     "punto": "Calle 32 con Carrera 31", "referencia": "San Carlos y La Fortaleza",
+     "lat": 3.4250, "lng": -76.5090},
+    {"id": "americas", "nombre": "Las Américas", "comuna": 8,
+     "punto": "Calle 39 con Carrera 11D", "referencia": "Las Américas",
+     "lat": 3.4478, "lng": -76.5085},
+    {"id": "torres-comfandi", "nombre": "Torres de Comfandi", "comuna": 5,
+     "punto": "Carrera 1D con Calle 56", "referencia": "Torres de Comfandi",
+     "lat": 3.4686, "lng": -76.5058},
+    {"id": "brisas", "nombre": "Brisas de los Álamos", "comuna": 2,
+     "punto": "Avenida 2 Norte con Calle 72N", "referencia": "Brisas y Guaduales",
+     "lat": 3.4930, "lng": -76.5100},
 ]
 TRAMOS_POR_ID = {t["id"]: t for t in TRAMOS}
+
+# Estaciones que salieron de la CicloVida. No se ofrecen ni se abren parches en ellas: solo sirven para
+# leer grupos y parches viejos que siguen en la base (historial, reportes, tablero).
+TRAMOS_RETIRADOS = [
+    {"id": "siloe", "nombre": "Siloé", "comuna": 20,
+     "punto": "Diagonal 53 con Calle 9 Oeste", "referencia": "Parque Urbanización Venezuela",
+     "lat": 3.4248, "lng": -76.5575},
+    {"id": "petecuy", "nombre": "Petecuy", "comuna": 6,
+     "punto": "Carrera 1D con Calle 73A", "referencia": "Petecuy", "lat": 3.4800, "lng": -76.4990},
+    {"id": "corredor-verde", "nombre": "Corredor Verde", "comuna": 7,
+     "punto": "Carrera 8 con Calle 62", "referencia": "Corredor Verde", "lat": 3.4655, "lng": -76.4960},
+    {"id": "prado", "nombre": "El Prado", "comuna": 11,
+     "punto": "Autopista Suroriental con Transversal 29", "referencia": "El Prado", "lat": 3.4195, "lng": -76.5140},
+    {"id": "fortaleza", "nombre": "La Fortaleza", "comuna": 11,
+     "punto": "Calle 32 con Carrera 31", "referencia": "San Carlos y La Fortaleza", "lat": 3.4250, "lng": -76.5090},
+    {"id": "morichal", "nombre": "Morichal", "comuna": 15,
+     "punto": "Calle 54 entre Carreras 25 y 46", "referencia": "Morichal de Comfandi", "lat": 3.4040, "lng": -76.4960},
+]
+
+# La estación activa que reemplaza a cada retirada (la más cercana): a quien la tenía de preferida se
+# le cambia al arrancar el backend.
+REEMPLAZO_TRAMO = {
+    "siloe": "dorada", "petecuy": "metropolitana", "corredor-verde": "torres-comfandi",
+    "prado": "la-luna", "fortaleza": "san-carlos", "morichal": "sol-de-oriente",
+}
+
+_TRAMOS_TODOS = {t["id"]: t for t in TRAMOS + TRAMOS_RETIRADOS}
+
+
+def tramo_info(tramo_id: str) -> dict:
+    """La estación de un parche o grupo guardado, siga activa o ya se haya retirado."""
+    return _TRAMOS_TODOS[tramo_id]
 
 # familia: con quién se puede mezclar una actividad cuando no alcanza el grupo
 ACTIVIDADES = [

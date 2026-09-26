@@ -15,7 +15,7 @@ from statistics import mean
 from sqlmodel import Session, select
 
 from . import config
-from .catalog import ACTIVIDADES_POR_ID, COMUNAS, FRANJA_NOMBRE, TRAMOS, TRAMOS_POR_ID
+from .catalog import ACTIVIDADES_POR_ID, COMUNAS, FRANJA_NOMBRE, TRAMOS, tramo_info
 from .models import Asignacion, Encuesta, Grupo, Jornada, Joven, Reporte
 
 
@@ -135,7 +135,7 @@ def resumen(session: Session, fecha: date) -> dict:
         bien = [e.bienestar for e in encs if e.asistio and e.bienestar]
         por_grupo.append({
             "grupo": g.nombre,
-            "tramo": TRAMOS_POR_ID[g.tramo_id]["nombre"],
+            "tramo": tramo_info(g.tramo_id)["nombre"],
             "hora": FRANJA_NOMBRE[g.franja],
             "franja": g.franja,
             "actividad": ACTIVIDADES_POR_ID[g.actividad]["nombre"],

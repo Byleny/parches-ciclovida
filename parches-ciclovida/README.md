@@ -2,7 +2,7 @@
 
 Prototipo TRL 3 del equipo Dedsec para el reto CicloVida del Hackathon Smart City Expo Cali 2026.
 
-Un estudiante universitario de Cali verifica su correo institucional y crea su perfil. Cada semana el sistema abre parches en las 12 estaciones de la CicloVida, uno por hora (8:00, 9:30, 11:00) y actividad (bici, patines, trotar, caminar). Al entrar, un match automático (la misma idea de distancia del k-means) lo une al parche que ya tiene gente con su hora, estación y actividad; si no existe, queda en lista de espera y se le avisa —en la app y por Telegram— apenas aparezca, con parches parecidos como plan B. También puede elegir a mano, ver las zonas en un mapa interactivo y comentar en el foro comunal. El sábado a las 5:00 p. m. un algoritmo k-means divide a la gente de cada parche en grupos de 3 a 6 y a las 7:00 p. m. le llega la notificación para confirmar. Ese es el momento en que decide si sale el domingo. Al terminar la jornada, la app le pregunta si fue, si volvería y, de forma opcional, cómo se sintió del 1 al 5. La Secretaría ve un tablero web solo con cifras agregadas por comuna y por grupo.
+Un estudiante universitario de Cali verifica su correo institucional y crea su perfil. Cada semana el sistema abre parches en las 11 estaciones de la CicloVida, uno por hora (8:00, 9:30, 11:00) y actividad (bici, patines, trotar, caminar). Al entrar, un match automático (la misma idea de distancia del k-means) lo une al parche que ya tiene gente con su hora, estación y actividad; si no existe, queda en lista de espera y se le avisa —en la app y por Telegram— apenas aparezca, con parches parecidos como plan B. También puede elegir a mano, ver las zonas en un mapa interactivo y comentar en el foro comunal. El sábado a las 5:00 p. m. un algoritmo k-means divide a la gente de cada parche en grupos de 3 a 6 y a las 7:00 p. m. le llega la notificación para confirmar. Ese es el momento en que decide si sale el domingo. Al terminar la jornada, la app le pregunta si fue, si volvería y, de forma opcional, cómo se sintió del 1 al 5. La Secretaría ve un tablero web solo con cifras agregadas por comuna y por grupo.
 
 ```
 parches-ciclovida/
@@ -21,7 +21,7 @@ parches-ciclovida/
 | Parches generados por el sistema | `GET /api/parches`, `POST /api/yo/parche`, `app/lib/screens/elegir_parche.dart` |
 | Agrupamiento con k-means | `backend/app/matching.py` (funciones puras, con pruebas) |
 | Notificaciones | `app/lib/notificaciones.dart`: sábado 7:00 p. m. y domingo 1:30 p. m., cada semana |
-| Mapa interactivo de zonas | `app/lib/screens/mapa.dart` (flutter_map + OpenStreetMap, 12 estaciones) |
+| Mapa interactivo de zonas | `app/lib/screens/mapa.dart` (flutter_map + OpenStreetMap, 11 estaciones) |
 | Foro comunal | `GET/POST /api/foro`, `app/lib/screens/foro.dart` |
 | Historial de domingos | `GET /api/yo/historial`, `app/lib/screens/historial.dart` (a qué parches fue y con quién) |
 | Quiz "Tu estilo de parche" | `POST /api/yo/quiz`, `QUIZ_PREGUNTAS` en `backend/app/catalog.py`, `app/lib/screens/quiz.dart` |
@@ -300,12 +300,12 @@ cuerpo va en Barlow, hasta 700. Los números grandes (horas, días, cifras) tamb
 
 ## Cómo se arman los grupos
 
-1. **El sistema abre los parches.** Uno por estación, hora y actividad para cada grupo de edad (144 por domingo). El joven elige; la app le recomienda los de su estación y actividad favoritas.
+1. **El sistema abre los parches.** Uno por estación, hora y actividad para cada grupo de edad (132 por domingo). El joven elige; la app le recomienda los de su estación y actividad favoritas.
 2. **Nadie queda solo.** El sábado a las 5:00 p. m., quien está en un parche de menos de 3 personas se suma al parche compatible más parecido. Reglas que nunca se relajan: misma estación, menores nunca con mayores, a pie (caminar, trotar) nunca con sobre ruedas (bici, patines), máximo 90 minutos de diferencia. Quien tuvo que ceder algo lo ve escrito en su grupo.
 3. **K-means.** Cada parche se parte en grupos de 3 a 6, idealmente 5, con k-means de tamaño balanceado y determinista sobre ritmo (peso 1,0), rango de edad (0,6), experiencia, es decir, domingos que ya fue (0,4), y las cinco respuestas del quiz de estilo (0,2 cada una). Ojo: k-means solo tiene algo que decidir cuando un parche tiene 7 personas o más; con 3 a 6 queda un solo grupo.
 4. **Quien llega tarde** se suma al grupo con cupo cuyo centroide está más cerca, o se abre uno nuevo.
 
-Con los 1.500 jóvenes simulados, en el último domingo de la demo hay 1.217 personas en 256 grupos: todas en grupos de 3 a 6, nadie solo, y solo 22 tuvieron que cambiar de hora o actividad. En el domingo abierto, al armar los grupos, quedan 757 personas en 169 grupos, también sin nadie solo. Con los 260 simulados de antes, en ese domingo el 9 % quedaba solo o en pareja y el 35 % tenía que cambiar de hora o actividad.
+Con los 1.500 jóvenes simulados, en el último domingo de la demo hay 1.217 personas en 257 grupos: todas en grupos de 3 a 6, nadie solo, y solo 22 tuvieron que cambiar de hora o actividad. En el domingo abierto, al armar los grupos, quedan 757 personas en 168 grupos, también sin nadie solo. Con los 260 simulados de antes, en ese domingo el 9 % quedaba solo o en pareja y el 35 % tenía que cambiar de hora o actividad.
 
 ## Datos simulados y reporte del emparejamiento
 
@@ -324,18 +324,18 @@ Con los 1.500 jóvenes simulados, en el último domingo de la demo hay 1.217 per
   centro del grupo. De las personas reales no sale ni el nombre ni el quiz. Hay un ejemplo generado
   en [`docs/reporte_emparejamiento.md`](docs/reporte_emparejamiento.md).
 - **¿Sirve el quiz?** El reporte rearma los parches que k-means divide, con el quiz, sin el quiz y al
-  azar. Con los 1.500 simulados (78 parches, 1.000 personas):
+  azar. Con los 1.500 simulados (78 parches, 1.035 personas):
 
   | Grupos armados… | Afinidad de estilo | Mismo ritmo |
   |---|---|---|
-  | al azar | 61,0 % | 60,4 % |
-  | sin el quiz | 64,9 % | 80,0 % |
-  | con el quiz, `PESO_QUIZ=0.2` (el actual) | 65,9 % | 80,1 % |
-  | con el quiz, `PESO_QUIZ=0.5` | 71,0 % | 76,1 % |
+  | al azar | 61,2 % | 60,9 % |
+  | sin el quiz | 64,1 % | 81,2 % |
+  | con el quiz, `PESO_QUIZ=0.2` (el actual) | 66,0 % | 81,4 % |
+  | con el quiz, `PESO_QUIZ=0.5` | 69,0 % | 78,5 % |
 
-  Con el peso actual, el quiz le cambia el grupo a 315 de esas 1.000 personas, pero la afinidad de
-  estilo sube apenas 1 punto: sigue siendo un desempate, como pidió el equipo. Con 0,5 sube 6 puntos
-  a cambio de 4 puntos menos de grupos con el mismo ritmo. Es una decisión de diseño: se cambia con
+  Con el peso actual, el quiz le cambia el grupo a 288 de esas 1.035 personas, pero la afinidad de
+  estilo sube apenas 2 puntos: sigue siendo un desempate, como pidió el equipo. Con 0,5 sube 5
+  puntos a cambio de 3 puntos menos de grupos con el mismo ritmo. Es una decisión de diseño: se cambia con
   `PESO_QUIZ` y se mide con el mismo reporte.
 
 ## Correr la demo
@@ -452,7 +452,7 @@ Si preguntan por qué app y no web: la notificación del sábado en la noche lle
 
 ## Fuentes de datos
 
-Las 12 estaciones de la CicloVida 2026 (Panamericana, El Prado, Torres de Comfandi, El Ingenio, Morichal, Sol de Oriente, Petecuy, Corredor Verde, Las Américas, Brisas de los Álamos, Siloé y La Fortaleza) y el horario de 8:00 a. m. a 1:00 p. m. salen de los boletines de la Alcaldía de Cali. Las direcciones de cada estación salen de El País (mayo de 2025). Las coordenadas del mapa son aproximadas.
+Las 11 estaciones de la CicloVida 2026 salen de El Tiempo y de los boletines de la Alcaldía de Cali: la CicloVida central (Panamericana, El Ingenio, Dorada, La Luna y Metropolitana) y las seis comunitarias (Ciudad de Cali, Sol de Oriente, San Carlos, Las Américas, Torres de Comfandi y Brisas de los Álamos). El horario, de 8:00 a. m. a 1:00 p. m., también es de la Alcaldía. Los puntos de encuentro salen de El País (mayo de 2025) y, para Dorada (Calle 9 con Carrera 66), La Luna (Calle 13 con Autopista Suroriental), Metropolitana (Cementerio Metropolitano del Norte) y Ciudad de Cali (avenida Ciudad de Cali, Carrera 29 con Calle 55), de publicaciones de la Alcaldía. Las coordenadas del mapa son aproximadas (OpenStreetMap) y hay que validarlas con la Secretaría del Deporte.
 
 - https://www.cali.gov.co/boletines/publicaciones/191401/la-sexta-ciclovida-de-2026-llega-el-domingo-para-el-disfrute-de-calenos-y-visitantes/
 - https://www.cali.gov.co/boletines/publicaciones/191512/con-58-kilometros-de-bienestar-cali-vivio-una-nueva-jornada-masiva-de-la-ciclovida/
