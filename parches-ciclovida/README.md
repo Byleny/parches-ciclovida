@@ -369,9 +369,9 @@ Probado con Flutter 3.38.9: `flutter analyze` sin problemas, `flutter test` pasa
 1. **Registro.** Correo `@usbcali.edu.co` y el código (en la demo aparece en pantalla). Luego nombre, edad, comuna 19, bici, ritmo moderado. Mostrar el aviso de privacidad y la autorización.
 2. **Match automático.** Al entrar, la app busca sola un parche con gente y esas mismas características. Con los datos sintéticos hay gente inscrita, así que el match une de una; si se quiere mostrar la espera, registrarse con una actividad y estación sin gente, ver la tarjeta "Buscando tu parche…" (y "Conectar Telegram"), inscribir a otra persona compatible desde otro navegador y ver llegar el aviso. También se puede "Elegir yo mismo": filtrar por estación, hora y actividad, y "Unirme".
 2b. **Mapa y foro.** Pestaña Mapa: pines con la gente de cada estación y ficha con sus parches. Pestaña Foro: publicar un mensaje en "Mis parches".
-3. **El sábado.** En Ajustes > Herramientas de demo: "Armar los grupos del sábado". Luego "Ver el aviso del sábado": llega la notificación y al tocarla se abre el grupo con punto de encuentro, hora, nombres y universidades.
+3. **El sábado.** En Mi parche, el chip **Demo** (arriba, junto al historial) abre "Adelanta la semana": tocar "Armar los grupos". Aparece el grupo con punto de encuentro, hora, nombres y universidades. Para mostrar la notificación: Ajustes > Herramientas de demo > "Ver el aviso del sábado".
 4. **Confirmar.** "Confirmo, voy". Mostrar "Reportar un problema" y "Cómo armamos los grupos".
-5. **El domingo.** "Terminar la jornada y abrir encuesta", luego "Ver el aviso de la encuesta" y responderla.
+5. **El domingo.** De nuevo el chip **Demo**: "Terminar el domingo". Se abre la encuesta de satisfacción de una vez; si se cierra sin responder, queda la tarjeta "¿Cómo te fue…?" arriba en Mi parche y el paso "Responder la encuesta" en la misma hoja.
 6. **Tablero.** Recargar http://localhost:8000/tablero/ y elegir la jornada: la respuesta ya está en las cifras, sin ningún nombre.
 
 Si preguntan por qué app y no web: la notificación del sábado en la noche llega justo cuando el joven decide si sale el domingo. Una página web no puede avisarle en ese momento.

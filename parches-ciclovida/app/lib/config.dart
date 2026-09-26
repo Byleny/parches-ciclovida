@@ -13,6 +13,10 @@ String apiUrlPorDefecto() {
   return 'http://localhost:8000';
 }
 
+/// Muestra el chip "Demo" en Mi parche para adelantar la semana (armar grupos, terminar el domingo y
+/// abrir la encuesta). Para una versión sin atajos: flutter run --dart-define=DEMO=false
+const bool kModoDemo = bool.fromEnvironment('DEMO', defaultValue: true);
+
 /// Clave de las acciones de demo (armar parches, cerrar jornada). Debe coincidir con ADMIN_KEY del backend.
 const String kClaveAdminPorDefecto = 'dedsec-demo';
 

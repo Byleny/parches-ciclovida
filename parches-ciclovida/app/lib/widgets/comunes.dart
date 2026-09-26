@@ -89,14 +89,27 @@ class Seleccionable extends StatelessWidget {
   }
 }
 
-/// Dos botones grandes "Sí" / "No".
+/// Dos botones grandes "Sí" / "No". Sin [colorSeleccion], el sí se tiñe de verde y el no de coral;
+/// con él, los dos toman el color de la pregunta.
 class SiNo extends StatelessWidget {
-  const SiNo({super.key, required this.valor, required this.onChanged, this.si = 'Sí', this.no = 'No'});
+  const SiNo({
+    super.key,
+    required this.valor,
+    required this.onChanged,
+    this.si = 'Sí',
+    this.no = 'No',
+    this.colorSeleccion,
+    this.fondoSeleccion,
+  });
 
   final bool? valor;
   final ValueChanged<bool> onChanged;
   final String si;
   final String no;
+
+  /// Un tono Ink y su brisa.
+  final Color? colorSeleccion;
+  final Color? fondoSeleccion;
 
   @override
   Widget build(BuildContext context) {
@@ -107,8 +120,8 @@ class SiNo extends StatelessWidget {
             titulo: si,
             seleccionado: valor == true,
             onTap: () => onChanged(true),
-            colorSeleccion: Cv.verdeInk,
-            fondoSeleccion: Cv.brisaVerde,
+            colorSeleccion: colorSeleccion ?? Cv.verdeInk,
+            fondoSeleccion: fondoSeleccion ?? Cv.brisaVerde,
           ),
         ),
         const SizedBox(width: 12),
@@ -117,8 +130,8 @@ class SiNo extends StatelessWidget {
             titulo: no,
             seleccionado: valor == false,
             onTap: () => onChanged(false),
-            colorSeleccion: Cv.coralInk,
-            fondoSeleccion: Cv.brisaCoral,
+            colorSeleccion: colorSeleccion ?? Cv.coralInk,
+            fondoSeleccion: fondoSeleccion ?? Cv.brisaCoral,
           ),
         ),
       ],

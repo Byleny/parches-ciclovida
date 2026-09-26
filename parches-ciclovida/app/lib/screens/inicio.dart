@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../config.dart';
 import '../formato.dart';
 import '../models.dart';
 import '../notificaciones.dart';
@@ -10,6 +11,7 @@ import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/boleta.dart';
 import '../widgets/comunes.dart';
+import '../widgets/demo.dart';
 import '../widgets/diseno.dart';
 import '../widgets/parche_card.dart';
 import '../widgets/telegram.dart';
@@ -322,7 +324,34 @@ class _InicioScreenState extends State<InicioScreen> {
     );
     if (enviada == true) {
       await _cargar();
-      _aviso('Gracias por contarnos. Nos vemos el próximo domingo.');
+      if (!mounted) return;
+      await celebrar(
+        context,
+        titulo: '¡Gracias!',
+        texto: 'Gracias por contarnos. Nos vemos el próximo domingo.',
+        icono: Icons.favorite,
+        color: Cv.coralInk,
+        boton: '¡Nos vemos!',
+      );
+    }
+  }
+
+  /// Atajos de la demo. Al terminar el domingo se abre la encuesta de una vez, como si llegara el aviso.
+  Future<void> _abrirDemo() async {
+    final estado = _estado;
+    if (estado == null) return;
+    final r = await abrirHojaDemo(context, estado: estado);
+    if (r == null || !mounted) return;
+    await _cargar();
+    if (!mounted) return;
+    if (r.paso == PasoDemo.armarGrupos) {
+      if (r.mensaje != null) _aviso(r.mensaje!);
+      return;
+    }
+    if (_estado?.encuestaPendiente ?? false) {
+      await _abrirEncuesta();
+    } else if (r.mensaje != null) {
+      _aviso(r.mensaje!);
     }
   }
 
@@ -382,6 +411,10 @@ class _InicioScreenState extends State<InicioScreen> {
         titleSpacing: 16,
         title: Image.asset('assets/img/parche-logo.png', height: 38, semanticLabel: 'Parche CicloVida'),
         actions: [
+          if (kModoDemo && _estado != null) ...[
+            BotonDemo(onTap: _abrirDemo),
+            const SizedBox(width: 4),
+          ],
           IconButton(
             icon: const Icon(Icons.history),
             tooltip: 'Mis domingos',

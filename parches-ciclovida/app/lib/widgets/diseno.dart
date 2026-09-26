@@ -543,8 +543,14 @@ class Aparecer extends StatefulWidget {
 }
 
 class _AparecerState extends State<Aparecer> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
-  late final Animation<double> _curva = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
+  // El escalonado va dentro de la animación (un Interval) y no en un Future.delayed: un timer
+  // pendiente al terminar hace fallar flutter test.
+  late final int _espera = 70 * widget.orden.clamp(0, 8);
+  late final AnimationController _c = AnimationController(vsync: this, duration: Duration(milliseconds: 420 + _espera));
+  late final Animation<double> _curva = CurvedAnimation(
+    parent: _c,
+    curve: Interval(_espera / (420 + _espera), 1, curve: Curves.easeOutCubic),
+  );
   bool _arrancado = false;
 
   @override
@@ -555,9 +561,7 @@ class _AparecerState extends State<Aparecer> with SingleTickerProviderStateMixin
     if (MediaQuery.disableAnimationsOf(context)) {
       _c.value = 1;
     } else {
-      Future<void>.delayed(Duration(milliseconds: 70 * widget.orden.clamp(0, 8)), () {
-        if (mounted) _c.forward();
-      });
+      _c.forward();
     }
   }
 

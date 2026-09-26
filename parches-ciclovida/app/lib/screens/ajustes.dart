@@ -5,6 +5,7 @@ import '../notificaciones.dart';
 import '../sesion.dart';
 import '../theme.dart';
 import '../widgets/comunes.dart';
+import '../widgets/demo.dart';
 import '../widgets/diseno.dart';
 import '../widgets/telegram.dart';
 import 'aviso.dart';
@@ -48,17 +49,6 @@ class _AjustesScreenState extends State<AjustesScreen> {
     } finally {
       if (mounted) setState(() => _ocupado = false);
     }
-  }
-
-  Future<String> _armar(String clave) async {
-    final r = await Sesion.actual.api.adminArmarGrupos(clave);
-    return 'K-means armó ${r['grupos']} grupos con ${r['emparejados']} estudiantes. '
-        '${r['movidos']} se sumaron a otro parche y ${r['solos']} quedaron sin compañía.';
-  }
-
-  Future<String> _terminar(String clave) async {
-    final r = await Sesion.actual.api.adminFinalizar(clave);
-    return 'Jornada del ${r['finalizada']} terminada. Ya se puede responder la encuesta.';
   }
 
   Future<void> _cerrarSesion() async {
@@ -203,12 +193,12 @@ class _AjustesScreenState extends State<AjustesScreen> {
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton(
-                      onPressed: _ocupado ? null : () => _demo(_armar),
+                      onPressed: _ocupado ? null : () => _demo(demoArmarGrupos),
                       child: const Text('1. Armar los grupos del sábado'),
                     ),
                     const SizedBox(height: 8),
                     OutlinedButton(
-                      onPressed: _ocupado ? null : () => _demo(_terminar),
+                      onPressed: _ocupado ? null : () => _demo(demoTerminarDomingo),
                       child: const Text('2. Terminar la jornada y abrir encuesta'),
                     ),
                   ],
