@@ -9,7 +9,7 @@ Protecciones:
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from datetime import date
+from datetime import date, timedelta
 from statistics import mean
 
 from sqlmodel import Session, select
@@ -156,6 +156,96 @@ def _lecturas(reparto, od, unis, tejido, participacion) -> list[str]:
     return frases
 
 
+def _n1(v: float) -> str:
+    return f"{v:g}".replace(".", ",")  # decimales con coma
+
+
+def _habito(session: Session, fecha: date) -> dict:
+    """Retorno y hábito: ¿los jóvenes vuelven? Se mide sobre los domingos ya terminados.
+
+    * retorno: de quienes fueron el domingo anterior, qué porcentaje fue este
+    * regresaron: fueron este domingo, faltaron el anterior y ya habían ido antes (volvieron tras una pausa)
+    * hábito: quienes llevan 3 o más domingos seguidos; `rachas` reparte a los asistentes por domingos seguidos
+    Todo agregado: los conteos bajo el mínimo K no salen y los porcentajes exigen una base de K jóvenes.
+    """
+    finalizadas = sorted(session.exec(select(Jornada.fecha).where(Jornada.estado == "finalizada")).all())
+    encuestas = {(e.joven_id, e.jornada_fecha): e for e in session.exec(select(Encuesta)).all()}
+    fue: dict[date, set] = {d: set() for d in finalizadas}
+    for a in session.exec(select(Asignacion)).all():
+        if a.jornada_fecha in fue:
+            e = encuestas.get((a.joven_id, a.jornada_fecha))
+            if e.asistio if e else a.estado == "confirmado":
+                fue[a.jornada_fecha].add(a.joven_id)
+
+    k = config.K_CONTEO
+    racha: dict[date, dict[str, int]] = {}
+    serie = []
+    for d in finalizadas:
+        anterior = d - timedelta(days=7)
+        previos = fue.get(anterior, set())
+        antes = set().union(*(fue[x] for x in finalizadas if x < anterior)) if finalizadas else set()
+        racha[d] = {j: 1 + racha.get(anterior, {}).get(j, 0) for j in fue[d]}
+        volvieron = len(previos & fue[d])
+        seguidos = sum(1 for n in racha[d].values() if n >= 3)
+        serie.append({
+            "fecha": str(d),
+            "asistentes": len(fue[d]),
+            "retorno_pct": _pct(volvieron, len(previos)) if len(previos) >= k else None,
+            "regresaron": len((fue[d] - previos) & antes),
+            "habito_n": seguidos,
+            "habito_pct": _pct(seguidos, len(fue[d])) if len(fue[d]) >= k and len(racha) >= 3 else None,  # sin 3 domingos, no hay rachas de 3
+        })
+
+    # rachas del domingo elegido (o el último ya terminado que no pase de esa fecha)
+    elegidas = [d for d in finalizadas if d <= fecha]
+    dist = Counter(min(n, 4) for n in racha[elegidas[-1]].values()) if elegidas else Counter()
+    rachas = [{"domingos": n, "mas": n == 4, "n": _conteo(dist.get(n, 0))} for n in (1, 2, 3, 4)]
+    actual = next((s for s in serie if elegidas and s["fecha"] == str(elegidas[-1])), None)
+    return {"serie": serie, "rachas": rachas, "actual": actual}
+
+
+def _escenarios(habito: dict, por_tramo: list, por_comuna: list) -> list[dict]:
+    """Pares «qué mide el tablero → qué podría hacer la Secretaría», con las cifras de la jornada."""
+    k = config.K_CONTEO
+    filas = []
+    a = habito["actual"]
+    if a and a["retorno_pct"] is not None:
+        filas.append({
+            "area": "Secretaría del Deporte y la Recreación",
+            "mide": f"{_n1(a['retorno_pct'])} % de quienes fueron el domingo anterior volvió, y {a['regresaron']} "
+                    "regresaron después de faltar.",
+            "decide": "Si la CicloVida se interrumpe (un cierre, una suspensión), ver cuánto cae el retorno y cuánto "
+                      "tardan en regresar, para decidir cuándo y cómo convocar de nuevo.",
+        })
+    if a and a["habito_n"] >= k:
+        filas.append({
+            "area": "Universidades aliadas",
+            "mide": f"{a['habito_n']} jóvenes ({_n1(a['habito_pct'])} %) ya llevan 3 o más domingos seguidos: el hábito se está formando.",
+            "decide": "Invitar a ese núcleo a traer a otros estudiantes y a liderar parches nuevos.",
+        })
+    estaciones = [t for t in por_tramo if t["con_parche"] >= k]
+    total = sum(t["con_parche"] for t in por_tramo)
+    if estaciones and total:
+        top = max(estaciones, key=lambda t: t["con_parche"])
+        filas.append({
+            "area": "Movilidad y Obras Públicas",
+            "mide": f"La estación {top['nombre']} concentra {top['con_parche']} jóvenes con parche "
+                    f"({_n1(round(100 * top['con_parche'] / total, 1))} % del total).",
+            "decide": "Reforzar allí el acompañamiento, la señalización y la seguridad, y coordinar el tránsito del domingo.",
+        })
+    comunas = sorted(
+        (c for c in por_comuna if c["inscritos"]["valor"]), key=lambda c: c["inscritos"]["valor"],
+    )[:3]
+    if len(comunas) == 3:
+        nombres = ", ".join(str(c["comuna"]) for c in comunas[:-1]) + f" y {comunas[-1]['comuna']}"
+        filas.append({
+            "area": "Secretaría del Deporte y la Recreación",
+            "mide": f"Las comunas {nombres} son las de menor participación (con conteos que se pueden mostrar).",
+            "decide": "Enfocar allí la convocatoria y buscar clubes o universidades cercanas para abrir parches.",
+        })
+    return filas
+
+
 def resumen(session: Session, fecha: date) -> dict:
     jornada = session.get(Jornada, fecha)
     jovenes = {j.id: j for j in session.exec(select(Joven)).all()}
@@ -251,11 +341,14 @@ def resumen(session: Session, fecha: date) -> dict:
     ]
 
     reto = _indicadores_reto(jovenes, asign, grupos)
+    habito = _habito(session, fecha)
 
     return {
         "fecha": str(fecha),
         "estado": jornada.estado if jornada else "sin_datos",
         **reto,
+        "habito": habito,
+        "escenarios": _escenarios(habito, por_tramo, por_comuna),
         "datos_sinteticos": any(j.sintetico for j in jovenes.values()),
         "anonimato": {"k_conteo": config.K_CONTEO, "k_promedio": config.K_PROMEDIO},
         "kpis": kpis,

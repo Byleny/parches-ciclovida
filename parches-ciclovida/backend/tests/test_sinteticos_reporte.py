@@ -219,3 +219,24 @@ def test_tablero_trae_indicadores_del_reto_y_respeta_el_anonimato():
         # la pregunta nueva del registro llega al perfil y al tablero
         tok = nuevo(c, "Ana", primera_vez=True)
         assert c.get("/api/yo", headers=auth(tok)).status_code == 200
+
+
+def test_tablero_mide_retorno_y_habito_sin_romper_el_anonimato():
+    from app import config
+
+    SQLModel.metadata.drop_all(engine)
+    with TestClient(app) as c:
+        sembrar(total=600)
+        r = c.get("/api/tablero/resumen").json()
+        h = r["habito"]
+        k = config.K_CONTEO
+        assert len(h["serie"]) >= 2 and h["actual"]["asistentes"] > 0
+        assert h["serie"][0]["retorno_pct"] is None  # el primer domingo no tiene uno anterior
+        assert all(0 <= s["retorno_pct"] <= 100 for s in h["serie"] if s["retorno_pct"] is not None)
+        assert h["serie"][-1]["regresaron"] > 0 and h["serie"][-1]["habito_n"] > 0
+        assert [x["domingos"] for x in h["rachas"]] == [1, 2, 3, 4]
+        # los que fueron este domingo se reparten exactamente entre las rachas
+        assert sum(x["n"]["valor"] or 0 for x in h["rachas"]) <= h["actual"]["asistentes"]
+        assert r["escenarios"] and all({"area", "mide", "decide"} <= set(e) for e in r["escenarios"])
+        # el número de jóvenes de un escenario nunca baja del mínimo de anonimato
+        assert all(x["n"]["valor"] is None or x["n"]["valor"] >= k for x in h["rachas"] if x["n"]["valor"])

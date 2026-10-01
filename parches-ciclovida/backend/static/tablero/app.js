@@ -14,6 +14,7 @@
   let datos = null;
   let grafTendencia = null;
   let grafBase = null;
+  let grafRetorno = null;
   let kpisPrevios = null;
   let ultimaOk = null;
   let mapa = null;
@@ -69,6 +70,7 @@
     pintarKpis();
     pintarLecturas();
     pintarReto();
+    pintarHabito();
     pintarEmbudo();
     pintarTendencia();
     pintarComunas();
@@ -136,6 +138,68 @@
     ].join('');
 
     pintarBase();
+  }
+
+  function pintarHabito() {
+    const h = datos.habito;
+    const serie = h.serie;
+    const c1 = css('--data-1');
+    const c2 = css('--data-2');
+    const linea = (label, key, color) => ({
+      label, data: serie.map((x) => x[key]), borderColor: color, backgroundColor: color, borderWidth: 2,
+      pointRadius: 4, pointHoverRadius: 6, pointBorderColor: '#ffffff', pointBorderWidth: 2, pointBackgroundColor: color,
+      tension: 0, spanGaps: true,
+    });
+    const cfg = {
+      type: 'line',
+      data: {
+        labels: serie.map((x) => fechaCorta(x.fecha)),
+        datasets: [linea('Volvieron al domingo siguiente', 'retorno_pct', c1), linea('Con 3 o más domingos seguidos', 'habito_pct', c2)],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', align: 'start', labels: { boxWidth: 12, boxHeight: 3, color: css('--ink'), font: { family: 'Barlow', size: 13 } } },
+          tooltip: {
+            backgroundColor: '#1e1f23', padding: 10, titleFont: { family: 'Barlow', weight: '600' }, bodyFont: { family: 'Barlow' },
+            callbacks: {
+              title: (items) => fechaLarga(serie[items[0].dataIndex].fecha),
+              label: (it) => ` ${it.dataset.label}: ${pct(it.parsed.y)}`,
+              afterBody: (items) => {
+                const x = serie[items[0].dataIndex];
+                return [`${fmt.format(x.asistentes)} fueron`, `${fmt.format(x.regresaron)} regresaron tras faltar`];
+              },
+            },
+          },
+        },
+        scales: {
+          y: { min: 0, max: 100, ticks: { stepSize: 25, callback: (v) => `${v} %`, color: css('--ink-muted'), font: { family: 'Barlow' } }, grid: { color: '#ecece8' }, border: { display: false } },
+          x: { ticks: { color: css('--ink-muted'), font: { family: 'Barlow' } }, grid: { display: false }, border: { color: '#d6d6d1' } },
+        },
+      },
+    };
+    if (grafRetorno) grafRetorno.destroy();
+    grafRetorno = new Chart($('#retorno'), cfg);
+
+    const maxR = Math.max(1, ...h.rachas.map((r) => r.n.valor || 0));
+    $('#rachas').innerHTML = h.rachas.map((r) => fila(
+      r.mas ? '4 o más' : `${r.domingos} ${r.domingos === 1 ? 'domingo' : 'domingos'}`, r.n.valor, maxR, conteo(r.n),
+    )).join('');
+    const a = h.actual;
+    $('#habito-mini').innerHTML = a ? [
+      a.retorno_pct != null ? `<div><b>${pct(a.retorno_pct)}</b><span>volvió al domingo siguiente</span></div>` : '',
+      `<div><b>${fmt.format(a.regresaron)}</b><span>regresaron después de faltar</span></div>`,
+    ].join('') : '';
+
+    $('#escenarios').innerHTML = datos.escenarios.length
+      ? datos.escenarios.map((e) => `
+        <div class="escenario">
+          <span class="area">${esc(e.area)}</span>
+          <p class="mide"><small>El tablero mide</small>${esc(e.mide)}</p>
+          <p class="decide"><small>Se podría</small>${esc(e.decide)}</p>
+        </div>`).join('')
+      : '<p class="sub">Los escenarios aparecen cuando hay jornadas terminadas.</p>';
   }
 
   function pintarBase() {

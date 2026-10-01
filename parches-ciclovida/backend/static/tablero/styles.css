@@ -203,6 +203,14 @@ tbody tr:hover { background: var(--brisa-teal); }
 
 .pie { max-width: 1240px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-8); font-size: 12px; color: var(--ink-muted); display: grid; gap: var(--space-2); }
 
+/* escenarios: lo que mide el tablero → lo que podría hacer la Secretaría */
+.escenarios { display: grid; gap: var(--space-3); }
+.escenario { display: grid; grid-template-columns: 190px 1fr 1fr; gap: var(--space-4); align-items: start; padding: var(--space-3) var(--space-4); border-radius: var(--radio-sm); background: var(--brisa-teal); }
+.escenario .area { align-self: center; justify-self: start; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--teal-soft); color: var(--teal-ink); }
+.escenario p { font-size: 14px; line-height: 1.4; }
+.escenario small { display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 2px; }
+.escenario .decide { border-left: 3px solid var(--verde); padding-left: var(--space-3); }
+
 @media (prefers-reduced-motion: reduce) {
   .vivo i, .kpi.cambio { animation: none; }
 }
@@ -219,6 +227,7 @@ tbody tr:hover { background: var(--brisa-teal); }
   .contexto { padding: var(--space-4); }
   .contexto .una-linea { font-size: 24px; }
   .contexto .trio, .lecturas ol { grid-template-columns: 1fr; }
+  .escenario { grid-template-columns: 1fr; gap: var(--space-2); }
   .flujo { grid-template-columns: 1fr; }
   .flujo .flecha { display: none; }
   .barras-comuna { grid-template-columns: minmax(0, 1fr); }
