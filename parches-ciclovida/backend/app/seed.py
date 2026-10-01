@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import math
 import random
+import zlib
 from collections import Counter
 from datetime import datetime, time, timedelta
 
@@ -57,6 +58,8 @@ def _joven(d: dict, creado: datetime) -> Joven:
         declara_mayor_en=creado,
         quiz_respuestas=respuestas,
         quiz=services.vector_quiz({int(k): v for k, v in respuestas.items()}) if respuestas else None,
+        # 55 % llega por primera vez: dato simulado, estable entre cargas
+        primera_vez=zlib.crc32(d["id"].encode()) % 100 < 55,
         sintetico=True,
         creado_en=creado,
     )

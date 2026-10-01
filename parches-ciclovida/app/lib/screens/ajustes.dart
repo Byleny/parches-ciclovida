@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../notificaciones.dart';
@@ -172,6 +173,15 @@ class _AjustesScreenState extends State<AjustesScreen> {
                 leading: const Icon(Icons.rate_review_outlined),
                 title: const Text('Ver el aviso de la encuesta'),
                 onTap: () => Notificaciones.probar(context, avisoDomingo),
+              ),
+              ListTile(
+                leading: const Icon(Icons.insights_outlined),
+                title: const Text('Ver el tablero de la Secretaría'),
+                subtitle: const Text('Lo que haces en la app aparece ahí, sin tu nombre'),
+                onTap: () => launchUrl(
+                  Uri.parse('${Sesion.actual.apiUrl.replaceAll(RegExp(r'/+$'), '')}/tablero/'),
+                  mode: LaunchMode.externalApplication,
+                ),
               ),
               ListTile(
                 leading: const Icon(Icons.dns_outlined),

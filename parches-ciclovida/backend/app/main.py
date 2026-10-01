@@ -197,6 +197,7 @@ class Registro(Preferencias):
     declara_mayor: bool = False  # casilla obligatoria para 18+: queda constancia de que se preguntó
     permiso_acudiente: bool = False
     acudiente_nombre: str | None = Field(default=None, max_length=80)
+    primera_vez: bool | None = None  # ¿es su primera vez en la CicloVida? Opcional
 
     @field_validator("nombre")
     @classmethod

@@ -13,6 +13,9 @@
 
   let datos = null;
   let grafTendencia = null;
+  let grafBase = null;
+  let kpisPrevios = null;
+  let ultimaOk = null;
   let mapa = null;
   let capaMapa = null;
 
@@ -42,6 +45,14 @@
     sel.value = actual && lista.some((j) => j.fecha === actual) ? actual : porDefecto;
   }
 
+  function marcarVivo(ok) {
+    const el = $('#vivo');
+    el.classList.toggle('sin-conexion', !ok);
+    if (ok) ultimaOk = new Date();
+    el.firstElementChild.nextSibling.textContent = ok ? 'En vivo ' : 'Sin conexión con la app ';
+    $('#vivo-hora').textContent = ultimaOk ? `· ${ultimaOk.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : '';
+  }
+
   async function cargarResumen() {
     const fecha = $('#jornada').value;
     datos = await getJSON(`/api/tablero/resumen${fecha ? `?fecha=${fecha}` : ''}`);
@@ -54,7 +65,10 @@
     $('#nota-privacidad').textContent =
       `Conteos menores a ${datos.anonimato.k_conteo} se muestran como <${datos.anonimato.k_conteo}. ` +
       `Promedios con menos de ${datos.anonimato.k_promedio} respuestas se ocultan.`;
+    pintarContexto();
     pintarKpis();
+    pintarLecturas();
+    pintarReto();
     pintarEmbudo();
     pintarTendencia();
     pintarComunas();
@@ -63,26 +77,142 @@
     pintarGrupos();
   }
 
+  function pintarContexto() {
+    const c = window.PARCHES_CONTEXTO;
+    const caja = $('#contexto');
+    if (!c) return;
+    const cifras = (c.cifras || []).filter((x) => x.cifra && x.fuente);
+    caja.hidden = false;
+    caja.innerHTML = `
+      <p class="una-linea">${esc(c.unaLinea || '')}</p>
+      ${cifras.length ? `<div class="cifras">${cifras.map((x) => `
+        <div class="cifra"><b>${esc(x.cifra)}</b><span>${esc(x.texto)}</span><small>Fuente: ${esc(x.fuente)}</small></div>`).join('')}</div>` : ''}
+      <div class="trio">
+        ${c.problema ? `<div><h2>El problema</h2><p>${esc(c.problema)}</p></div>` : ''}
+        ${(c.valor || []).length ? `<div><h2>Valor público</h2><ul>${c.valor.map((v) => `<li>${esc(v)}</li>`).join('')}</ul></div>` : ''}
+      </div>`;
+  }
+
+  function pintarLecturas() {
+    const l = datos.lecturas || [];
+    $('#card-lecturas').hidden = !l.length;
+    $('#lecturas').innerHTML = l.map((x) => `<li><span>${esc(x)}</span></li>`).join('');
+  }
+
+  function pintarReto() {
+    document.querySelectorAll('.kmin').forEach((e) => { e.textContent = datos.anonimato.k_conteo; });
+
+    // reparto modal: una barra partida (sobre ruedas / a pie) y el detalle por actividad
+    const modal = datos.reparto_modal;
+    const suma = (fam) => modal.filter((m) => m.familia === fam).reduce((s, m) => s + (m.n.valor || 0), 0);
+    const ruedas = suma('ruedas');
+    const aPie = suma('a_pie');
+    const total = ruedas + aPie;
+    const p = (v) => (total ? Math.round((100 * v) / total) : 0);
+    $('#familia').innerHTML = total
+      ? `<div class="ruedas" style="flex:${ruedas || 0.001}" title="Sobre ruedas: ${fmt.format(ruedas)}">Sobre ruedas ${p(ruedas)} %</div>` +
+        `<div class="a-pie" style="flex:${aPie || 0.001}" title="A pie: ${fmt.format(aPie)}">A pie ${p(aPie)} %</div>`
+      : '';
+    const maxM = Math.max(1, ...modal.map((m) => m.n.valor || 0));
+    $('#modal').innerHTML = modal.map((m) => fila(
+      m.nombre, m.n.valor, maxM, conteo(m.n), { titulo: `${m.nombre}: ${conteo(m.n)}` },
+    )).join('');
+
+    const od = datos.origen_destino;
+    const maxO = Math.max(1, ...od.pares.map((x) => x.n));
+    $('#od').innerHTML = od.pares.length
+      ? od.pares.map((x) => fila(`Comuna ${x.comuna} → ${x.estacion}`, x.n, maxO, fmt.format(x.n))).join('')
+      : '<p class="sub">Todavía no hay pares con suficientes jóvenes.</p>';
+    $('#od-ocultos').textContent = od.ocultos ? `${fmt.format(od.ocultos)} pares con menos jóvenes no se muestran, para proteger el anonimato.` : '';
+
+    const unis = datos.universidades;
+    const maxU = Math.max(1, ...unis.map((u) => u.n.valor || 0));
+    $('#unis').innerHTML = unis.map((u) => fila(u.nombre, u.n.valor, maxU, conteo(u.n))).join('');
+    const t = datos.tejido;
+    const pa = datos.participacion;
+    $('#tejido').innerHTML = [
+      t.mixtos_pct != null ? `<div><b>${pct(t.mixtos_pct)}</b><span>de los grupos mezcla 2 o más universidades</span></div>` : '',
+      pa.primera_vez_pct != null ? `<div><b>${pct(pa.primera_vez_pct)}</b><span>nunca había ido a la CicloVida</span></div>` : '',
+    ].join('');
+
+    pintarBase();
+  }
+
+  function pintarBase() {
+    const b = datos.tendencia;
+    const c1 = css('--data-1');
+    const c2 = css('--data-2');
+    const cfg = {
+      type: 'bar',
+      data: {
+        labels: b.map((x) => fechaCorta(x.fecha)),
+        datasets: [
+          { label: 'Recurrentes', data: b.map((x) => x.recurrentes), backgroundColor: c1, borderColor: '#ffffff', borderWidth: 2, borderSkipped: false, borderRadius: 4, maxBarThickness: 64 },
+          { label: 'Nuevos', data: b.map((x) => x.nuevos), backgroundColor: c2, borderColor: '#ffffff', borderWidth: 2, borderSkipped: false, borderRadius: 4, maxBarThickness: 64 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: {
+          legend: { position: 'top', align: 'start', labels: { boxWidth: 12, boxHeight: 12, color: css('--ink'), font: { family: 'Barlow', size: 13 } } },
+          tooltip: {
+            backgroundColor: '#1e1f23', padding: 10, titleFont: { family: 'Barlow', weight: '600' }, bodyFont: { family: 'Barlow' },
+            callbacks: {
+              title: (items) => fechaLarga(b[items[0].dataIndex].fecha),
+              footer: (items) => `Total con parche: ${fmt.format(items.reduce((s, i) => s + i.parsed.y, 0))}`,
+            },
+          },
+        },
+        scales: {
+          x: { stacked: true, grid: { display: false }, border: { color: '#d6d6d1' }, ticks: { color: css('--ink-muted'), font: { family: 'Barlow' } } },
+          y: { stacked: true, beginAtZero: true, grid: { color: '#ecece8' }, border: { display: false }, ticks: { color: css('--ink-muted'), font: { family: 'Barlow' }, callback: (v) => fmt.format(v) } },
+        },
+      },
+    };
+    if (grafBase) grafBase.destroy();
+    grafBase = new Chart($('#base'), cfg);
+  }
+
   function pintarKpis() {
     const k = datos.kpis;
     const fueron = datos.embudo.find((e) => e.paso === 'Fueron').valor;
     const sinEncuesta = datos.estado !== 'finalizada';
     const nota = sinEncuesta ? 'La encuesta abre al terminar la jornada' : `${fmt.format(k.respuestas)} respuestas`;
+    // cambio frente a la jornada anterior que ya terminó
+    const i = datos.tendencia.findIndex((x) => x.fecha === datos.fecha);
+    const antes = i > 0 ? datos.tendencia[i - 1] : null;
+    const ahora = i >= 0 ? datos.tendencia[i] : null;
+    const dif = (clave, unidad = 'pts') => {
+      if (!antes || !ahora || antes[clave] == null || ahora[clave] == null) return '';
+      const d = Math.round((ahora[clave] - antes[clave]) * 10) / 10;
+      if (d === 0) return `<div class="dif">= que el ${fechaCorta(antes.fecha)}</div>`;
+      return `<div class="dif ${d > 0 ? 'sube' : 'baja'}">${d > 0 ? '▲' : '▼'} ${String(Math.abs(d)).replace('.', ',')} ${unidad} vs. ${fechaCorta(antes.fecha)}</div>`;
+    };
     const tiles = [
       { hero: true, lbl: 'Jóvenes que fueron con su parche', val: sinEncuesta ? ND : fmt.format(fueron), det: sinEncuesta ? nota : `de ${fmt.format(k.emparejados)} que tuvieron parche` },
       { lbl: 'Parches formados', val: fmt.format(k.parches), det: `${fmt.format(k.emparejados)} jóvenes de ${fmt.format(k.inscritos)} inscritos` },
-      { lbl: 'Confirmaron el sábado', val: pct(k.confirmacion_pct), det: 'de quienes tuvieron parche' },
-      { lbl: 'Fueron', val: pct(k.asistencia_pct), det: nota },
-      { lbl: 'Volverían', val: pct(k.volverian_pct), det: nota },
-      { lbl: 'Bienestar promedio', val: k.bienestar_promedio == null ? ND : String(k.bienestar_promedio).replace('.', ','), det: 'sobre 5 · pregunta opcional' },
+      { lbl: 'Confirmaron el sábado', val: pct(k.confirmacion_pct), det: 'de quienes tuvieron parche', extra: dif('confirmacion_pct') },
+      { lbl: 'Fueron', val: pct(k.asistencia_pct), det: nota, extra: dif('asistencia_pct') },
+      { lbl: 'Volverían', val: pct(k.volverian_pct), det: nota, extra: dif('volverian_pct') },
+      { lbl: 'Bienestar promedio', val: k.bienestar_promedio == null ? ND : String(k.bienestar_promedio).replace('.', ','), det: 'sobre 5 · pregunta opcional', extra: dif('bienestar_promedio', '') },
       { lbl: 'Reportes de seguridad', val: fmt.format(k.reportes), det: 'los revisa moderación' },
     ];
-    $('#kpis').innerHTML = tiles.map((t) => `
-      <div class="kpi${t.hero ? ' hero' : ''}">
-        <div class="lbl">${t.lbl}</div>
-        <div class="val">${t.val}</div>
-        <div class="det">${t.det}</div>
+    const previos = kpisPrevios;
+    $('#kpis').innerHTML = tiles.map((x) => `
+      <div class="kpi${x.hero ? ' hero' : ''}">
+        <div class="lbl">${x.lbl}</div>
+        <div class="val">${x.val}</div>
+        ${x.extra || ''}
+        <div class="det">${x.det}</div>
       </div>`).join('');
+    // lo que cambió desde la consulta anterior (por ejemplo, alguien se registró en la app) destella
+    const valores = tiles.map((x) => `${datos.fecha}|${x.val}`);
+    if (previos && previos.length === valores.length) {
+      document.querySelectorAll('#kpis .kpi').forEach((el, i) => {
+        if (previos[i] !== valores[i] && previos[i].split('|')[0] === datos.fecha) el.classList.add('cambio');
+      });
+    }
+    kpisPrevios = valores;
   }
 
   function fila(nombre, valor, maximo, etiqueta, { base = null, titulo = '' } = {}) {
@@ -138,7 +268,7 @@
           },
         },
         scales: {
-          y: { min: 0, max: 100, ticks: { stepSize: 25, callback: (v) => `${v} %`, color: css('--ink-muted'), font: { family: 'Barlow' } },
+          y: { min: 40, max: 100, ticks: { stepSize: 20, callback: (v) => `${v} %`, color: css('--ink-muted'), font: { family: 'Barlow' } },
                grid: { color: '#ecece8' }, border: { display: false } },
           x: { ticks: { color: css('--ink-muted'), font: { family: 'Barlow' } }, grid: { display: false }, border: { color: '#d6d6d1' } },
         },
@@ -167,6 +297,7 @@
     if (!window.L) return;
     if (!mapa) {
       mapa = L.map('mapa', { scrollWheelZoom: false, zoomControl: true }).setView([3.435, -76.515], 12);
+      setTimeout(() => mapa.invalidateSize(), 0);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 17, attribution: '&copy; colaboradores de OpenStreetMap',
       }).addTo(mapa);
@@ -174,9 +305,10 @@
     if (capaMapa) capaMapa.remove();
     capaMapa = L.layerGroup().addTo(mapa);
     const color = css('--data-1');
+    mapa.fitBounds(datos.por_tramo.map((x) => [x.lat, x.lng]), { padding: [28, 28], maxZoom: 14 });
     datos.por_tramo.forEach((t) => {
-      const r = 5 + 3 * Math.sqrt(t.con_parche);
-      L.circleMarker([t.lat, t.lng], { radius: r, color, weight: 2, fillColor: color, fillOpacity: 0.3 })
+      const r = 4 + 1.1 * Math.sqrt(t.con_parche);
+      L.circleMarker([t.lat, t.lng], { radius: r, color: '#ffffff', weight: 2, fillColor: color, fillOpacity: 0.55 })
         .bindTooltip(`<b>${esc(t.nombre)}</b> · comuna ${t.comuna}<br>${t.parches} parches · ${t.con_parche} con parche · ${t.fueron} fueron`)
         .addTo(capaMapa);
     });
@@ -219,11 +351,18 @@
     try {
       await cargarJornadas();
       await cargarResumen();
+      marcarVivo(true);
     } catch (e) {
+      marcarVivo(false);
       $('#kpis').innerHTML = `<div class="kpi"><div class="lbl">No se pudo cargar el tablero</div><div class="det">${esc(e.message)}</div></div>`;
     }
   }
+  if (window.PARCHES_APP) {
+    const a = $('#abrir-app');
+    a.href = window.PARCHES_APP;
+    a.hidden = false;
+  }
   iniciar();
   // se refresca solo durante la demo, conservando la jornada elegida
-  setInterval(() => cargarJornadas().then(cargarResumen).catch(() => {}), 30000);
+  setInterval(() => cargarJornadas().then(cargarResumen).then(() => marcarVivo(true)).catch(() => marcarVivo(false)), 10000);
 })();

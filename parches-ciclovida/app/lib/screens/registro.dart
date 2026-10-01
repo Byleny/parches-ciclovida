@@ -51,6 +51,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
   String? _tramo;
   String? _actividad;
   String? _ritmo;
+  String? _primeraVez; // 'si' | 'no' | null (opcional)
   bool _aceptaDatos = false;
   bool _declaraMayor = false;
   bool _permisoAcudiente = false;
@@ -149,6 +150,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         'tramo_id': _tramo,
         'actividad': _actividad,
         'ritmo': _ritmo,
+        'primera_vez': _primeraVez == null ? null : _primeraVez == 'si',
         'acepta_datos': _aceptaDatos,
         'declara_mayor': !_esMenor && _declaraMayor,
         'permiso_acudiente': _permisoAcudiente,
@@ -291,6 +293,15 @@ class _RegistroScreenState extends State<RegistroScreen> {
           SelectorOpciones(opciones: cat.ritmos, valor: _ritmo, onChanged: (v) => setState(() => _ritmo = v)),
           const TituloSeccion('¿Qué estación te queda cerca?', ayuda: 'Opcional. Te mostramos primero los parches que salen de ahí.'),
           SelectorEstacion(catalogo: cat, comuna: _comuna, valor: _tramo, onChanged: (v) => setState(() => _tramo = v)),
+          const TituloSeccion('¿Habías ido antes a la CicloVida?', ayuda: 'Opcional. Nos ayuda a saber si logramos que más jóvenes la conozcan.'),
+          SelectorOpciones(
+            opciones: const [
+              Opcion(id: 'no', nombre: 'Sí, ya había ido'),
+              Opcion(id: 'si', nombre: 'No, sería mi primera vez'),
+            ],
+            valor: _primeraVez,
+            onChanged: (v) => setState(() => _primeraVez = v),
+          ),
         ];
       default:
         return _pasoAutorizacion(cat);

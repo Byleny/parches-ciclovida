@@ -53,11 +53,14 @@ services:
     runtime: static
     rootDir: parches-ciclovida/backend/static/tablero
     buildCommand: >-
-      echo "window.PARCHES_API = '${API_URL:-https://parches-backend.onrender.com}';" > config.js
+      echo "window.PARCHES_API = '${API_URL:-https://parches-backend.onrender.com}'; window.PARCHES_APP = '${APP_URL:-https://parches-app.onrender.com}';" > config.js
     staticPublishPath: ./
     envVars:
       # URL pública de parches-backend. Vacía = https://parches-backend.onrender.com
       - key: API_URL
+        sync: false
+      # URL pública de parches-app (el botón "Abrir la app"). Vacía = https://parches-app.onrender.com
+      - key: APP_URL
         sync: false
     headers:
       # app.js y config.js no cambian de nombre: sin caché, cada despliegue se ve de una

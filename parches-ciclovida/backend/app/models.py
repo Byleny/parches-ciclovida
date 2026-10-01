@@ -48,6 +48,8 @@ class Joven(SQLModel, table=True):
     #         respuestas; queda también para las cuentas que respondieron antes de guardarlas)
     quiz_respuestas: dict | None = Field(default=None, sa_type=JSON)
     quiz: str | None = None
+    # "¿Habías ido antes a la CicloVida?" Línea base para medir cuántos llegan gracias a la app. None = no respondió.
+    primera_vez: bool | None = None
     sintetico: bool = False  # datos de demostración generados por seed.py
     creado_en: datetime = Field(default_factory=_ahora, sa_type=DateTime)
 

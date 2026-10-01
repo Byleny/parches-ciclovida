@@ -196,3 +196,26 @@ def test_sembrar_con_jornadas_pasadas_ya_creadas():
             s.add(Jornada(fecha=proximo - timedelta(days=7), estado="finalizada"))
             s.commit()
         assert sembrar(total=120)["jovenes"] == 120
+
+
+def test_tablero_trae_indicadores_del_reto_y_respeta_el_anonimato():
+    from app import config
+
+    SQLModel.metadata.drop_all(engine)
+    with TestClient(app) as c:
+        sembrar(total=600)
+        r = c.get("/api/tablero/resumen").json()
+        k = config.K_CONTEO
+        assert {a["actividad"] for a in r["reparto_modal"]} == {"bici", "patines", "trotar", "caminar"}
+        assert r["origen_destino"]["pares"], r["origen_destino"]
+        assert all(p["n"] >= k for p in r["origen_destino"]["pares"])  # nunca un par con pocos jóvenes
+        assert r["universidades"] and r["tejido"]["grupos"] > 0
+        assert r["participacion"]["primera_vez_pct"] is not None
+        assert r["lecturas"] and all(isinstance(f, str) for f in r["lecturas"])
+        assert all("nuevos" in t and "recurrentes" in t for t in r["tendencia"])
+        # el último domingo simulado tiene gente que ya había ido antes
+        assert r["tendencia"][-1]["recurrentes"] > 0
+
+        # la pregunta nueva del registro llega al perfil y al tablero
+        tok = nuevo(c, "Ana", primera_vez=True)
+        assert c.get("/api/yo", headers=auth(tok)).status_code == 200

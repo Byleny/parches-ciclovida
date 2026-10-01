@@ -428,6 +428,14 @@ Cómo queda cada uno:
   parche con más gente de este domingo y trae cuatro domingos pasados con grupo y encuesta (historial
   y racha con datos). El backend la crea al arrancar (y `python -m app.seed --reset` también), así
   que no hace falta subir `parches.db` al repositorio.
+- **Tablero para el reto.** Además de la operación, el tablero muestra lo que pide el reto (recuperar
+  el tejido social y subir la participación universitaria): reparto modal (bici, patines, trotar,
+  caminar), viajes de ocio de la comuna donde vive cada joven a la estación (matriz origen-destino,
+  solo pares con K o más jóvenes), participación por universidad, grupos que mezclan universidades,
+  línea base de nuevos y recurrentes, y frases listas para la Secretaría. En el registro hay una
+  pregunta opcional, "¿habías ido antes a la CicloVida?", para medir cuántos llegan por primera vez.
+  El problema, su tamaño y el valor público se editan en `backend/static/tablero/contexto.js`; una
+  cifra solo se muestra si trae su fuente.
 - **Match de una.** Si cualquier persona nueva pide un parche sin gente, el backend le suma
   simulados de su misma actividad (los más cercanos en estación, hora y ritmo) y queda inscrita al
   instante; el sábado (o "Armar los grupos" en la app) le sale su grupo. Aplica a todas las

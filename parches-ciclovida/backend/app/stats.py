@@ -15,7 +15,7 @@ from statistics import mean
 from sqlmodel import Session, select
 
 from . import config
-from .catalog import ACTIVIDADES_POR_ID, COMUNAS, FRANJA_NOMBRE, TRAMOS, tramo_info
+from .catalog import ACTIVIDADES, ACTIVIDADES_POR_ID, COMUNAS, FRANJA_NOMBRE, TRAMOS, UNIVERSIDADES, tramo_info
 from .models import Asignacion, Encuesta, Grupo, Jornada, Joven, Reporte
 
 
@@ -47,8 +47,12 @@ def _metricas_jornada(session: Session, fecha: date) -> dict:
     encuestas = session.exec(select(Encuesta).where(Encuesta.jornada_fecha == fecha)).all()
     asistieron = [e for e in encuestas if e.asistio]
     bienestar = [e.bienestar for e in asistieron if e.bienestar]
+    antes = set(session.exec(select(Asignacion.joven_id).where(Asignacion.jornada_fecha < fecha)).all())
+    recurrentes = sum(1 for a in asign if a.joven_id in antes)
     return {
         "fecha": str(fecha),
+        "nuevos": len(asign) - recurrentes,
+        "recurrentes": recurrentes,
         "emparejados": len(asign),
         "parches": len({a.grupo_id for a in asign}),
         "confirmados": sum(1 for a in asign if a.estado == "confirmado"),
@@ -60,6 +64,96 @@ def _metricas_jornada(session: Session, fecha: date) -> dict:
         "volverian_pct": _pct(sum(1 for e in encuestas if e.volveria), len(encuestas)),
         "confirmacion_pct": _pct(sum(1 for a in asign if a.estado == "confirmado"), len(asign)),
     }
+
+
+def _indicadores_reto(jovenes: dict, asign: list, grupos: dict) -> dict:
+    """Lo que le sirve a la Secretaría para el reto: reparto modal, viajes de ocio (comuna de residencia
+    → estación), participación universitaria y tejido social. Todo agregado, con el mismo mínimo K."""
+    k = config.K_CONTEO
+    con_grupo = [(a, jovenes[a.joven_id], grupos[a.grupo_id]) for a in asign if a.joven_id in jovenes and a.grupo_id in grupos]
+
+    por_act = Counter(g.actividad for _, _, g in con_grupo)
+    reparto_modal = [
+        {"actividad": a["id"], "nombre": a["nombre"], "familia": a["familia"], "n": _conteo(por_act[a["id"]])}
+        for a in ACTIVIDADES
+    ]
+
+    od = Counter((j.comuna, g.tramo_id) for _, j, g in con_grupo)
+    visibles = sorted(((c, t, n) for (c, t), n in od.items() if n >= k), key=lambda x: (-x[2], x[0], x[1]))
+    origen_destino = {
+        "pares": [{"comuna": c, "tramo": t, "estacion": tramo_info(t)["nombre"], "n": n} for c, t, n in visibles[:12]],
+        "ocultos": sum(1 for n in od.values() if n < k),  # pares con menos de K jóvenes: no se muestran
+        "total_pares": len(od),
+    }
+
+    por_uni = Counter(j.universidad for _, j, _ in con_grupo)
+    universidades = [
+        {"id": u["id"], "nombre": u["corto"], "n": _conteo(por_uni[u["id"]])}
+        for u in UNIVERSIDADES if por_uni[u["id"]]
+    ]
+    universidades.sort(key=lambda u: -(u["n"]["valor"] or 0))
+
+    unis_grupo: dict[int, set] = defaultdict(set)
+    for _, j, g in con_grupo:
+        unis_grupo[g.id].add(j.universidad)
+    mixtos = sum(1 for u in unis_grupo.values() if len(u) >= 2)
+    tejido = {
+        "grupos": len(unis_grupo),
+        "mixtos": mixtos,
+        "mixtos_pct": _pct(mixtos, len(unis_grupo)),
+        "universidades_por_grupo": _promedio([len(u) for u in unis_grupo.values()]) if len(unis_grupo) >= config.K_PROMEDIO else None,
+    }
+
+    respondieron = [j for _, j, _ in con_grupo if j.primera_vez is not None]
+    primera = sum(1 for j in respondieron if j.primera_vez)
+    participacion = {
+        "respondieron": len(respondieron),
+        "primera_vez_pct": _pct(primera, len(respondieron)) if len(respondieron) >= k else None,
+    }
+    return {
+        "reparto_modal": reparto_modal,
+        "origen_destino": origen_destino,
+        "universidades": universidades,
+        "tejido": tejido,
+        "participacion": participacion,
+        "lecturas": _lecturas(reparto_modal, origen_destino, universidades, tejido, participacion),
+    }
+
+
+def _lecturas(reparto, od, unis, tejido, participacion) -> list[str]:
+    """Frases listas para la Secretaría, solo con cifras que superan el mínimo de anonimato."""
+    frases = []
+    n1 = lambda v: f"{v:g}".replace(".", ",")  # noqa: E731  decimales con coma
+    modal = [r for r in reparto if r["n"]["valor"]]
+    total = sum(r["n"]["valor"] for r in modal)
+    if total:
+        top = max(modal, key=lambda r: r["n"]["valor"])
+        a_pie = sum(r["n"]["valor"] for r in modal if r["familia"] == "a_pie")
+        frases.append(
+            f"{n1(_pct(top['n']['valor'], total))} % de los jóvenes con parche eligió {top['nombre'].lower()}; "
+            f"{n1(_pct(a_pie, total))} % va a pie y {n1(_pct(total - a_pie, total))} % sobre ruedas."
+        )
+    if od["pares"]:
+        p = od["pares"][0]
+        frases.append(
+            f"El viaje de ocio más frecuente sale de la comuna {p['comuna']} hacia la estación {p['estacion']} "
+            f"({p['n']} jóvenes): ahí conviene reforzar el acompañamiento y la movilidad."
+        )
+    if unis:
+        frases.append(
+            f"Participan {len(unis)} universidades; la que más aporta es {unis[0]['nombre']}."
+        )
+    if tejido["mixtos_pct"] is not None:
+        frases.append(
+            f"{n1(tejido['mixtos_pct'])} % de los grupos reúne a estudiantes de 2 o más universidades: "
+            "gente que no se conocía empieza a compartir el espacio público."
+        )
+    if participacion["primera_vez_pct"] is not None:
+        frases.append(
+            f"{n1(participacion['primera_vez_pct'])} % de quienes respondieron nunca había ido a la CicloVida: "
+            "es participación nueva, no solo la de siempre."
+        )
+    return frases
 
 
 def resumen(session: Session, fecha: date) -> dict:
@@ -156,9 +250,12 @@ def resumen(session: Session, fecha: date) -> dict:
         if j.estado == "finalizada"
     ]
 
+    reto = _indicadores_reto(jovenes, asign, grupos)
+
     return {
         "fecha": str(fecha),
         "estado": jornada.estado if jornada else "sin_datos",
+        **reto,
         "datos_sinteticos": any(j.sintetico for j in jovenes.values()),
         "anonimato": {"k_conteo": config.K_CONTEO, "k_promedio": config.K_PROMEDIO},
         "kpis": kpis,
