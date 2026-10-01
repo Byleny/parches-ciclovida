@@ -181,3 +181,18 @@ def test_match_de_una_aunque_el_parche_pedido_este_vacio(monkeypatch):
         monkeypatch.setattr(config, "RELLENAR_CON_SIMULADOS", False)
         tok = nuevo(c, "Otro", tramo_id="brisas", franja="11:00", actividad="patines")
         assert c.post("/api/yo/match", headers=auth(tok)).json()["estado"] == "en_espera"
+
+
+def test_sembrar_con_jornadas_pasadas_ya_creadas():
+    """En Render, una petición puede abrir (y cerrar) un domingo pasado antes de que termine la carga:
+    la siembra tiene que reutilizarlo en vez de chocar con la clave de la jornada."""
+    from datetime import timedelta
+    from app.models import Jornada
+
+    SQLModel.metadata.drop_all(engine)
+    with TestClient(app):
+        proximo = services.proximo_domingo(services.ahora().date())
+        with Session(engine) as s:
+            s.add(Jornada(fecha=proximo - timedelta(days=7), estado="finalizada"))
+            s.commit()
+        assert sembrar(total=120)["jovenes"] == 120

@@ -205,7 +205,10 @@ def sembrar(total: int | None = None, semanas: int = 4, reset: bool = False, sem
                     creados += 1
             s.commit()
 
-            s.add(Jornada(fecha=domingo))
+            # puede existir ya (otra petición la abre sola, y finalizar_vencidas la cierra): se rehace limpia
+            previa = s.get(Jornada, domingo) or Jornada(fecha=domingo)
+            previa.estado, previa.emparejada_en, previa.finalizada_en = "inscripcion", None, None
+            s.add(previa)
             s.commit()
             services.asegurar_parches(s, domingo)
             jovenes = s.exec(select(Joven).where(Joven.sintetico == True).order_by(Joven.id)).all()  # noqa: E712
