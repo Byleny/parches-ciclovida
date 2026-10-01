@@ -156,3 +156,28 @@ def test_cuenta_demo_existe_antes_de_los_simulados_y_despues_recibe_su_historial
             antes = len(s.exec(select(Asignacion).where(Asignacion.joven_id == seed.DEMO_ID)).all())
             seed.asegurar_demo(s)
             assert len(s.exec(select(Asignacion).where(Asignacion.joven_id == seed.DEMO_ID)).all()) == antes
+
+
+def test_match_de_una_aunque_el_parche_pedido_este_vacio(monkeypatch):
+    """Demo con un cliente: cualquier estación, hora y actividad que elija una persona nueva le da
+    parche con gente al instante (se suman simulados) y el sábado queda en un grupo."""
+    from app import config
+
+    SQLModel.metadata.drop_all(engine)
+    with TestClient(app) as c:
+        sembrar(total=240)
+        toks = []
+        for tramo, franja, actividad in [("panamericana", "08:00", "bici"), ("dorada", "09:30", "caminar"),
+                                         ("ingenio", "11:00", "patines"), ("la-luna", "08:00", "trotar")]:
+            tok = nuevo(c, "Cliente", tramo_id=tramo, franja=franja, actividad=actividad)
+            e = c.post("/api/yo/match", headers=auth(tok)).json()
+            assert e["estado"] == "inscrito", (tramo, franja, actividad, e)
+            assert e["salida"]["inscritos"] >= 2
+            toks.append(tok)
+        armar(c)
+        for tok in toks:
+            assert c.get("/api/yo/parche", headers=auth(tok)).json()["estado"] == "asignado"
+
+        monkeypatch.setattr(config, "RELLENAR_CON_SIMULADOS", False)
+        tok = nuevo(c, "Otro", tramo_id="brisas", franja="11:00", actividad="patines")
+        assert c.post("/api/yo/match", headers=auth(tok)).json()["estado"] == "en_espera"

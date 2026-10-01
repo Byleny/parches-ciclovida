@@ -428,6 +428,10 @@ Cómo queda cada uno:
   parche con más gente de este domingo y trae cuatro domingos pasados con grupo y encuesta (historial
   y racha con datos). El backend la crea al arrancar (y `python -m app.seed --reset` también), así
   que no hace falta subir `parches.db` al repositorio.
+- **Match de una.** Si cualquier persona nueva pide un parche sin gente, el backend le suma
+  simulados de su misma actividad (los más cercanos en estación, hora y ritmo) y queda inscrita al
+  instante; el sábado (o "Armar los grupos" en la app) le sale su grupo. Aplica a todas las
+  cuentas y actividades; se apaga con `RELLENAR_CON_SIMULADOS=0`.
 - **Plan gratis.** El backend se duerme tras 15 minutos sin visitas. La primera petición después
   tarda cerca de un minuto: si la app muestra "No pudimos conectarnos", toca **Reintentar**. Antes
   de presentar, abre `https://<backend>/api/salud` y espera el `{"ok":true}`. Mientras duerme,

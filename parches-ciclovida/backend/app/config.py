@@ -35,6 +35,11 @@ SCHEDULER_ON = os.getenv("SCHEDULER", "1") == "1"
 # cada despliegue o reinicio: así la demo nunca sale en blanco.
 SEMBRAR_AL_INICIAR = os.getenv("SEMBRAR_AL_INICIAR", "0") == "1"
 
+# Si una persona real pide un parche sin gente (cualquier estación, hora o actividad), se le suman
+# jóvenes simulados para que el match salga de una; sin esto casi siempre queda en lista de espera.
+# Aplica a todas las cuentas. Con RELLENAR_CON_SIMULADOS=0 se apaga y vuelve la lista de espera.
+RELLENAR_CON_SIMULADOS = os.getenv("RELLENAR_CON_SIMULADOS", "1") == "1"
+
 GRUPO_MIN = int(os.getenv("GRUPO_MIN", "3"))
 GRUPO_OBJETIVO = int(os.getenv("GRUPO_OBJETIVO", "5"))
 GRUPO_MAX = int(os.getenv("GRUPO_MAX", "6"))

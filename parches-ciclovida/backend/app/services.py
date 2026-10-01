@@ -321,6 +321,45 @@ def _afinidad(joven: Joven, s: Salida, gente: list[Joven]) -> tuple:
     )
 
 
+def _traer_simulados(session: Session, joven: Joven, fecha: date) -> int:
+    """El parche que pidió una persona real está vacío, así que se le suman jóvenes simulados.
+
+    Los 1.500 simulados se reparten en cientos de combinaciones de estación, hora y actividad; con
+    solo elegir una, la probabilidad de que ya tenga gente es baja y el match nunca llegaba. Se
+    mueven desde otros parches (los más llenos), con su misma actividad y las más parecidas en
+    estación, hora y ritmo, hasta dejar GRUPO_OBJETIVO personas contando a quien llega. Devuelve
+    cuántos se sumaron; 0 si no hay parche exacto o no quedan simulados.
+    """
+    objetivo = [s for s, _ in _candidatas(session, joven, fecha)]
+    if not objetivo:
+        return 0
+    destino = min(objetivo, key=lambda s: s.id or 0)
+    simulados = session.exec(select(Joven).where(
+        Joven.sintetico == True, Joven.suspendido == False,  # noqa: E712
+        Joven.actividad == destino.actividad,
+    )).all()
+    simulados = [x for x in simulados if SEGMENTO_EDAD[x.rango_edad] == destino.segmento and x.pausa_fecha != fecha]
+    if not simulados:
+        return 0
+    inscritas = Counter(i.joven_id for i in session.exec(select(Inscripcion).where(Inscripcion.jornada_fecha == fecha)).all())
+    enparche = {i.joven_id: i.salida_id for i in session.exec(select(Inscripcion).where(Inscripcion.jornada_fecha == fecha)).all()}
+    tamano = Counter(enparche.values())
+    elegibles = [x for x in simulados if enparche.get(x.id) != destino.id]
+    elegibles.sort(key=lambda x: (
+        x.tramo_id != destino.tramo_id,
+        abs(FRANJA_ORDEN[x.franja] - FRANJA_ORDEN[destino.franja]) if x.franja else 0,
+        abs(RITMO_ORDEN[x.ritmo] - RITMO_ORDEN[joven.ritmo]),
+        x.id not in inscritas,  # primero los que ya tienen parche: quien no, no se movería de nada
+        -tamano.get(enparche.get(x.id), 0),
+        x.id,
+    ))
+    sumados = 0
+    for x in elegibles[: max(config.GRUPO_OBJETIVO - 1, config.GRUPO_MIN)]:
+        unirse(session, x, destino.id)
+        sumados += 1
+    return sumados
+
+
 def emparejar_automatico(
     session: Session, joven: Joven, momento: datetime | None = None, avisar_telegram: bool = True,
 ) -> dict:
@@ -337,6 +376,8 @@ def emparejar_automatico(
     if _inscripcion(session, joven.id, j.fecha):
         return {"resultado": "ya_inscrito"}
     con_gente = [(s, gente) for s, gente in _candidatas(session, joven, j.fecha) if gente]
+    if not con_gente and config.RELLENAR_CON_SIMULADOS and not joven.sintetico and _traer_simulados(session, joven, j.fecha):
+        con_gente = [(s, gente) for s, gente in _candidatas(session, joven, j.fecha) if gente]
     if con_gente:
         s, gente = min(con_gente, key=lambda par: _afinidad(joven, par[0], par[1]))
         unirse(session, joven, s.id)  # también borra la espera si la había
